@@ -8,7 +8,7 @@ echo.
 echo Kodlar GitHub repozitoriyasiga yuklanmoqda...
 echo (Agar brauzerda GitHub oynasi ochilsa, "Sign in with your browser" ni bosing)
 echo.
-git push -u origin main
+git push -f origin main
 echo.
 if %errorlevel% equ 0 (
     echo ========================================================
