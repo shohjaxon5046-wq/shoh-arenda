@@ -323,25 +323,47 @@ async function processUserMessage(rawMessage, role = 'customer', adminPin = '') 
         }
     }
 
-    // 1. If Gemini API Key provided and selected
-    if (provider === 'gemini' && apiKey) {
+    // 1. Try Live Gemini LLM via backend /api/chat endpoint
+    try {
+        const chatReq = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: text,
+                role: role,
+                admin_pin: adminPin,
+                api_key: apiKey || undefined,
+                messages: chatHistory.map(m => ({ role: m.sender === 'user' ? 'user' : 'model', text: m.content || m.text }))
+            })
+        });
+
+        if (chatReq.ok) {
+            const data = await chatReq.json();
+            if (data.reply) {
+                return {
+                    reply: data.reply,
+                    live_llm: !!data.live_llm,
+                    model: data.model || 'gemini-1.5-flash',
+                    need_api_key: !!data.need_api_key,
+                    function_called: data.function_called || null,
+                    function_result: data.function_result || null
+                };
+            }
+        }
+    } catch (backendErr) {
+        console.warn("Backend /api/chat ga ulanishda xatolik, lokal qatlamga o'tilmoqda:", backendErr);
+    }
+
+    // 2. Direct browser Gemini API call if API key is provided
+    if (apiKey) {
         try {
             return await callGeminiLLM(text, settings, role, adminPin);
         } catch (e) {
-            console.warn("Gemini API call failed, falling back to Intelligent Native Engine:", e);
+            console.warn("Brauzerdan to'g'ridan-to'g'ri Gemini chaqiruvi muvaffaqiyatsiz bo'ldi:", e);
         }
     }
 
-    // 2. If OpenAI API Key provided and selected
-    if (provider === 'openai' && apiKey) {
-        try {
-            return await callOpenAILLM(text, settings, role, adminPin);
-        } catch (e) {
-            console.warn("OpenAI API call failed, falling back to Intelligent Native Engine:", e);
-        }
-    }
-
-    // 3. Built-in Intelligent Function Calling Engine (Instant, Offline, 100% Guaranteed)
+    // 3. Built-in Intelligent Function Calling Fallback Engine
     return runIntelligentRuleEngine(text, role, adminPin);
 }
 
@@ -402,6 +424,17 @@ function runIntelligentRuleEngine(text, role, adminPin) {
     }
 
     // C. Check External Services (Kran, Musor, Gruzchik)
+    if (lower.includes('musor') || lower.includes('axlat') || lower.includes('chiqindi')) {
+        const hasDetails = lower.includes('qop') || lower.includes('gazel') || lower.includes('zil') || lower.includes('kamaz');
+        if (!hasDetails) {
+            return {
+                reply: `Assalomu alaykum! Qurilish chiqindilarini (musor) mamnuniyat bilan olib ketamiz.\n\nSizga eng maqbul va aniq narxni hisoblab berishim uchun quyidagilarni aytib bera olasizmi:\n1. 📦 Chiqindingiz taxminan qancha hajmda: qoplardami (necha qop) yoki mashina to'lami (Gazel, ZIL yoki KamAZ)?\n2. 🏢 Bino nechanchi qavatda va lift bormi?\n3. 👷 Yuklash uchun biz tomondan gruzchiklar (ishchilar) kerakmi?\n\n💡 **Asosiy tariflarimiz:**\n• Gazel (1.5t gacha / 40-50 qop) — **400 000 so'm** / reys\n• ZIL (5-6t gacha / 150 qop) — **800 000 so'm** / reys\n• KamAZ (10-15t gacha / 300 qop) — **1 500 000 so'm** / reys\n• Qoplab tashish: 1 qop = **12 000 so'm** (min 20 qop). Mashinaga ortish: 150 000 so'm (yoki 3 000 so'm/qop, qavatdan tushirish: +2 000 so'm/qavat).\n\nShularni aytsangiz, darhol aniq narxni hisoblab beraman!`,
+                function_called: "get_service_price",
+                function_result: { service: "musor" }
+            };
+        }
+    }
+
     if (lower.includes('kran') || lower.includes('musor') || lower.includes('axlat') || lower.includes('chiqindi') || lower.includes('gruzchik') || lower.includes('yukchi') || lower.includes('ko\'tarish')) {
         let cat = 'kran';
         if (lower.includes('musor') || lower.includes('axlat') || lower.includes('chiqindi')) cat = 'musor_olib_ketish';

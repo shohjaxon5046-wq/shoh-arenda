@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const PORT = process.env.PORT || 3000;
@@ -152,6 +153,155 @@ const MIME_TYPES = {
     '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon'
 };
+
+// =========================================================================
+// REAL GOOGLE GEMINI 1.5 FLASH AI INTEGRATION
+// =========================================================================
+const GEMINI_SYSTEM_INSTRUCTION = `Sen "WMS ARENDA" qurilish asboblari ijarasi va maxsus xizmatlar platformasining 24/7 ishlovchi jonli, samimiy, xushmuomala AI maslahatchisi hamda sotuvchi-operatorisan.
+Isming: WMS Arenda AI Yordamchisi.
+Mijoz qaysi tilda murojaat qilsa (O'zbek yoki Rus), xuddi shu tilda ravon, tabiiy, do'stona va professional javob ber.
+
+ASOSIY VAZIFALAR VA QOIDALAR:
+1. Sen qurilish asboblari ijarasi, kran xizmati, musor (chiqindi) olib ketish va gruzchik (yuk tashish) xizmatlari bo'yicha mijozlarga to'liq ma'lumot berasan, narxlarni aniq hisoblab berasan va buyurtmalarni qabul qilasan.
+2. Omborda yo'q asbobni hech qachon "bor" deb aldamagin. Faqat quyidagi bazadagi asboblar va narxlar asosida javob ber. Narxlarni o'zboshimchalik bilan o'zgartirma.
+3. Jonli insondek, o'ta xushmuomala va yordamga shay bo'l.
+
+KATALOG VA ANIQ TARIFLAR BAZASI:
+
+1. QURILISH ASBOBLARI IJARASI (Omborda mavjud modellar):
+• Perforator Bosch GBH 2-26 DRE — 1 kunlik ijara: 80 000 so'm, Zalog (garov): 400 000 so'm (bur'gilar to'plami va keysi bilan).
+• Otboynik (Otboyniy molotok) Makita HM1203C — 1 kunlik ijara: 150 000 so'm, Zalog: 700 000 so'm (og'ir zarbali, pika va lopatka bilan).
+• Benzin generator Honda 5.5 kVt — 1 kunlik ijara: 200 000 so'm, Zalog: 1 000 000 so'm (220V kabel va leykasi bilan).
+• Payvandlash apparati (Svarka) Resanta SAI 220 — 1 kunlik ijara: 60 000 so'm, Zalog: 300 000 so'm (xameleon maska va kabel bilan).
+• Bolgarka (UGM) Makita 230mm — 1 kunlik ijara: 70 000 so'm, Zalog: 350 000 so'm (himoya qopqog'i va kaliti bilan).
+• Vibroplita (Trambovka) 90 kg — 1 kunlik ijara: 180 000 so'm, Zalog: 800 000 so'm (rezina taglik bilan).
+
+2. AVTOKRAN XIZMATI:
+• 16 tonna: 1 soati 300 000 so'm (Minimal buyurtma: 2 soat).
+• 25 tonna: 1 soati 350 000 so'm (Minimal buyurtma: 3 soat).
+• 50 tonna: 1 soati 600 000 so'm (Minimal buyurtma: 4 soat).
+• Shahardan tashqariga chiqish (yo'l kira): 1 km uchun 15 000 so'm qo'shimcha.
+• Barcha kranlar malakali haydovchi-mashinist bilan xizmat ko'rsatadi.
+
+3. QURILISH CHIQINDILARINI (MUSOR) OLIB KETISH:
+• Mashina turi bo'yicha (1 reys narxi):
+  - Gazel (1.5 tonna yoki 40-50 qopgacha) = 400 000 so'm / reys.
+  - ZIL (5-6 tonna yoki 150 qopgacha) = 800 000 so'm / reys.
+  - KamAZ (10-15 tonna yoki 300 qopgacha) = 1 500 000 so'm / reys.
+• Qoplab tashish tarifi: 1 qop uchun 12 000 so'm (minimal buyurtma: 20 qop).
+• Mashinaga yuklash (yuk ortish): Mashina uchun 150 000 so'm yoki 1 qopga 3 000 so'm.
+• Agar etajdan (qavatdan) tushirish kerak bo'lsa: har bir qavat uchun 1 qopga +2 000 so'm qo'shiladi.
+• MUHIM QOIDA: Agar mijoz "Musor qancha bo'ladi?", "Musor narxi qancha?", "Сколько стоит вывоз мусора?" deb umumiy so'rasa — birdaniga bitta narx aytib ketma! Darhol samimiy va xushmuomala tarzda hajmini aniqlashtir:
+  "Assalomu alaykum! Qurilish chiqindilarini (musor) mamnuniyat bilan olib ketamiz. Sizga eng maqbul va aniq narxni hisoblab berishim uchun quyidagilarni aytib bera olasizmi:
+  1. Chiqindingiz taxminan qancha hajmda: qoplardami (necha qop) yoki mashina to'lami (Gazel, ZIL yoki KamAZ)?
+  2. Bino nechanchi qavatda va lift bormi?
+  3. Chiqindini mashinaga yuklash uchun biz tomondan gruzchiklar (ishchilar) kerakmi?
+  Shularni aytsangiz, narxini darhol aniq hisoblab beraman!" deb so'ra.
+  Mijoz parametrlarni (masalan, 30 ta qop, 4-etaj, liftsiz) aytishi bilan darhol to'liq narxni formula bo'yicha hisoblab ko'rsat.
+
+4. GRUZCHIK (YUK TASHISH) XIZMATI:
+• Qavatlarga ko'tarish/tushirish: 1 qop (50 kg) sement/qorishma uchun 1 qavatga 3 000 so'm.
+• Agar lift ishlasa: qavatidan qat'i nazar 1 qop uchun 1 500 so'm.
+• Soatbay ish: 1 ishchi uchun 1 soatiga 50 000 so'm (minimal buyurtma: 2 soat).
+• Ishchilar soni tavsiyasi: 500 kg gacha — 1 kishi; 500 kg dan 1.5 tonnagacha — 2 kishi; 1.5 t dan 3 tonnagacha — 3-4 kishi; 3 tonnadan oshsa — 4+ kishi.
+
+5. BUYURTMA RASMIYLASHTIRISH:
+• Mijoz biror xizmat yoki asbobni zakaz qilmoqchi bo'lsa yoki telefon raqamini yozsa:
+  "Katta rahmat! Buyurtmangiz qabul qilindi. Operatorimiz 5 daqiqada siz bilan bog'lanib, barcha tafsilotlarni tasdiqlaydi. Iltimos, ismingiz, aniq yetkazib berish manzili va qulay vaqtni ham yozib qoldiring!" deb iliq javob ber.
+
+6. BOSH ADMIN HISOBOTI (MAXFIY):
+• Foydalanuvchi "kassa", "hisobot", "foyda", "kechikkan asboblar" so'rasa, faqat maxfiy PIN kod "7788" (yoki /admin 7788) kiritilgan bo'lsa javob ber:
+  - Bugungi kassa tushumi: 1 450 000 so'm
+  - Saqlanayotgan zaloglar: 1 100 000 so'm
+  - Shu oylik sof foyda: 18 200 000 so'm
+  - Kechikkan buyurtmalar: 1 ta (Mijoz: Ali Valiyev, Tel: +998 90 123-45-67, Uskuna: Perforator Bosch GBH 2-26, 1 kun kechikkan).
+• Agar PIN kod kiritilmagan bo'lsa: "Kechirasiz, ushbu moliyaviy ma'lumotlar maxfiy! Hisobotni ko'rish uchun maxfiy PIN kodni yozing (masalan: /admin 7788)." deb javob ber.`;
+
+function callGoogleGeminiAPI(apiKey, userMessage, conversationHistory = []) {
+    return new Promise((resolve, reject) => {
+        if (!apiKey) {
+            return reject(new Error("API_KEY_REQUIRED"));
+        }
+
+        const contents = [];
+        if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+            conversationHistory.forEach(item => {
+                const text = item.text || item.content || '';
+                if (!text) return;
+                const role = (item.sender === 'user' || item.role === 'user') ? 'user' : 'model';
+                contents.push({ role, parts: [{ text }] });
+            });
+        }
+
+        contents.push({
+            role: 'user',
+            parts: [{ text: userMessage }]
+        });
+
+        const postData = JSON.stringify({
+            system_instruction: {
+                parts: [{ text: GEMINI_SYSTEM_INSTRUCTION }]
+            },
+            contents: contents,
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1200
+            }
+        });
+
+        const options = {
+            hostname: 'generativelanguage.googleapis.com',
+            port: 443,
+            path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        };
+
+        const apiReq = https.request(options, (apiRes) => {
+            let resBody = '';
+            apiRes.on('data', chunk => { resBody += chunk; });
+            apiRes.on('end', () => {
+                if (apiRes.statusCode >= 200 && apiRes.statusCode < 300) {
+                    try {
+                        const parsed = JSON.parse(resBody);
+                        const reply = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (reply) {
+                            resolve(reply.trim());
+                        } else {
+                            resolve("Kechirasiz, javobni shakllantirib bo'lmadi.");
+                        }
+                    } catch (e) {
+                        reject(new Error("Gemini javobini o'qishda xatolik: " + e.message));
+                    }
+                } else {
+                    let errMsg = `Gemini API xatosi (${apiRes.statusCode})`;
+                    try {
+                        const errParsed = JSON.parse(resBody);
+                        if (errParsed.error?.message) {
+                            errMsg += `: ${errParsed.error.message}`;
+                        }
+                    } catch (e) {}
+                    reject(new Error(errMsg));
+                }
+            });
+        });
+
+        apiReq.on('error', (err) => {
+            reject(new Error("Tarmoq xatosi: " + err.message));
+        });
+
+        apiReq.setTimeout(25000, () => {
+            apiReq.destroy();
+            reject(new Error("Gemini API javob berish vaqti tugadi (Timeout)."));
+        });
+
+        apiReq.write(postData);
+        apiReq.end();
+    });
+}
 
 const server = http.createServer((req, res) => {
     // 1. CORS Headers
@@ -316,93 +466,57 @@ const server = http.createServer((req, res) => {
     }
 
     // =========================================================================
-    // REST API ENDPOINTS FOR AI AGENT & TELEGRAM BOT (BO'LIM 9)
+    // =========================================================================
+    // REST API ENDPOINTS FOR AI AGENT & TELEGRAM BOT (BO'LIM 9 - REAL GEMINI API)
     // =========================================================================
 
-    // 5. POST /api/ai/chat (AI Assistant Chat Endpoint)
-    if (req.method === 'POST' && pathname === '/api/ai/chat') {
+    // 5. POST /api/chat & /api/ai/chat (Real Live Google Gemini LLM API Endpoint)
+    if (req.method === 'POST' && (pathname === '/api/chat' || pathname === '/api/ai/chat')) {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 const payload = JSON.parse(body || '{}');
-                const msg = (payload.message || '').toLowerCase();
-                const role = payload.role || 'customer';
-                const adminPin = payload.admin_pin || '';
+                const userMessage = (payload.message || '').trim();
+                const history = payload.messages || payload.history || [];
+                const apiKey = process.env.GEMINI_API_KEY || payload.api_key || '';
 
-                let reply = '';
-                let functionCalled = null;
-                let functionResult = null;
-
-                // A. Admin Stats Check
-                if (role === 'admin' || msg.includes('kassa') || msg.includes('hisobot') || msg.includes('foyda') || msg.includes('kechikkan') || msg.startsWith('/admin')) {
-                    if (adminPin === '7788' || msg.includes('7788') || role === 'admin') {
-                        const orders = loadWebOrders();
-                        functionCalled = "get_admin_daily_stats";
-                        functionResult = {
-                            authorized: true,
-                            today_income: 1450000,
-                            today_deposits: 1100000,
-                            monthly_net_profit: 18200000,
-                            delayed_count: 1,
-                            delayed_details: [
-                                { customer: "Ali Valiyev", phone: "+998 90 123-45-67", tool: "Perforator Bosch GBH 2-26", overdue: "1 kun kechikdi" }
-                            ]
-                        };
-                        reply = `👑 Bosh Admin Hisoboti:\n• Bugungi tushum: 1 450 000 so'm\n• Saqlanayotgan zaloglar: 1 100 000 so'm\n• Oylik sof foyda: 18 200 000 so'm\n• Kechikkan buyurtmalar: 1 ta (Ali Valiyev, +998 90 123-45-67)`;
-                    } else {
-                        reply = `🔒 Maxfiy ma'lumot! Admin hisobotini ko'rish uchun maxfiy PIN kodni yozing: /admin 7788`;
-                    }
-                } 
-                // B. Tool Availability Check
-                else if (msg.includes('perforator') || msg.includes('generator') || msg.includes('bolgarka') || msg.includes('svarka') || msg.includes('otboynik') || msg.includes('asbob') || msg.includes('bormi')) {
-                    const matched = PUBLIC_AVAILABLE_TOOLS.find(t => msg.includes(t.name.toLowerCase().split(' ')[0]) || msg.includes(t.brand.toLowerCase())) || PUBLIC_AVAILABLE_TOOLS[0];
-                    functionCalled = "check_tool_availability";
-                    functionResult = {
-                        found: true,
-                        model_name: matched.name,
-                        brand: matched.brand,
-                        available_count: matched.available_count,
-                        daily_price: matched.daily_price,
-                        deposit: matched.deposit_amount,
-                        specs: matched.specs
-                    };
-                    reply = `🔨 Ha, omborimizda ${matched.available_count} ta "${matched.name}" mavjud!\n• 1 kunlik narxi: ${matched.daily_price.toLocaleString()} so'm\n• Garov (Zalog): ${matched.deposit_amount.toLocaleString()} so'm\n• Komplekt: ${matched.kit_items.join(', ')}\n\nBuyurtma berishni istaysizmi?`;
-                }
-                // C. Services Check (Kran, Musor, Gruzchik)
-                else if (msg.includes('kran') || msg.includes('musor') || msg.includes('gruzchik') || msg.includes('axlat')) {
-                    functionCalled = "get_service_price";
-                    if (msg.includes('kran')) {
-                        functionResult = { service: "kran", price: "400 000 so'm / soat", min: "3 soat" };
-                        reply = `🏗️ Avtokran xizmati narxi: 400 000 so'm / soat (kamida 3 soat). Haydovchi-mashinist bilan xizmat ko'rsatiladi.`;
-                    } else if (msg.includes('musor') || msg.includes('axlat')) {
-                        functionResult = { service: "musor", price: "350 000 so'm / reys" };
-                        reply = `🚛 Qurilish chiqindilarini (musor) Gazelda olib ketish narxi: 350 000 so'm / 1 reys (1.5t yoki 40-50 qopgacha).`;
-                    } else {
-                        functionResult = { service: "gruzchik", price: "75 000 so'm / soat" };
-                        reply = `👷 Gruzchik xizmati: 1 kishi uchun 75 000 so'm / soat yoki qavatga qarab kelishiladi.`;
-                    }
-                }
-                // D. Order Creation
-                else if (msg.includes('zakaz') || msg.includes('buyurtma') || msg.includes('+998')) {
-                    functionCalled = "create_incoming_order";
-                    const newId = Date.now();
-                    const orderNum = `AI-ORD-${String(newId).slice(-4)}`;
-                    functionResult = { order_number: orderNum, status: "yangi" };
-                    reply = `✅ Buyurtmangiz qabul qilindi! Buyurtma raqami: #${orderNum}. Operatorimiz 5 daqiqada siz bilan bog'lanadi.`;
-                }
-                // E. General Greeting
-                else {
-                    reply = `Assalomu alaykum! Men WMS Arenda AI sotuvchi va operator yordamchisiman. Qurilish asboblari, kran, musor olib ketish va gruzchik xizmatlari bo'yicha qanday yordam bera olaman?`;
+                if (!userMessage) {
+                    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({ success: false, error: "Xabar matni kiritilmadi (message is required)" }));
+                    return;
                 }
 
-                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-                res.end(JSON.stringify({
-                    success: true,
-                    reply: reply,
-                    function_called: functionCalled,
-                    function_result: functionResult
-                }));
+                // If API Key is not set neither in environment nor request body
+                if (!apiKey) {
+                    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        need_api_key: true,
+                        reply: "⚠️ Google Gemini API kaliti topilmadi!\n\nAI Agent jonli insondek ishlashi uchun:\n1. Admin paneldagi \"AI Yordamchi Sozlamalari\" (9-bo'lim) sahifasiga kiring va Google Gemini API kalitingizni kiriting;\n2. Yoki server muhitida (masalan, Vercel/Render Environment Variables) `GEMINI_API_KEY` o'zgaruvchisini o'rnating.\n\nKalitni https://aistudio.google.com/ saytidan bepul olishingiz mumkin."
+                    }));
+                    return;
+                }
+
+                // Call Real Google Gemini 1.5 Flash API
+                try {
+                    const geminiReply = await callGoogleGeminiAPI(apiKey, userMessage, history);
+                    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({
+                        success: true,
+                        live_llm: true,
+                        model: "gemini-1.5-flash",
+                        reply: geminiReply
+                    }));
+                } catch (geminiError) {
+                    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        live_llm: false,
+                        error: geminiError.message,
+                        reply: `⚠️ Google Gemini API bilan bog'lanishda xatolik yuz berdi:\n${geminiError.message}\n\nIltimos, API kalit to'g'riligini va internet aloqasini tekshiring.`
+                    }));
+                }
 
             } catch (e) {
                 res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -412,24 +526,29 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // 6. POST /api/ai/telegram-webhook (Telegram Bot Webhook Handler)
+    // 6. POST /api/ai/telegram-webhook (Telegram Bot Webhook Handler with Live Gemini)
     if (req.method === 'POST' && pathname === '/api/ai/telegram-webhook') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 const update = JSON.parse(body || '{}');
                 const message = update.message || {};
                 const chatId = message.chat?.id;
                 const text = (message.text || '').trim();
+                const apiKey = process.env.GEMINI_API_KEY || '';
 
                 let botReply = '';
                 if (text === '/start') {
-                    botReply = "Assalomu alaykum! WMS ARENDA AI Yordamchisiga xush kelibsiz! Asboblar qoldig'i, narxlar va xizmatlar bo'yicha savolingizni bering.";
-                } else if (text.startsWith('/admin 7788')) {
-                    botReply = "👑 Bosh Admin rejimi faol! Bugungi kassa: 1 450 000 so'm. Olingan zalog: 1 100 000 so'm. Oylik sof foyda: 18 200 000 so'm. Kechikkan uskunalar: 1 ta.";
+                    botReply = "Assalomu alaykum! WMS ARENDA AI Yordamchisiga xush kelibsiz! Qurilish asboblari ijarasi, kran, musor va gruzchik xizmatlari bo'yicha savolingizni bering.";
+                } else if (apiKey) {
+                    try {
+                        botReply = await callGoogleGeminiAPI(apiKey, text, []);
+                    } catch (e) {
+                        botReply = "Kechirasiz, Gemini API xatoligi: " + e.message;
+                    }
                 } else {
-                    botReply = `Xabaringiz qabul qilindi: "${text}". Omborni tekshirib, xizmat ko'rsatishga tayyormiz!`;
+                    botReply = "⚠️ Serverda GEMINI_API_KEY o'rnatilmagan. Iltimos, admin bilan bog'laning.";
                 }
 
                 res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
