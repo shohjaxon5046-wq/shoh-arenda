@@ -323,7 +323,7 @@ async function processUserMessage(rawMessage, role = 'customer', adminPin = '') 
         }
     }
 
-    // 1. Try Live Gemini LLM via backend /api/chat endpoint
+    // 1. Try Live LLM (Groq / Gemini) via backend /api/chat endpoint
     try {
         const chatReq = await fetch('/api/chat', {
             method: 'POST',
@@ -332,6 +332,8 @@ async function processUserMessage(rawMessage, role = 'customer', adminPin = '') 
                 message: text,
                 role: role,
                 admin_pin: adminPin,
+                provider: settings.provider || (apiKey.startsWith('gsk_') ? 'groq' : 'gemini'),
+                model: settings.model_name || undefined,
                 api_key: apiKey || undefined,
                 messages: chatHistory.map(m => ({ role: m.sender === 'user' ? 'user' : 'model', text: m.content || m.text }))
             })
@@ -343,7 +345,8 @@ async function processUserMessage(rawMessage, role = 'customer', adminPin = '') 
                 return {
                     reply: data.reply,
                     live_llm: !!data.live_llm,
-                    model: data.model || 'gemini-1.5-flash',
+                    provider: data.provider || settings.provider || 'groq',
+                    model: data.model || settings.model_name || 'llama-3.3-70b-versatile',
                     need_api_key: !!data.need_api_key,
                     function_called: data.function_called || null,
                     function_result: data.function_result || null
@@ -354,12 +357,20 @@ async function processUserMessage(rawMessage, role = 'customer', adminPin = '') 
         console.warn("Backend /api/chat ga ulanishda xatolik, lokal qatlamga o'tilmoqda:", backendErr);
     }
 
-    // 2. Direct browser Gemini API call if API key is provided
+    // 2. Direct browser LLM call if API key is provided
     if (apiKey) {
-        try {
-            return await callGeminiLLM(text, settings, role, adminPin);
-        } catch (e) {
-            console.warn("Brauzerdan to'g'ridan-to'g'ri Gemini chaqiruvi muvaffaqiyatsiz bo'ldi:", e);
+        if (settings.provider === 'groq' || apiKey.startsWith('gsk_')) {
+            try {
+                return await callGroqLLM(text, settings, role, adminPin);
+            } catch (e) {
+                console.warn("Brauzerdan to'g'ridan-to'g'ri Groq chaqiruvi muvaffaqiyatsiz bo'ldi:", e);
+            }
+        } else {
+            try {
+                return await callGeminiLLM(text, settings, role, adminPin);
+            } catch (e) {
+                console.warn("Brauzerdan to'g'ridan-to'g'ri Gemini chaqiruvi muvaffaqiyatsiz bo'ldi:", e);
+            }
         }
     }
 
@@ -640,10 +651,69 @@ async function callOpenAILLM(userPrompt, settings, role, adminPin) {
     };
 }
 
+async function callGroqLLM(userPrompt, settings, role, adminPin) {
+    const url = `https://api.groq.cloud/openai/v1/chat/completions`;
+
+    const body = {
+        model: settings.model_name || "llama-3.3-70b-versatile",
+        messages: [
+            { role: "system", content: settings.system_prompt || "Sen WMS ARENDA kompaniyasining professional AI maslahatchisisan." },
+            { role: "user", content: userPrompt }
+        ],
+        temperature: 0.7
+    };
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${settings.api_key}`
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!res.ok) throw new Error(`Groq HTTP ${res.status}`);
+    const data = await res.json();
+    return {
+        reply: data.choices?.[0]?.message?.content || "Javob olinmadi",
+        function_called: null
+    };
+}
 
 // -------------------------------------------------------------------------
 // 4. FOYDALANUVCHI INTERFEYSI (UI) VA SOZLAMALARNI BOSHQARISH
 // -------------------------------------------------------------------------
+
+function handleAIProviderChange() {
+    const provSelect = document.getElementById('ai-setting-provider');
+    const prov = provSelect ? provSelect.value : 'groq';
+    const modelInput = document.getElementById('ai-setting-model');
+    const keyInput = document.getElementById('ai-setting-key');
+    const label = document.getElementById('ai-setting-key-label');
+    const hint = document.getElementById('ai-setting-key-hint');
+
+    if (prov === 'groq') {
+        if (modelInput) modelInput.value = 'llama-3.3-70b-versatile';
+        if (keyInput) keyInput.placeholder = 'gsk_... kalitini kiriting';
+        if (label) label.textContent = 'Groq API Kaliti (gsk_...)';
+        if (hint) hint.innerHTML = `Groq Console (<a href="https://console.groq.com/keys" target="_blank" class="text-amber-400 underline">console.groq.com</a>) dan bepul kalit oling yoki serverda <code class="text-slate-300">GROQ_API_KEY</code> sozlang.`;
+    } else if (prov === 'gemini') {
+        if (modelInput) modelInput.value = 'gemini-1.5-flash';
+        if (keyInput) keyInput.placeholder = 'AIzaSy... (Gemini API kaliti)';
+        if (label) label.textContent = 'Google Gemini API Kaliti';
+        if (hint) hint.innerHTML = `Google AI Studio (<a href="https://aistudio.google.com/" target="_blank" class="text-purple-400 underline">aistudio.google.com</a>) dan kalit oling yoki serverda <code class="text-slate-300">GEMINI_API_KEY</code> sozlang.`;
+    } else if (prov === 'openai') {
+        if (modelInput) modelInput.value = 'gpt-4o-mini';
+        if (keyInput) keyInput.placeholder = 'sk-... (OpenAI API kaliti)';
+        if (label) label.textContent = 'OpenAI API Kaliti';
+        if (hint) hint.innerHTML = `OpenAI Platform (<a href="https://platform.openai.com/api-keys" target="_blank" class="text-emerald-400 underline">platform.openai.com</a>) kaliti.`;
+    } else {
+        if (modelInput) modelInput.value = 'offline-rule-engine';
+        if (keyInput) keyInput.placeholder = 'Kalit talab qilinmaydi';
+        if (label) label.textContent = 'API Kaliti (Talab etilmaydi)';
+        if (hint) hint.innerHTML = `Ichki aqlli dvigatel offline rejimda ishlaydi.`;
+    }
+}
 
 function renderAISettingsForm() {
     const s = DB.ai_settings || {};
@@ -657,9 +727,12 @@ function renderAISettingsForm() {
     const promptInput = document.getElementById('ai-setting-prompt');
 
     if (toggle) toggle.checked = !!s.is_enabled;
-    if (provSelect) provSelect.value = s.provider || 'demo';
-    if (keyInput) keyInput.value = s.api_key || '';
-    if (modelInput) modelInput.value = s.model_name || 'gemini-1.5-flash';
+    if (provSelect) {
+        provSelect.value = s.provider || 'groq';
+        handleAIProviderChange();
+    }
+    if (keyInput && s.api_key) keyInput.value = s.api_key;
+    if (modelInput && s.model_name) modelInput.value = s.model_name;
     if (pinInput) pinInput.value = s.admin_pin || '7788';
     if (welcomeInput) welcomeInput.value = s.welcome_message || '';
     if (promptInput) promptInput.value = s.system_prompt || '';
@@ -673,9 +746,9 @@ function saveAISettings(e) {
     if (!DB.ai_settings) DB.ai_settings = {};
 
     DB.ai_settings.is_enabled = document.getElementById('ai-setting-enabled')?.checked ?? true;
-    DB.ai_settings.provider = document.getElementById('ai-setting-provider')?.value || 'demo';
+    DB.ai_settings.provider = document.getElementById('ai-setting-provider')?.value || 'groq';
     DB.ai_settings.api_key = document.getElementById('ai-setting-key')?.value.trim() || '';
-    DB.ai_settings.model_name = document.getElementById('ai-setting-model')?.value.trim() || 'gemini-1.5-flash';
+    DB.ai_settings.model_name = document.getElementById('ai-setting-model')?.value.trim() || 'llama-3.3-70b-versatile';
     DB.ai_settings.admin_pin = document.getElementById('ai-setting-pin')?.value.trim() || '7788';
     DB.ai_settings.welcome_message = document.getElementById('ai-setting-welcome')?.value.trim() || '';
     DB.ai_settings.system_prompt = document.getElementById('ai-setting-prompt')?.value.trim() || '';

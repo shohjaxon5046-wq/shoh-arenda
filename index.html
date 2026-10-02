@@ -1336,8 +1336,9 @@
                                     <!-- Provider Selection -->
                                     <div>
                                         <label class="block text-slate-400 font-semibold mb-1">AI Provayderi (LLM Engine) *</label>
-                                        <select id="ai-setting-provider" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white focus:outline-none focus:border-purple-500">
-                                            <option value="gemini" selected>🔷 Google Gemini 1.5 Flash (Jonli AI LLM)</option>
+                                        <select id="ai-setting-provider" onchange="handleAIProviderChange()" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white focus:outline-none focus:border-purple-500">
+                                            <option value="groq" selected>⚡ Groq API (Llama 3.3 / Llama 3.1 - Bepul va Tezkor)</option>
+                                            <option value="gemini">🔷 Google Gemini 1.5 Flash (Jonli AI LLM)</option>
                                             <option value="demo">⚡ Ichki Dvigatel (Lokal Offline Rejim)</option>
                                             <option value="openai">🟢 OpenAI API (GPT-4o / GPT-4o-mini)</option>
                                         </select>
@@ -1345,21 +1346,21 @@
 
                                     <!-- API Key Field -->
                                     <div>
-                                        <label class="block text-slate-400 font-semibold mb-1">Google Gemini API Kaliti</label>
+                                        <label id="ai-setting-key-label" class="block text-slate-400 font-semibold mb-1">Groq API Kaliti (gsk_...)</label>
                                         <div class="relative">
-                                            <input type="password" id="ai-setting-key" placeholder="AIzaSy... (Gemini API kaliti)" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-3 pr-10 text-white font-mono text-xs focus:outline-none focus:border-purple-500">
+                                            <input type="password" id="ai-setting-key" placeholder="gsk_... kalitini kiriting" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-3 pr-10 text-white font-mono text-xs focus:outline-none focus:border-purple-500">
                                             <button type="button" onclick="const i = document.getElementById('ai-setting-key'); i.type = i.type === 'password' ? 'text' : 'password';" class="absolute right-2.5 top-2 text-slate-400 hover:text-white">
                                                 <i data-lucide="eye" class="w-4 h-4"></i>
                                             </button>
                                         </div>
-                                        <p class="text-[10px] text-slate-500 mt-1">Google AI Studio (<a href="https://aistudio.google.com/" target="_blank" class="text-purple-400 underline">aistudio.google.com</a>) dan kalitni bepul oling yoki serverda <code class="text-slate-300">GEMINI_API_KEY</code> sozlang.</p>
+                                        <p id="ai-setting-key-hint" class="text-[10px] text-slate-500 mt-1">Groq Console (<a href="https://console.groq.com/keys" target="_blank" class="text-amber-400 underline">console.groq.com</a>) dan bepul kalit oling yoki serverda <code class="text-slate-300">GROQ_API_KEY</code> sozlang.</p>
                                     </div>
 
                                     <div class="grid grid-cols-2 gap-3">
                                         <!-- Model Name -->
                                         <div>
                                             <label class="block text-slate-400 font-semibold mb-1">Model Nomi</label>
-                                            <input type="text" id="ai-setting-model" value="gemini-1.5-flash" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white font-mono text-xs">
+                                            <input type="text" id="ai-setting-model" value="llama-3.3-70b-versatile" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white font-mono text-xs">
                                         </div>
 
                                         <!-- Admin PIN -->

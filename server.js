@@ -303,6 +303,89 @@ function callGoogleGeminiAPI(apiKey, userMessage, conversationHistory = []) {
     });
 }
 
+function callGroqAPI(apiKey, userMessage, conversationHistory = [], modelName = 'llama-3.3-70b-versatile') {
+    return new Promise((resolve, reject) => {
+        if (!apiKey) {
+            return reject(new Error("GROQ_API_KEY_REQUIRED"));
+        }
+
+        const messages = [
+            { role: 'system', content: GEMINI_SYSTEM_INSTRUCTION }
+        ];
+
+        if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+            conversationHistory.forEach(item => {
+                const text = item.text || item.content || '';
+                if (!text) return;
+                const role = (item.sender === 'user' || item.role === 'user') ? 'user' : 'assistant';
+                messages.push({ role, content: text });
+            });
+        }
+
+        messages.push({ role: 'user', content: userMessage });
+
+        const postData = JSON.stringify({
+            model: modelName || 'llama-3.3-70b-versatile',
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: 1200
+        });
+
+        const options = {
+            hostname: 'api.groq.cloud',
+            port: 443,
+            path: '/openai/v1/chat/completions',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey.trim()}`,
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        };
+
+        const apiReq = https.request(options, (apiRes) => {
+            let resBody = '';
+            apiRes.on('data', chunk => { resBody += chunk; });
+            apiRes.on('end', () => {
+                if (apiRes.statusCode >= 200 && apiRes.statusCode < 300) {
+                    try {
+                        const parsed = JSON.parse(resBody);
+                        const reply = parsed.choices?.[0]?.message?.content;
+                        if (reply) {
+                            resolve(reply.trim());
+                        } else {
+                            resolve("Kechirasiz, Groq javobini shakllantirib bo'lmadi.");
+                        }
+                    } catch (e) {
+                        reject(new Error("Groq javobini o'qishda xatolik: " + e.message));
+                    }
+                } else {
+                    let errMsg = `Groq API xatosi (${apiRes.statusCode})`;
+                    try {
+                        const errParsed = JSON.parse(resBody);
+                        if (errParsed.error?.message) {
+                            errMsg += `: ${errParsed.error.message}`;
+                        }
+                    } catch (e) {}
+                    reject(new Error(errMsg));
+                }
+            });
+        });
+
+        apiReq.on('error', (err) => {
+            reject(new Error("Tarmoq xatosi: " + err.message));
+        });
+
+        apiReq.setTimeout(25000, () => {
+            apiReq.destroy();
+            reject(new Error("Groq API javob berish vaqti tugadi (Timeout)."));
+        });
+
+        apiReq.write(postData);
+        apiReq.end();
+    });
+}
+
 const server = http.createServer((req, res) => {
     // 1. CORS Headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -470,7 +553,7 @@ const server = http.createServer((req, res) => {
     // REST API ENDPOINTS FOR AI AGENT & TELEGRAM BOT (BO'LIM 9 - REAL GEMINI API)
     // =========================================================================
 
-    // 5. POST /api/chat & /api/ai/chat (Real Live Google Gemini LLM API Endpoint)
+    // 5. POST /api/chat & /api/ai/chat (Real Live Groq / Google Gemini LLM API Endpoint)
     if (req.method === 'POST' && (pathname === '/api/chat' || pathname === '/api/ai/chat')) {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
@@ -479,7 +562,8 @@ const server = http.createServer((req, res) => {
                 const payload = JSON.parse(body || '{}');
                 const userMessage = (payload.message || '').trim();
                 const history = payload.messages || payload.history || [];
-                const apiKey = process.env.GEMINI_API_KEY || payload.api_key || '';
+                const requestedProvider = (payload.provider || '').toLowerCase();
+                const rawKey = (payload.api_key || '').trim();
 
                 if (!userMessage) {
                     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -487,12 +571,57 @@ const server = http.createServer((req, res) => {
                     return;
                 }
 
-                // If API Key is not set neither in environment nor request body
+                // Check if user selected Groq or provided Groq key
+                const isGroq = requestedProvider === 'groq' || 
+                               rawKey.startsWith('gsk_') || 
+                               (Boolean(process.env.GROQ_API_KEY) && !process.env.GEMINI_API_KEY && requestedProvider !== 'gemini');
+
+                if (isGroq) {
+                    const apiKey = process.env.GROQ_API_KEY || rawKey;
+                    const model = payload.model || 'llama-3.3-70b-versatile';
+
+                    if (!apiKey) {
+                        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                        res.end(JSON.stringify({
+                            success: false,
+                            need_api_key: true,
+                            provider: 'groq',
+                            reply: "⚠️ Groq API kaliti topilmadi!\n\nAI Agent Llama 3.3 (Groq) orqali o'ta tezkor ishlashi uchun:\n1. Admin paneldagi \"AI Yordamchi Sozlamalari\" (9-bo'lim) sahifasiga kiring va Groq API kalitini (gsk_...) kiriting;\n2. Yoki server muhitida (Vercel/Render) `GROQ_API_KEY` o'zgaruvchisini o'rnating.\n\nKalitni https://console.groq.com/keys saytidan mutlaqo bepul olishingiz mumkin."
+                        }));
+                        return;
+                    }
+
+                    try {
+                        const groqReply = await callGroqAPI(apiKey, userMessage, history, model);
+                        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                        res.end(JSON.stringify({
+                            success: true,
+                            live_llm: true,
+                            provider: "groq",
+                            model: model,
+                            reply: groqReply
+                        }));
+                    } catch (groqError) {
+                        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                        res.end(JSON.stringify({
+                            success: false,
+                            live_llm: false,
+                            provider: "groq",
+                            error: groqError.message,
+                            reply: `⚠️ Groq API bilan bog'lanishda xatolik yuz berdi:\n${groqError.message}\n\nIltimos, API kalit (gsk_...) to'g'riligini va internet aloqasini tekshiring.`
+                        }));
+                    }
+                    return;
+                }
+
+                // Default: Google Gemini 1.5 Flash
+                const apiKey = process.env.GEMINI_API_KEY || rawKey;
                 if (!apiKey) {
                     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                     res.end(JSON.stringify({
                         success: false,
                         need_api_key: true,
+                        provider: 'gemini',
                         reply: "⚠️ Google Gemini API kaliti topilmadi!\n\nAI Agent jonli insondek ishlashi uchun:\n1. Admin paneldagi \"AI Yordamchi Sozlamalari\" (9-bo'lim) sahifasiga kiring va Google Gemini API kalitingizni kiriting;\n2. Yoki server muhitida (masalan, Vercel/Render Environment Variables) `GEMINI_API_KEY` o'zgaruvchisini o'rnating.\n\nKalitni https://aistudio.google.com/ saytidan bepul olishingiz mumkin."
                     }));
                     return;
@@ -505,7 +634,8 @@ const server = http.createServer((req, res) => {
                     res.end(JSON.stringify({
                         success: true,
                         live_llm: true,
-                        model: "gemini-1.5-flash",
+                        provider: "gemini",
+                        model: payload.model || "gemini-1.5-flash",
                         reply: geminiReply
                     }));
                 } catch (geminiError) {
@@ -513,6 +643,7 @@ const server = http.createServer((req, res) => {
                     res.end(JSON.stringify({
                         success: false,
                         live_llm: false,
+                        provider: "gemini",
                         error: geminiError.message,
                         reply: `⚠️ Google Gemini API bilan bog'lanishda xatolik yuz berdi:\n${geminiError.message}\n\nIltimos, API kalit to'g'riligini va internet aloqasini tekshiring.`
                     }));
@@ -526,7 +657,7 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // 6. POST /api/ai/telegram-webhook (Telegram Bot Webhook Handler with Live Gemini)
+    // 6. POST /api/ai/telegram-webhook (Telegram Bot Webhook Handler with Live Groq / Gemini)
     if (req.method === 'POST' && pathname === '/api/ai/telegram-webhook') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
@@ -536,19 +667,24 @@ const server = http.createServer((req, res) => {
                 const message = update.message || {};
                 const chatId = message.chat?.id;
                 const text = (message.text || '').trim();
-                const apiKey = process.env.GEMINI_API_KEY || '';
 
                 let botReply = '';
                 if (text === '/start') {
                     botReply = "Assalomu alaykum! WMS ARENDA AI Yordamchisiga xush kelibsiz! Qurilish asboblari ijarasi, kran, musor va gruzchik xizmatlari bo'yicha savolingizni bering.";
-                } else if (apiKey) {
+                } else if (process.env.GROQ_API_KEY) {
                     try {
-                        botReply = await callGoogleGeminiAPI(apiKey, text, []);
+                        botReply = await callGroqAPI(process.env.GROQ_API_KEY, text, []);
+                    } catch (e) {
+                        botReply = "Kechirasiz, Groq API xatoligi: " + e.message;
+                    }
+                } else if (process.env.GEMINI_API_KEY) {
+                    try {
+                        botReply = await callGoogleGeminiAPI(process.env.GEMINI_API_KEY, text, []);
                     } catch (e) {
                         botReply = "Kechirasiz, Gemini API xatoligi: " + e.message;
                     }
                 } else {
-                    botReply = "⚠️ Serverda GEMINI_API_KEY o'rnatilmagan. Iltimos, admin bilan bog'laning.";
+                    botReply = "⚠️ Serverda GROQ_API_KEY yoki GEMINI_API_KEY o'rnatilmagan. Iltimos, admin bilan bog'laning.";
                 }
 
                 res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
