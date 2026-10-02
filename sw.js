@@ -2,7 +2,7 @@
 // WMS ARENDA ERP - PWA SERVICE WORKER
 // =========================================================================
 
-const CACHE_NAME = 'wms-arenda-v12.0';
+const CACHE_NAME = 'wms-arenda-v13.0';
 const STATIC_ASSETS = [
     './',
     './index.html',
