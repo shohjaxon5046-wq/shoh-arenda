@@ -11,10 +11,10 @@ function renderStaffTable() {
     tbody.innerHTML = '';
 
     const roleBadges = {
-        admin: '<span class="badge-status bg-red-500/10 text-red-400 border border-red-500/20 font-bold">👑 Bosh Admin</span>',
-        manager: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20">💼 Menejer</span>',
-        cashier: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">💰 Kassir</span>',
-        warehouseman: '<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20">📦 Skladchi</span>'
+        admin: '<span class="badge-status bg-red-500/10 text-red-400 border border-red-500/20 font-bold"> Bosh Admin</span>',
+        manager: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20"> Menejer</span>',
+        cashier: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"> Kassir</span>',
+        warehouseman: '<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20"> Skladchi</span>'
     };
 
     DB.users.forEach(user => {
@@ -389,8 +389,8 @@ function renderCustomersCRM() {
                         </div>
                     </div>
                     <div>
-                        ${isBlacklist ? '<span class="badge-status bg-red-500/20 text-red-400 border border-red-500/40 text-[10px] animate-pulse">🚫 Qora Ro\'yxat</span>' : ''}
-                        ${isVip ? '<span class="badge-status bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px]">⭐ VIP</span>' : ''}
+                        ${isBlacklist ? '<span class="badge-status bg-red-500/20 text-red-400 border border-red-500/40 text-[10px] animate-pulse"> Qora Ro\'yxat</span>' : ''}
+                        ${isVip ? '<span class="badge-status bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px]"> VIP</span>' : ''}
                         ${c.status === 'oddiy' ? '<span class="badge-status bg-slate-800 text-slate-300 text-[10px]">Oddiy</span>' : ''}
                     </div>
                 </div>

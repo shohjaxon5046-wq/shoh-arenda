@@ -380,12 +380,12 @@ function renderModelUnitsTable(units) {
     }
 
     const statusBadges = {
-        omborda_bosh: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">🟢 Omborda bo\'sh</span>',
-        ijarada: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px]">🔵 Ijarada</span>',
-        remontda: '<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px]">🟡 Remontda</span>',
-        tozalanmoqda: '<span class="badge-status bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px]">🟣 Tozalanmoqda</span>',
-        brak: '<span class="badge-status bg-red-500/10 text-red-400 border border-red-500/20 text-[10px]">🔴 Brak</span>',
-        vozvrat_qilingan: '<span class="badge-status bg-slate-700 text-slate-300 text-[10px]">↩ Qaytarilgan</span>'
+        omborda_bosh: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">Omborda bo\'sh</span>',
+        ijarada: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px]">Ijarada</span>',
+        remontda: '<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px]">Remontda</span>',
+        tozalanmoqda: '<span class="badge-status bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px]">Tozalanmoqda</span>',
+        brak: '<span class="badge-status bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px]">Brak</span>',
+        vozvrat_qilingan: '<span class="badge-status bg-slate-800 text-slate-400 border border-slate-700 text-[10px]">Qaytarilgan</span>'
     };
 
     units.forEach(u => {

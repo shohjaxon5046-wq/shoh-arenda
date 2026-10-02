@@ -104,9 +104,9 @@ function handleGlobalScan(e) {
 
             // Warning if debtor or blacklisted
             if (foundCustomer.status === 'qora_royxat') {
-                alert(`🚨 DIQQAT: Mijoz ${foundCustomer.full_name} QORA RO'YXATDA!\nSababi: ${foundCustomer.blacklist_reason}\nUshbu mijozga asbob berish taqiqlanadi!`);
+                alert(`DIQQAT: Mijoz ${foundCustomer.full_name} QORA RO'YXATDA!\nSababi: ${foundCustomer.blacklist_reason}\nUshbu mijozga asbob berish taqiqlanadi!`);
             } else if (foundCustomer.current_debt > 0) {
-                alert(`⚠️ OGOHLANTIRISH: Mijoz ${foundCustomer.full_name}da ${foundCustomer.current_debt.toLocaleString()} so'm qarzdorlik mavjud!`);
+                alert(`OGOHLANTIRISH: Mijoz ${foundCustomer.full_name}da ${foundCustomer.current_debt.toLocaleString()} so'm qarzdorlik mavjud!`);
             }
             e.target.value = '';
             return;

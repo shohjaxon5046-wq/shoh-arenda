@@ -238,9 +238,9 @@ function renderDynamicServiceCalculator(containerId, category, prefix = 'pos') {
 
                 <!-- Mode selection -->
                 <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
-                    <button type="button" onclick="setCalcGruzchikMode('${prefix}', 'qop')" id="${prefix}-gmode-qop" class="py-1 px-2 rounded-lg text-xs font-bold bg-indigo-600 text-white transition">📦 Qoplar (Og'ir)</button>
-                    <button type="button" onclick="setCalcGruzchikMode('${prefix}', 'soatbay')" id="${prefix}-gmode-soatbay" class="py-1 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">⏱️ Soatbay</button>
-                    <button type="button" onclick="setCalcGruzchikMode('${prefix}', 'mebel')" id="${prefix}-gmode-mebel" class="py-1 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">🛋️ Mebel ko'chirish</button>
+                    <button type="button" onclick="setCalcGruzchikMode('${prefix}', 'qop')" id="${prefix}-gmode-qop" class="py-1 px-2 rounded-lg text-xs font-bold bg-blue-600 text-white transition">Qoplar (Og'ir)</button>
+                    <button type="button" onclick="setCalcGruzchikMode('${prefix}', 'soatbay')" id="${prefix}-gmode-soatbay" class="py-1 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Soatbay</button>
+                    <button type="button" onclick="setCalcGruzchikMode('${prefix}', 'mebel')" id="${prefix}-gmode-mebel" class="py-1 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Mebel ko'chirish</button>
                 </div>
                 <input type="hidden" id="${prefix}-gruzchik-mode" value="qop">
 
@@ -350,8 +350,8 @@ function renderDynamicServiceCalculator(containerId, category, prefix = 'pos') {
 
                 <!-- Mode selection -->
                 <div class="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-                    <button type="button" onclick="setCalcMusorMode('${prefix}', 'mashina')" id="${prefix}-mmode-mashina" class="py-1 px-2 rounded-lg text-xs font-bold bg-emerald-600 text-white transition">🚚 Mashina bo'yicha (Reys)</button>
-                    <button type="button" onclick="setCalcMusorMode('${prefix}', 'qoplar')" id="${prefix}-mmode-qoplar" class="py-1 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">🗑️ Qoplar soni (Kichik hajm)</button>
+                    <button type="button" onclick="setCalcMusorMode('${prefix}', 'mashina')" id="${prefix}-mmode-mashina" class="py-1 px-2 rounded-lg text-xs font-bold bg-blue-600 text-white transition">Mashina bo'yicha (Reys)</button>
+                    <button type="button" onclick="setCalcMusorMode('${prefix}', 'qoplar')" id="${prefix}-mmode-qoplar" class="py-1 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Qoplar soni (Kichik hajm)</button>
                 </div>
                 <input type="hidden" id="${prefix}-musor-mode" value="mashina">
 
@@ -512,12 +512,12 @@ function updateLiveServiceCalculation(prefix, category) {
                 <div class="flex items-center gap-2">
                     ${result.workerCount ? `
                         <span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold text-xs flex items-center gap-1">
-                            👷 Kerakli resurs: ${result.workerCount} nafar ishchi
+                             Kerakli resurs: ${result.workerCount} nafar ishchi
                         </span>
                     ` : ''}
                     ${result.tonnage ? `
-                        <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center gap-1">
-                            🏗️ Quvvati: ${result.tonnage} tonna (${result.billedHours} soat)
+                        <span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold text-xs flex items-center gap-1">
+                            Quvvati: ${result.tonnage} tonna (${result.billedHours} soat)
                         </span>
                     ` : ''}
                 </div>
@@ -529,13 +529,13 @@ function updateLiveServiceCalculation(prefix, category) {
 
             <!-- Formula display -->
             <div class="text-[11px] text-slate-300 flex items-center gap-1.5 font-mono">
-                <span class="text-amber-400">⚡ Hisob:</span>
+                <span class="text-amber-400"> Hisob:</span>
                 <span>${result.formulaText}</span>
             </div>
 
             <!-- Partner Instruction Preview -->
             <div class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-[10px] text-slate-400">
-                <b class="text-slate-300 uppercase block">📲 Hamkorga boradigan aniq topshiriq:</b>
+                <b class="text-slate-300 uppercase block"> Hamkorga boradigan aniq topshiriq:</b>
                 <span class="text-slate-200 italic font-mono mt-0.5 block">"${result.taskInstruction}"</span>
             </div>
 
@@ -701,14 +701,14 @@ function copyPartnerDispatchTask(orderId) {
         const sOrder = (DB.service_orders || []).find(so => so.id === orderId || so.order_number === orderId);
         if (sOrder) {
             const partner = (DB.service_partners || []).find(p => p.id === sOrder.assigned_partner_id);
-            const taskText = `🚨 YANGI TOPSHIRIQ (DISPECHERLIK):\n` +
-                `🏢 Kompaniya: "WMS ARENDA"\n` +
-                `🤝 Hamkor: ${partner ? partner.company_name : 'Hamkor'}\n` +
-                `📋 Buyurtma: ${sOrder.order_number}\n` +
-                `📅 Sana va vaqt: ${sOrder.service_date} ${sOrder.execution_time || ''}\n` +
-                `📍 Manzil: ${sOrder.destination_address}\n` +
-                `📝 ${sOrder.details}\n` +
-                `💰 Hamkorga to'lanadigan haq: ${sOrder.partner_payout_amount?.toLocaleString() || 0} so'm`;
+            const taskText = ` YANGI TOPSHIRIQ (DISPECHERLIK):\n` +
+                ` Kompaniya: "WMS ARENDA"\n` +
+                ` Hamkor: ${partner ? partner.company_name : 'Hamkor'}\n` +
+                ` Buyurtma: ${sOrder.order_number}\n` +
+                ` Sana va vaqt: ${sOrder.service_date} ${sOrder.execution_time || ''}\n` +
+                ` Manzil: ${sOrder.destination_address}\n` +
+                ` ${sOrder.details}\n` +
+                ` Hamkorga to'lanadigan haq: ${sOrder.partner_payout_amount?.toLocaleString() || 0} so'm`;
 
             navigator.clipboard.writeText(taskText).then(() => {
                 showNotification("Hamkor uchun Telegram topshirig'i nusxalandi!", "success");
@@ -722,12 +722,12 @@ function copyPartnerDispatchTask(orderId) {
     }
 
     const partner = (DB.service_partners || []).find(p => p.id === srvItem.assigned_partner_id);
-    const taskText = `🚨 YANGI TOPSHIRIQ (DISPECHERLIK):\n` +
-        `🏢 Kompaniya: "WMS ARENDA"\n` +
-        `🤝 Hamkor: ${partner ? partner.company_name : 'Hamkor'}\n` +
-        `📋 Buyurtma: #${order ? order.order_number : ''}\n` +
-        `📝 ${srvItem.service_details}\n` +
-        `💰 Hamkorga to'lanadigan haq: ${srvItem.partner_cost?.toLocaleString() || 0} so'm`;
+    const taskText = ` YANGI TOPSHIRIQ (DISPECHERLIK):\n` +
+        ` Kompaniya: "WMS ARENDA"\n` +
+        ` Hamkor: ${partner ? partner.company_name : 'Hamkor'}\n` +
+        ` Buyurtma: #${order ? order.order_number : ''}\n` +
+        ` ${srvItem.service_details}\n` +
+        ` Hamkorga to'lanadigan haq: ${srvItem.partner_cost?.toLocaleString() || 0} so'm`;
 
     navigator.clipboard.writeText(taskText).then(() => {
         showNotification("Hamkor uchun Telegram topshirig'i nusxalandi!", "success");

@@ -173,15 +173,15 @@ function renderAttentionTable() {
         if (isDelayed) {
             const diffHours = Math.max(1, Math.round((now - expDate) / (1000 * 60 * 60)));
             if (diffHours < 24) {
-                delayText = `${diffHours} soat kechikdi ⚠️`;
+                delayText = `${diffHours} soat kechikdi`;
             } else {
                 const diffDays = Math.floor(diffHours / 24);
-                delayText = `${diffDays} kun kechikdi 🚨`;
+                delayText = `${diffDays} kun kechikdi`;
             }
-            badgeColor = 'bg-red-500/20 text-red-400 border border-red-500/30';
+            badgeColor = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
         } else {
-            delayText = `Bugun ${o.expected_return_date.substring(11, 16) || '18:00'} gacha ⏳`;
-            badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+            delayText = `Bugun ${o.expected_return_date.substring(11, 16) || '18:00'} gacha`;
+            badgeColor = 'bg-amber-500/10 text-amber-300 border border-amber-500/20';
         }
 
         const toolsTitle = tools.map(t => `${t.model_name} (SN: ${t.serial_number})`).join(', ') || 'Uskuna';
@@ -305,11 +305,11 @@ function renderTopEarningTools() {
         const itemEl = document.createElement('div');
         itemEl.className = "p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs";
         
-        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+        const rankNum = idx + 1;
 
         itemEl.innerHTML = `
             <div class="flex items-center gap-3">
-                <span class="text-base font-bold">${medals[idx] || (idx + 1)}</span>
+                <span class="w-6 h-6 rounded-lg bg-slate-800 text-slate-300 font-mono font-bold text-xs flex items-center justify-center">${rankNum}</span>
                 <div>
                     <div class="font-bold text-white flex items-center gap-2">
                         <span>${m.name}</span>
@@ -408,10 +408,10 @@ function renderWebLeadsTable() {
     }
 
     const serviceBadges = {
-        'asbob_ijarasi': '<span class="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold text-[10px]">🔨 Asbob Ijarasi</span>',
-        'kran': '<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[10px]">🏗️ Avtokran</span>',
-        'musor_olib_ketish': '<span class="px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 font-bold text-[10px]">🚛 Musor Olib Ketish</span>',
-        'gruzchik': '<span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold text-[10px]">👷 Gruzchik</span>'
+        'asbob_ijarasi': '<span class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20 font-medium text-[10px]">Asbob Ijarasi</span>',
+        'kran': '<span class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium text-[10px]">Avtokran</span>',
+        'musor_olib_ketish': '<span class="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-300 border border-orange-500/20 font-medium text-[10px]">Chiqindi (Musor)</span>',
+        'gruzchik': '<span class="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-medium text-[10px]">Yuk Tashuvchi</span>'
     };
 
     webLeadsCache.forEach(lead => {
@@ -437,12 +437,12 @@ function renderWebLeadsTable() {
                 <div class="text-[10px] text-slate-400 truncate max-w-[180px]">${lead.delivery_address}</div>
             </td>
             <td class="py-3 px-4">
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    lead.status === 'yangi' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                    lead.status === 'qabul_qilindi' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                    lead.status === 'yangi' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                    lead.status === 'qabul_qilindi' ? 'bg-blue-500/10 text-blue-300 border border-blue-500/20' :
                     'bg-slate-800 text-slate-400'
                 }">
-                    ${lead.status === 'yangi' ? 'Yangi ⚡' : lead.status === 'qabul_qilindi' ? 'Qabul qilingan' : 'Bajarildi'}
+                    ${lead.status === 'yangi' ? 'Yangi' : lead.status === 'qabul_qilindi' ? 'Qabul qilingan' : 'Bajarildi'}
                 </span>
             </td>
             <td class="py-3 px-4 text-right">

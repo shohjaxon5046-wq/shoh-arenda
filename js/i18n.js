@@ -46,10 +46,10 @@ const TRANSLATIONS = {
       debtor: "Qarzdor"
     },
     role: {
-      admin: "Bosh Admin 👑",
-      manager: "Menejer 💼",
-      cashier: "Kassir 💰",
-      warehouseman: "Skladchi 📦"
+      admin: "Bosh Admin",
+      manager: "Menejer",
+      cashier: "Kassir",
+      warehouseman: "Skladchi"
     },
     action: {
       add_order: "+ Yangi Buyurtma",
@@ -178,8 +178,8 @@ const TRANSLATIONS = {
       save_settings: "Sozlamalarni Saqlash",
       telegram_title: "Telegram Bot Bilan Bog'lash",
       chat_role: "Muloqot rejimi:",
-      role_customer: "👤 Mijoz (Mijoz Chat)",
-      role_admin: "👑 Bosh Admin (Hisobotlar)",
+      role_customer: "Mijoz (Mijoz Chat)",
+      role_admin: "Bosh Admin (Hisobotlar)",
       clear_chat: "Tozalash",
       input_placeholder: "Xabaringizni yozing (masalan: 'Otboynik bormi?', 'Kran qancha?', 'Bugungi kassa?')..."
     }
@@ -225,10 +225,10 @@ const TRANSLATIONS = {
       debtor: "Должник"
     },
     role: {
-      admin: "Главный Администратор 👑",
-      manager: "Менеджер 💼",
-      cashier: "Кассир 💰",
-      warehouseman: "Кладовщик 📦"
+      admin: "Главный Администратор",
+      manager: "Менеджер",
+      cashier: "Кассир",
+      warehouseman: "Кладовщик"
     },
     action: {
       add_order: "+ Новый заказ",
@@ -357,8 +357,8 @@ const TRANSLATIONS = {
       save_settings: "Сохранить настройки",
       telegram_title: "Подключение к Telegram боту",
       chat_role: "Режим диалога:",
-      role_customer: "👤 Клиент (Чат клиента)",
-      role_admin: "👑 Главный Админ (Отчеты)",
+      role_customer: "Клиент (Чат клиента)",
+      role_admin: "Главный Админ (Отчеты)",
       clear_chat: "Очистить",
       input_placeholder: "Напишите сообщение (например: 'Есть отбойник?', 'Сколько стоит кран?', 'Касса за сегодня?')..."
     }
@@ -436,7 +436,7 @@ function setLanguage(lang) {
   }
 
   lucide.createIcons();
-  showNotification(currentLang === 'uz' ? "Til O'zbekchaga o'zgartirildi 🇺🇿" : "Язык переключен на русский 🇷🇺", "success");
+  showNotification(currentLang === 'uz' ? "Til O'zbekchaga o'zgartirildi" : "Язык переключен на русский", "success");
 }
 
 function updateLanguageUI() {

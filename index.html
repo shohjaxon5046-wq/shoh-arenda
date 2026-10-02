@@ -38,13 +38,37 @@
     <!-- QRCode.js for 2D Codes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
+    <!-- Google Fonts: Inter & Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        :root {
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-heading: 'Plus Jakarta Sans', var(--font-sans);
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+        body {
+            font-family: var(--font-sans);
+            letter-spacing: -0.011em;
+            background-color: #090d16;
+            color: #f1f5f9;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        h1, h2, h3, h4, .font-heading {
+            font-family: var(--font-heading);
+            letter-spacing: -0.022em;
+        }
+        .tabular-nums, td.amount, .stat-value, .font-mono {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+        }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
         @media print {
             body * { visibility: hidden !important; }
@@ -64,41 +88,41 @@
         .badge-status {
             display: inline-flex;
             align-items: center;
-            padding: 0.25rem 0.625rem;
+            gap: 0.35rem;
+            padding: 0.2rem 0.6rem;
             border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            line-height: 1;
         }
     </style>
 </head>
 <body class="h-full bg-slate-950 text-slate-100 antialiased overflow-hidden">
 
     <!-- ========================================== -->
-    <!-- 1. AUTHENTICATION / LOGIN SCREEN           -->
+    <!-- 1. AUTHENTICATION / LOGIN SCREEN (ENTERPRISE) -->
     <!-- ========================================== -->
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 px-4">
-        <div class="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/90 p-8 shadow-2xl backdrop-blur-xl">
-            <div class="absolute -top-24 -left-24 h-48 w-48 rounded-full bg-blue-600/20 blur-3xl"></div>
-            <div class="absolute -bottom-24 -right-24 h-48 w-48 rounded-full bg-amber-500/20 blur-3xl"></div>
-
+        <div class="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/95 p-8 shadow-2xl backdrop-blur-md">
+            
             <div class="relative z-10">
                 <!-- Language Switcher in Login Screen -->
-                <div class="flex justify-end mb-3">
-                    <div class="flex items-center bg-slate-800/80 p-0.5 rounded-lg border border-slate-700 text-xs">
-                        <button type="button" id="btn-login-lang-uz" onclick="setLanguage('uz')" class="px-2.5 py-1 rounded font-bold transition">🇺🇿 UZ</button>
-                        <button type="button" id="btn-login-lang-ru" onclick="setLanguage('ru')" class="px-2.5 py-1 rounded font-semibold transition">🇷🇺 RU</button>
+                <div class="flex justify-end mb-4">
+                    <div class="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-xs">
+                        <button type="button" id="btn-login-lang-uz" onclick="setLanguage('uz')" class="px-2.5 py-1 rounded font-semibold text-slate-300 hover:text-white transition">UZ</button>
+                        <button type="button" id="btn-login-lang-ru" onclick="setLanguage('ru')" class="px-2.5 py-1 rounded font-semibold text-slate-400 hover:text-white transition">RU</button>
                     </div>
                 </div>
 
-                <div class="text-center mb-8">
-                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30">
-                        <i data-lucide="shield-check" class="w-8 h-8"></i>
+                <div class="text-center mb-7">
+                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-800 border border-slate-700/80 text-blue-400 shadow-sm">
+                        <i data-lucide="shield" class="w-6 h-6"></i>
                     </div>
-                    <h2 class="mt-4 text-2xl font-bold tracking-tight text-white">WMS ARENDA ERP</h2>
-                    <p class="mt-1 text-sm text-slate-400" data-i18n="contract.subtitle">Qurilish uskunalari ijarasi va ombor tizimi</p>
+                    <h2 class="mt-4 text-xl font-bold tracking-tight text-white font-heading">WMS ARENDA ERP</h2>
+                    <p class="mt-1 text-xs text-slate-400" data-i18n="contract.subtitle">Korporativ asboblar ijarasi va ombor tizimi</p>
                 </div>
 
-                <div id="login-error" class="hidden mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">
+                <div id="login-error" class="hidden mb-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400">
                     <div class="flex items-center gap-2">
                         <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
                         <span id="login-error-text" data-i18n="alert.login_error">Foydalanuvchi nomi yoki parol noto'g'ri!</span>
@@ -107,22 +131,22 @@
 
                 <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5" data-i18n="receipt.operator">Foydalanuvchi nomi</label>
+                        <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5" data-i18n="receipt.operator">Foydalanuvchi nomi</label>
                         <div class="relative">
-                            <i data-lucide="user" class="absolute left-3.5 top-3 w-4 h-4 text-slate-400"></i>
+                            <i data-lucide="user" class="absolute left-3.5 top-3 w-4 h-4 text-slate-500"></i>
                             <input type="text" id="login-username" required placeholder="Loginni kiriting" 
-                                class="w-full rounded-xl border border-slate-700 bg-slate-800/80 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none transition">
+                                class="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none transition">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Parol</label>
+                        <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Parol</label>
                         <div class="relative">
-                            <i data-lucide="lock" class="absolute left-3.5 top-3 w-4 h-4 text-slate-400"></i>
+                            <i data-lucide="lock" class="absolute left-3.5 top-3 w-4 h-4 text-slate-500"></i>
                             <input type="password" id="login-password" required placeholder="Parolni kiriting" 
-                                class="w-full rounded-xl border border-slate-700 bg-slate-800/80 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none transition">
+                                class="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none transition">
                         </div>
                     </div>
-                    <button type="submit" class="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 hover:from-blue-500 transition">
+                    <button type="submit" class="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 py-2.5 text-xs font-semibold text-white shadow-sm transition">
                         <span data-i18n="action.login">Tizimga kirish</span>
                         <i data-lucide="arrow-right" class="w-4 h-4"></i>
                     </button>
@@ -299,33 +323,33 @@
 
                 <div class="flex items-center gap-2.5">
                     <!-- Language Switcher in Header -->
-                    <div class="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-700 text-xs shrink-0">
-                        <button id="btn-lang-uz" onclick="setLanguage('uz')" class="px-2 py-1 rounded-lg font-bold transition">🇺🇿 UZ</button>
-                        <button id="btn-lang-ru" onclick="setLanguage('ru')" class="px-2 py-1 rounded-lg font-semibold transition">🇷🇺 RU</button>
+                    <div class="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-xs shrink-0">
+                        <button id="btn-lang-uz" onclick="setLanguage('uz')" class="px-2 py-1 rounded font-semibold text-slate-300 hover:text-white transition">UZ</button>
+                        <button id="btn-lang-ru" onclick="setLanguage('ru')" class="px-2 py-1 rounded font-semibold text-slate-400 hover:text-white transition">RU</button>
                     </div>
 
                     <!-- Universal Search Button (Ctrl+K) -->
-                    <button onclick="openUniversalSearch()" class="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 hover:border-blue-500/50 text-xs text-slate-300 hover:text-white flex items-center gap-2 transition" title="Tezkor Qidiruv (Mijoz, Asbob, Zakaz)">
-                        <i data-lucide="search" class="w-4 h-4 text-blue-400"></i>
+                    <button onclick="openUniversalSearch()" class="px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800/90 text-xs text-slate-300 hover:text-white flex items-center gap-2 transition" title="Tezkor Qidiruv (Mijoz, Asbob, Zakaz)">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400"></i>
                         <span class="hidden md:inline text-slate-400">Qidiruv...</span>
-                        <kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-slate-900 border border-slate-700 rounded text-slate-400">Ctrl+K</kbd>
+                        <kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-slate-950 border border-slate-800 rounded text-slate-400">Ctrl+K</kbd>
                     </button>
 
                     <!-- Camera Barcode Scanner Button -->
-                    <button onclick="openCameraScanner('universal')" class="px-3 py-1.5 rounded-xl border border-blue-500/40 bg-blue-600/20 hover:bg-blue-600/30 text-xs font-bold text-blue-300 flex items-center gap-1.5 transition shadow-sm" title="Kamera orqali Shtrix-kod / QR skanerlash">
-                        <i data-lucide="camera" class="w-4 h-4 text-blue-400"></i>
+                    <button onclick="openCameraScanner('universal')" class="px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800/90 text-xs font-medium text-slate-300 hover:text-white flex items-center gap-1.5 transition" title="Kamera orqali Shtrix-kod / QR skanerlash">
+                        <i data-lucide="camera" class="w-3.5 h-3.5 text-slate-400"></i>
                         <span class="hidden sm:inline">Kamera Skaner</span>
                     </button>
 
                     <!-- PWA Mobile Install Button (Shown on installable devices) -->
-                    <button id="btn-pwa-install" onclick="promptPWAInstall()" class="hidden px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-bold text-white flex items-center gap-1.5 transition shadow-md shadow-emerald-500/20" title="Ilovani ekranga o'rnatish">
+                    <button id="btn-pwa-install" onclick="promptPWAInstall()" class="hidden px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition" title="Ilovani ekranga o'rnatish">
                         <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
                         <span class="hidden lg:inline">O'rnatish</span>
                     </button>
 
                     <!-- Reset Demo Button -->
-                    <button onclick="resetDemoData()" title="Ma'lumotlarni qayta tiklash (Reset)" class="px-2.5 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 text-xs text-slate-400 hover:bg-slate-800 hover:text-white flex items-center gap-1 transition">
-                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <button onclick="resetDemoData()" title="Ma'lumotlarni qayta tiklash (Reset)" class="px-2.5 py-1.5 rounded-xl border border-slate-800 bg-slate-900 text-xs text-slate-400 hover:text-white flex items-center gap-1 transition">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-slate-400"></i>
                     </button>
                 </div>
             </header>
@@ -334,32 +358,32 @@
             <div id="section-dashboard" class="flex-1 flex flex-col min-w-0 overflow-y-auto">
                 <div class="p-6 space-y-6">
                     <!-- Welcome Banner & Quick Actions -->
-                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/60 border border-slate-800 shadow-xl">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-xl bg-slate-900/80 border border-slate-800 shadow-sm">
                         <div>
-                            <h2 class="text-xl font-extrabold text-white flex items-center gap-2">
-                                <span>Boshqaruv Paneli (Executive Dashboard)</span>
-                                <span class="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-semibold">Real-time</span>
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2 font-heading">
+                                <span>Boshqaruv Paneli</span>
+                                <span class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[11px] font-medium">Real-time ERP</span>
                             </h2>
-                            <p class="text-xs text-slate-400 mt-1">Uskunalar holati, kassa, toza foyda va tashqi sayt buyurtmalari boshqaruvi</p>
+                            <p class="text-xs text-slate-400 mt-1">Uskunalar balansi, kassa aylanmasi, toza foyda va buyurtmalar ijrosi</p>
                         </div>
                         
-                        <!-- 2. Tezkor Harakat Tugmalari (Quick Actions) -->
+                        <!-- Tezkor Harakat Tugmalari (Quick Actions) -->
                         <div class="flex flex-wrap items-center gap-2">
-                            <button onclick="openModalPosOrder()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white flex items-center gap-1.5 shadow-lg shadow-blue-500/25 transition">
+                            <button onclick="openModalPosOrder()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-medium text-white flex items-center gap-1.5 shadow-sm transition">
                                 <i data-lucide="plus" class="w-4 h-4"></i>
-                                <span>+ Yangi Buyurtma</span>
+                                <span>Yangi Buyurtma</span>
                             </button>
-                            <button onclick="switchSection('section-kirim'); switchTab('tab-po'); openModalAddPO()" class="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5 transition">
-                                <i data-lucide="package-plus" class="w-4 h-4 text-blue-400"></i>
-                                <span>+ Tezkor Kirim</span>
+                            <button onclick="switchSection('section-kirim'); switchTab('tab-po'); openModalAddPO()" class="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-xs font-medium text-slate-200 flex items-center gap-1.5 transition">
+                                <i data-lucide="package-plus" class="w-4 h-4 text-slate-400"></i>
+                                <span>Tezkor Kirim</span>
                             </button>
-                            <button onclick="openAddExpenseModal()" class="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-xs font-bold text-slate-200 flex items-center gap-1.5 transition">
+                            <button onclick="openAddExpenseModal()" class="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-xs font-medium text-slate-200 flex items-center gap-1.5 transition">
                                 <i data-lucide="trending-down" class="w-4 h-4 text-red-400"></i>
-                                <span>+ Xarajat (Rasxod)</span>
+                                <span>Xarajat</span>
                             </button>
-                            <button onclick="switchSection('section-orders')" class="px-3.5 py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-600 text-xs font-bold text-white flex items-center gap-1.5 transition">
-                                <i data-lucide="corner-down-left" class="w-4 h-4"></i>
-                                <span>Asbobni Priyomka qilish</span>
+                            <button onclick="switchSection('section-orders')" class="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700/80 text-xs font-medium text-slate-200 flex items-center gap-1.5 transition">
+                                <i data-lucide="corner-down-left" class="w-4 h-4 text-emerald-400"></i>
+                                <span>Priyomka qilish</span>
                             </button>
                         </div>
                     </div>
@@ -367,53 +391,69 @@
                     <!-- 1. Yuqori 4 ta Asosiy Kartochka -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <!-- Card 1: Uskunalar holati -->
-                        <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg backdrop-blur-sm">
+                        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-sm hover:border-slate-700 transition">
                             <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
-                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">📦 Uskunalar Holati</span>
-                                <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs"><i data-lucide="boxes" class="w-4 h-4"></i></div>
+                                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Uskunalar Holati</span>
+                                <div class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs"><i data-lucide="boxes" class="w-4 h-4"></i></div>
                             </div>
                             <div class="mt-3">
-                                <div class="text-2xl font-black text-white"><span id="dash-total-tools">0</span> <span class="text-xs font-normal text-slate-400">jami asbob</span></div>
+                                <div class="text-2xl font-bold text-white tabular-nums"><span id="dash-total-tools">0</span> <span class="text-xs font-normal text-slate-400">jami asbob</span></div>
                                 <div class="grid grid-cols-3 gap-1 mt-3 pt-3 border-t border-slate-800/60 text-[11px]">
                                     <div>
                                         <span class="text-slate-400 block text-[10px]">Bo'sh</span>
-                                        <b id="dash-available-tools" class="text-emerald-400 font-bold">0 ta</b>
+                                        <b id="dash-available-tools" class="text-emerald-400 font-semibold tabular-nums">0 ta</b>
                                     </div>
                                     <div>
                                         <span class="text-slate-400 block text-[10px]">Ijarada</span>
-                                        <b id="dash-rented-tools" class="text-blue-400 font-bold">0 ta</b>
+                                        <b id="dash-rented-tools" class="text-blue-400 font-semibold tabular-nums">0 ta</b>
                                     </div>
                                     <div>
                                         <span class="text-slate-400 block text-[10px]">Remontda</span>
-                                        <b id="dash-repair-tools" class="text-amber-400 font-bold">0 ta</b>
+                                        <b id="dash-repair-tools" class="text-amber-400 font-semibold tabular-nums">0 ta</b>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Card 2: Kechikkan uskunalar (Qizil belgi) -->
-                        <div onclick="switchSection('section-orders'); if (typeof filterOrdersByStatus === 'function') filterOrdersByStatus('kechikkan');" class="rounded-2xl border border-red-500/30 bg-red-950/20 hover:bg-red-950/30 p-5 shadow-lg backdrop-blur-sm cursor-pointer transition group">
+                        <!-- Card 2: Kechikkan uskunalar -->
+                        <div onclick="switchSection('section-orders'); if (typeof filterOrdersByStatus === 'function') filterOrdersByStatus('kechikkan');" class="rounded-xl border border-red-500/20 bg-slate-900/60 hover:bg-slate-900/90 p-5 shadow-sm cursor-pointer transition group">
                             <div class="flex items-center justify-between pb-3 border-b border-red-500/20">
-                                <span class="text-xs font-semibold text-red-300 uppercase tracking-wider">⚠️ Kechikkan Uskunalar</span>
-                                <div class="w-8 h-8 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center font-bold text-xs group-hover:scale-110 transition"><i data-lucide="alert-triangle" class="w-4 h-4"></i></div>
+                                <span class="text-xs font-medium text-red-400 uppercase tracking-wider">Kechikkan Uskunalar</span>
+                                <div class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center font-bold text-xs"><i data-lucide="alert-triangle" class="w-4 h-4"></i></div>
                             </div>
                             <div class="mt-3">
-                                <div id="dash-delayed-tools" class="text-2xl font-black text-red-400">0 ta</div>
-                                <p class="text-xs text-red-300/80 mt-1 flex items-center justify-between">
+                                <div id="dash-delayed-tools" class="text-2xl font-bold text-red-400 tabular-nums">0 ta</div>
+                                <p class="text-xs text-slate-400 mt-1 flex items-center justify-between">
                                     <span>Muddati o'tib ketgan</span>
-                                    <span class="text-[10px] text-red-400 underline font-semibold">Buyurtmalarga o'tish &rarr;</span>
+                                    <span class="text-[10px] text-red-400 font-medium group-hover:underline">Buyurtmalarga o'tish &rarr;</span>
                                 </p>
                             </div>
                         </div>
 
                         <!-- Card 3: Bugungi Kassa -->
-                        <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg backdrop-blur-sm">
+                        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-sm hover:border-slate-700 transition">
                             <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
-                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">💵 Bugungi Kassa</span>
-                                <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xs"><i data-lucide="banknote" class="w-4 h-4"></i></div>
+                                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Bugungi Kassa</span>
+                                <div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xs"><i data-lucide="banknote" class="w-4 h-4"></i></div>
                             </div>
                             <div class="mt-3">
-                                <div id="dash-today-income" class="text-2xl font-black text-emerald-400 font-mono">0 so'm</div>
+                                <div id="dash-today-income" class="text-2xl font-bold text-emerald-400 font-mono tabular-nums">0 so'm</div>
+                                <p id="dash-today-deposit" class="text-xs text-slate-400 font-mono mt-1">Olingan zalog: 0 so'm</p>
+                            </div>
+                        </div>
+
+                        <!-- Card 4: Shu oylik Toza Foyda -->
+                        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5 shadow-sm hover:border-slate-700 transition">
+                            <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Shu Oylik Toza Foyda</span>
+                                <div class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs"><i data-lucide="trending-up" class="w-4 h-4"></i></div>
+                            </div>
+                            <div class="mt-3">
+                                <div id="dash-monthly-profit" class="text-2xl font-bold text-slate-100 font-mono tabular-nums">0 so'm</div>
+                                <p class="text-xs text-slate-400 mt-1">Sof daromad (P&L Net Profit)</p>
+                            </div>
+                        </div>
+                    </div>
                                 <p id="dash-today-deposit" class="text-xs text-amber-400 font-mono mt-1">Olingan zalog: 0 so'm</p>
                             </div>
                         </div>
@@ -421,7 +461,7 @@
                         <!-- Card 4: Shu oylik Toza Foyda -->
                         <div class="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-lg backdrop-blur-sm">
                             <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
-                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">📈 Shu Oylik Toza Foyda</span>
+                                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Shu Oylik Toza Foyda</span>
                                 <div class="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-xs"><i data-lucide="trending-up" class="w-4 h-4"></i></div>
                             </div>
                             <div class="mt-3">
@@ -435,7 +475,7 @@
                     <div class="rounded-2xl border border-slate-800 bg-slate-900/70 overflow-hidden shadow-xl">
                         <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
                             <div class="flex items-center gap-2.5">
-                                <div class="w-3 h-3 rounded-full bg-red-500 animate-ping"></div>
+                                <div class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></div>
                                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                                     <span>Diqqat Jadvali: Kechikayotgan va Bugun Qaytishi Kerak Bo'lganlar</span>
                                 </h3>
@@ -473,17 +513,17 @@
                                 </div>
                                 <div class="grid grid-cols-3 gap-3 mt-4 text-xs">
                                     <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                                        <div class="flex items-center gap-1.5 text-slate-400 text-[11px]">🏗️ Avtokran</div>
+                                        <div class="flex items-center gap-1.5 text-slate-400 text-[11px] font-medium"><i data-lucide="anchor" class="w-3.5 h-3.5 text-amber-400"></i> Avtokran</div>
                                         <div id="dash-kran-count" class="text-base font-bold text-white mt-1">0 ta</div>
                                         <div id="dash-kran-margin" class="text-[11px] font-mono text-emerald-400 font-bold">+0 so'm</div>
                                     </div>
                                     <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                                        <div class="flex items-center gap-1.5 text-slate-400 text-[11px]">🚛 Musor Olib Ketish</div>
+                                        <div class="flex items-center gap-1.5 text-slate-400 text-[11px] font-medium"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-orange-400"></i> Chiqindi (Musor)</div>
                                         <div id="dash-musor-count" class="text-base font-bold text-white mt-1">0 ta</div>
                                         <div id="dash-musor-margin" class="text-[11px] font-mono text-emerald-400 font-bold">+0 so'm</div>
                                     </div>
                                     <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                                        <div class="flex items-center gap-1.5 text-slate-400 text-[11px]">👷 Gruzchik</div>
+                                        <div class="flex items-center gap-1.5 text-slate-400 text-[11px] font-medium"><i data-lucide="users" class="w-3.5 h-3.5 text-blue-400"></i> Yuk tashuvchi</div>
                                         <div id="dash-gruzchik-count" class="text-base font-bold text-white mt-1">0 ta</div>
                                         <div id="dash-gruzchik-margin" class="text-[11px] font-mono text-emerald-400 font-bold">+0 so'm</div>
                                     </div>
@@ -562,10 +602,10 @@
                                         <div>
                                             <label class="block text-[10px] text-slate-400 mb-1">Xizmat turi *</label>
                                             <select id="api-test-service" class="w-full rounded-lg border border-slate-700 bg-slate-950 py-1.5 px-2.5 text-white">
-                                                <option value="asbob_ijarasi">🔨 Asbob ijarasi</option>
-                                                <option value="kran">🏗️ Avtokran xizmati</option>
-                                                <option value="musor_olib_ketish">🚛 Musor olib ketish</option>
-                                                <option value="gruzchik">👷 Gruzchik xizmati</option>
+                                                <option value="asbob_ijarasi">Asbob ijarasi</option>
+                                                <option value="kran">Avtokran xizmati</option>
+                                                <option value="musor_olib_ketish">Chiqindi (Musor) olib ketish</option>
+                                                <option value="gruzchik">Yuk tashuvchilar xizmati</option>
                                             </select>
                                         </div>
                                         <div>
@@ -830,10 +870,10 @@
                     <div id="ptab-directory" class="space-y-4">
                         <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
                             <div class="flex items-center gap-2">
-                                <button onclick="filterPartnerCategory('')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white">Barchasi</button>
-                                <button onclick="filterPartnerCategory('kran')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white">🏗️ Kranlar</button>
-                                <button onclick="filterPartnerCategory('musor_olib_ketish')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white">🚛 Musor Mashinalari</button>
-                                <button onclick="filterPartnerCategory('gruzchik')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white">💪 Gruzchiklar</button>
+                                <button onclick="filterPartnerCategory('')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white border border-slate-700">Barchasi</button>
+                                <button onclick="filterPartnerCategory('kran')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white border border-slate-700">Avtokranlar</button>
+                                <button onclick="filterPartnerCategory('musor_olib_ketish')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white border border-slate-700">Chiqindi Mashinalari</button>
+                                <button onclick="filterPartnerCategory('gruzchik')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white border border-slate-700">Yuk Tashuvchilar</button>
                             </div>
                             <input type="text" id="filter-partners-search" oninput="renderPartnersDirectory()" placeholder="Kompaniya yoki shaxs nomi..." class="rounded-xl border border-slate-700 bg-slate-800 py-1.5 px-3 text-xs text-white focus:outline-none w-64">
                         </div>
@@ -928,38 +968,38 @@
                                 <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Faol Ijarada</p>
                                 <h3 id="kpi-orders-active" class="text-lg font-bold text-blue-400 font-mono mt-0.5">0</h3>
                             </div>
-                            <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold">🔨</div>
+                            <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center"><i data-lucide="wrench" class="w-4 h-4"></i></div>
                         </div>
                         <div class="p-3 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center justify-between">
                             <div>
-                                <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Muddati O'tgan (Kechikkan)</p>
-                                <h3 id="kpi-orders-delayed" class="text-lg font-bold text-red-400 font-mono mt-0.5">0</h3>
+                                <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Muddati O'tgan</p>
+                                <h3 id="kpi-orders-delayed" class="text-lg font-bold text-rose-400 font-mono mt-0.5">0</h3>
                             </div>
-                            <div class="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center font-bold">⚠️</div>
+                            <div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center"><i data-lucide="alert-triangle" class="w-4 h-4"></i></div>
                         </div>
                         <div class="p-3 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center justify-between">
                             <div>
                                 <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Yakunlanganlar</p>
                                 <h3 id="kpi-orders-completed" class="text-lg font-bold text-emerald-400 font-mono mt-0.5">0</h3>
                             </div>
-                            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">✔</div>
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center"><i data-lucide="check-circle" class="w-4 h-4"></i></div>
                         </div>
                         <div class="p-3 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center justify-between">
                             <div>
                                 <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Aylanayotgan Zaloglar</p>
                                 <h3 id="kpi-orders-deposits" class="text-sm font-bold text-amber-400 font-mono mt-1">0 so'm</h3>
                             </div>
-                            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold">💰</div>
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center"><i data-lucide="shield" class="w-4 h-4"></i></div>
                         </div>
                     </div>
 
                     <!-- Search & Filter Tabs -->
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-1">
                         <div class="flex items-center gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800">
-                            <button id="btn-ord-all" onclick="filterOrdersByStatus('')" class="px-3 py-1.5 rounded-xl text-xs font-bold border border-blue-500/30 bg-blue-600/20 text-blue-400 transition">Barchasi</button>
-                            <button id="btn-ord-active" onclick="filterOrdersByStatus('faol_ijarada')" class="px-3 py-1.5 rounded-xl text-xs font-semibold border border-transparent text-slate-400 hover:text-white transition">🔵 Ijarada</button>
-                            <button id="btn-ord-delayed" onclick="filterOrdersByStatus('kechikkan')" class="px-3 py-1.5 rounded-xl text-xs font-semibold border border-transparent text-slate-400 hover:text-white transition">🔴 Kechikkanlar</button>
-                            <button id="btn-ord-completed" onclick="filterOrdersByStatus('yakunlandi')" class="px-3 py-1.5 rounded-xl text-xs font-semibold border border-transparent text-slate-400 hover:text-white transition">🟢 Yakunlangan</button>
+                            <button id="btn-ord-all" onclick="filterOrdersByStatus('')" class="px-3 py-1.5 rounded-lg text-xs font-bold border border-blue-500/30 bg-blue-600/20 text-blue-400 transition">Barchasi</button>
+                            <button id="btn-ord-active" onclick="filterOrdersByStatus('faol_ijarada')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-transparent text-slate-400 hover:text-white transition">Ijarada</button>
+                            <button id="btn-ord-delayed" onclick="filterOrdersByStatus('kechikkan')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-transparent text-slate-400 hover:text-white transition">Kechikkanlar</button>
+                            <button id="btn-ord-completed" onclick="filterOrdersByStatus('yakunlandi')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-transparent text-slate-400 hover:text-white transition">Yakunlangan</button>
                         </div>
                         <div class="relative w-full sm:w-72">
                             <input type="text" id="filter-orders-search" oninput="renderOrdersTable()" placeholder="Buyurtma №, mijoz yoki telefon..." class="w-full rounded-xl border border-slate-700 bg-slate-800 py-1.5 pl-8 pr-3 text-xs text-white focus:outline-none">
@@ -1059,9 +1099,9 @@
                         <input type="text" id="filter-crm-search" oninput="renderCustomersCRM()" placeholder="F.I.O, telefon raqami yoki pasport..." class="rounded-xl border border-slate-700 bg-slate-800 py-1.5 px-3 text-xs text-white focus:outline-none w-80">
                         <select id="filter-crm-status" onchange="renderCustomersCRM()" class="rounded-xl border border-slate-700 bg-slate-800 py-1.5 px-2.5 text-xs text-slate-300">
                             <option value="">Barcha mijozlar</option>
-                            <option value="vip">⭐ VIP Mijozlar</option>
-                            <option value="debt">🔴 Qarzdorlar</option>
-                            <option value="blacklist">🚫 Qora ro'yxat</option>
+                            <option value="vip">VIP Mijozlar</option>
+                            <option value="debt">Qarzdorlar</option>
+                            <option value="blacklist">Qora ro'yxat</option>
                         </select>
                     </div>
                 </div>
@@ -1128,7 +1168,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div class="p-4 rounded-2xl border border-slate-800 bg-slate-900/60 flex flex-col justify-between">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-bold text-slate-400">💵 Asosiy Naqd Kassa</span>
+                                    <span class="text-xs font-bold text-slate-400">Asosiy Naqd Kassa</span>
                                     <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono text-[10px]">Naqd pul</span>
                                 </div>
                                 <h3 id="cash-val-naqd" class="text-xl font-black text-white font-mono">0 so'm</h3>
@@ -1137,7 +1177,7 @@
 
                             <div class="p-4 rounded-2xl border border-slate-800 bg-slate-900/60 flex flex-col justify-between">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-bold text-slate-400">🏛️ Bank / Hisob Raqam</span>
+                                    <span class="text-xs font-bold text-slate-400">Bank / Hisob Raqam</span>
                                     <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 font-mono text-[10px]">O'tkazma</span>
                                 </div>
                                 <h3 id="cash-val-bank" class="text-xl font-black text-white font-mono">0 so'm</h3>
@@ -1146,7 +1186,7 @@
 
                             <div class="p-4 rounded-2xl border border-slate-800 bg-slate-900/60 flex flex-col justify-between">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-bold text-slate-400">💳 Karta / Terminal</span>
+                                    <span class="text-xs font-bold text-slate-400">Karta / Terminal</span>
                                     <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-mono text-[10px]">Payme/Uzum</span>
                                 </div>
                                 <h3 id="cash-val-card" class="text-xl font-black text-white font-mono">0 so'm</h3>
@@ -1155,7 +1195,7 @@
 
                             <div class="p-4 rounded-2xl border border-purple-500/30 bg-purple-950/20 flex flex-col justify-between">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-bold text-purple-300">🔒 Zaloglar Fondi (Safe)</span>
+                                    <span class="text-xs font-bold text-purple-300">Zaloglar Fondi (Safe)</span>
                                     <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono text-[10px]">Garov</span>
                                 </div>
                                 <h3 id="cash-val-safe" class="text-xl font-black text-purple-300 font-mono">0 so'm</h3>
@@ -1192,12 +1232,12 @@
                                 <label class="text-xs text-slate-400">Kategoriya bo'yicha saralash:</label>
                                 <select id="filter-expense-category" onchange="renderExpensesTable()" class="rounded-xl border border-slate-700 bg-slate-800 py-1.5 px-3 text-xs text-white focus:outline-none">
                                     <option value="">Barcha kategoriyalar</option>
-                                    <option value="1">🔧 Asboblar ta'miri va zapchastlar</option>
-                                    <option value="2">👤 Xodimlar oyligi</option>
-                                    <option value="3">🏢 Ombor ijarasi</option>
-                                    <option value="4">⛽ Benzin va transport</option>
-                                    <option value="5">⚡ Kommunal to'lovlar</option>
-                                    <option value="6">📦 Boshqa xarajatlar</option>
+                                    <option value="1">Asboblar ta'miri va ehtiyot qismlar</option>
+                                    <option value="2">Xodimlar oyligi va mukofotlar</option>
+                                    <option value="3">Ombor va ofis ijarasi</option>
+                                    <option value="4">Yoqilg'i va transport</option>
+                                    <option value="5">Kommunal va aloqa</option>
+                                    <option value="6">Boshqa operatsion xarajatlar</option>
                                 </select>
                             </div>
                         </div>
@@ -1242,15 +1282,15 @@
                                 </h3>
                                 <div class="space-y-3 text-xs">
                                     <div class="flex justify-between items-center py-2 border-b border-slate-800/60">
-                                        <span class="text-slate-300">🔨 Asboblar ijarasidan tushum:</span>
+                                        <span class="text-slate-300">Asboblar ijarasidan tushum:</span>
                                         <b id="pl-rent-rev" class="text-emerald-400 font-mono text-sm">+0 so'm</b>
                                     </div>
                                     <div class="flex justify-between items-center py-2 border-b border-slate-800/60">
-                                        <span class="text-slate-300">🚚 Tashqi xizmatlar (Kran/Musor) sof marjasi:</span>
+                                        <span class="text-slate-300">Tashqi xizmatlar (Kran/Musor) sof marjasi:</span>
                                         <b id="pl-service-margin" class="text-blue-400 font-mono text-sm">+0 so'm</b>
                                     </div>
                                     <div class="flex justify-between items-center py-2 border-b border-slate-800/60">
-                                        <span class="text-slate-300">⚠️ Kechikish va shikast yetkazish jarimalari:</span>
+                                        <span class="text-slate-300">Kechikish va shikast jarimalari:</span>
                                         <b id="pl-penalty-rev" class="text-amber-400 font-mono text-sm">+0 so'm</b>
                                     </div>
                                     <div class="flex justify-between items-center pt-2 font-bold text-sm">
@@ -1264,13 +1304,13 @@
                             <div class="lg:col-span-6 flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
                                 <div>
                                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2 flex items-center gap-2">
-                                        <i data-lucide="trending-down" class="w-4 h-4 text-red-400"></i>
+                                        <i data-lucide="trending-down" class="w-4 h-4 text-rose-400"></i>
                                         <span>Chiqimlar & Sof Foyda</span>
                                     </h3>
                                     <div class="space-y-3 text-xs mt-3">
                                         <div class="flex justify-between items-center py-2 border-b border-slate-800/60">
-                                            <span class="text-slate-300">📉 Tashkiliy xarajatlar (Rasxodlar):</span>
-                                            <b id="pl-expenses-total" class="text-red-400 font-mono text-sm">-0 so'm</b>
+                                            <span class="text-slate-300">Tashkiliy xarajatlar (Rasxodlar):</span>
+                                            <b id="pl-expenses-total" class="text-rose-400 font-mono text-sm">-0 so'm</b>
                                         </div>
                                     </div>
                                 </div>
@@ -1296,20 +1336,20 @@
             <div id="section-ai" class="flex-1 flex flex-col min-w-0 overflow-y-auto hidden">
                 <div class="p-6 space-y-6">
                     <!-- Top AI Header Banner -->
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-purple-950/60 via-slate-900 to-indigo-950/60 border border-purple-500/20 shadow-xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl">
                         <div class="flex items-center gap-3.5">
-                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white text-xl shadow-lg shadow-purple-500/20">
-                                🤖
+                            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                                <i data-lucide="bot" class="w-6 h-6"></i>
                             </div>
                             <div>
-                                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                                <h2 class="text-base font-bold text-white flex items-center gap-2">
                                     <span>AI Agent & Aqlli Telegram Yordamchi</span>
-                                    <span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold uppercase tracking-wider">LLM 24/7</span>
+                                    <span class="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 text-[10px] font-semibold tracking-wider">LLM 24/7</span>
                                 </h2>
                                 <p class="text-xs text-slate-400 mt-0.5">Ombor qoldig'i, narxlar va kassa hisoboti bilan to'g'ridan-to'g'ri ishlovchi avtonom yordamchi</p>
                             </div>
                         </div>
-                        <div id="ai-global-status-badge" class="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold text-xs flex items-center gap-2">
+                        <div id="ai-global-status-badge" class="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold text-xs flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                             <span>AI Agent Faol (24/7)</span>
                         </div>
@@ -1323,12 +1363,12 @@
                             <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl space-y-4">
                                 <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                                     <h3 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
-                                        <i data-lucide="settings" class="w-4 h-4 text-purple-400"></i>
+                                        <i data-lucide="settings" class="w-4 h-4 text-indigo-400"></i>
                                         <span>AI Agent Sozlamalari</span>
                                     </h3>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="ai-setting-enabled" checked onchange="saveAISettings()" class="sr-only peer">
-                                        <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                                        <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                                     </label>
                                 </div>
 
@@ -1336,11 +1376,11 @@
                                     <!-- Provider Selection -->
                                     <div>
                                         <label class="block text-slate-400 font-semibold mb-1">AI Provayderi (LLM Engine) *</label>
-                                        <select id="ai-setting-provider" onchange="handleAIProviderChange()" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white focus:outline-none focus:border-purple-500">
-                                            <option value="groq" selected>⚡ Groq API (Llama 3.3 / Llama 3.1 - Bepul va Tezkor)</option>
-                                            <option value="gemini">🔷 Google Gemini 1.5 Flash (Jonli AI LLM)</option>
-                                            <option value="demo">⚡ Ichki Dvigatel (Lokal Offline Rejim)</option>
-                                            <option value="openai">🟢 OpenAI API (GPT-4o / GPT-4o-mini)</option>
+                                        <select id="ai-setting-provider" onchange="handleAIProviderChange()" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white focus:outline-none focus:border-blue-500">
+                                            <option value="groq" selected>Groq API (Llama 3.3 / Llama 3.1 - Bepul va Tezkor)</option>
+                                            <option value="gemini">Google Gemini 1.5 Flash (Jonli AI LLM)</option>
+                                            <option value="demo">Ichki Dvigatel (Lokal Offline Rejim)</option>
+                                            <option value="openai">OpenAI API (GPT-4o / GPT-4o-mini)</option>
                                         </select>
                                     </div>
 
@@ -1348,12 +1388,12 @@
                                     <div>
                                         <label id="ai-setting-key-label" class="block text-slate-400 font-semibold mb-1">Groq API Kaliti (gsk_...)</label>
                                         <div class="relative">
-                                            <input type="password" id="ai-setting-key" placeholder="gsk_... kalitini kiriting" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-3 pr-10 text-white font-mono text-xs focus:outline-none focus:border-purple-500">
+                                            <input type="password" id="ai-setting-key" placeholder="gsk_... kalitini kiriting" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-3 pr-10 text-white font-mono text-xs focus:outline-none focus:border-blue-500">
                                             <button type="button" onclick="const i = document.getElementById('ai-setting-key'); i.type = i.type === 'password' ? 'text' : 'password';" class="absolute right-2.5 top-2 text-slate-400 hover:text-white">
                                                 <i data-lucide="eye" class="w-4 h-4"></i>
                                             </button>
                                         </div>
-                                        <p id="ai-setting-key-hint" class="text-[10px] text-slate-500 mt-1">Groq Console (<a href="https://console.groq.com/keys" target="_blank" class="text-amber-400 underline">console.groq.com</a>) dan bepul kalit oling yoki serverda <code class="text-slate-300">GROQ_API_KEY</code> sozlang.</p>
+                                        <p id="ai-setting-key-hint" class="text-[10px] text-slate-500 mt-1">Groq Console (<a href="https://console.groq.com/keys" target="_blank" class="text-blue-400 underline">console.groq.com</a>) dan bepul kalit oling yoki serverda <code class="text-slate-300">GROQ_API_KEY</code> sozlang.</p>
                                     </div>
 
                                     <div class="grid grid-cols-2 gap-3">
@@ -1383,7 +1423,7 @@
                                     </div>
 
                                     <div class="pt-2 border-t border-slate-800 flex justify-end">
-                                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white text-xs flex items-center gap-1.5 shadow-lg shadow-purple-500/20 transition">
+                                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-semibold text-white text-xs flex items-center gap-1.5 shadow-sm transition">
                                             <i data-lucide="save" class="w-4 h-4"></i>
                                             <span>Sozlamalarni Saqlash</span>
                                         </button>
@@ -1392,7 +1432,7 @@
                             </div>
 
                             <!-- Telegram Bot Info Card -->
-                            <div class="rounded-2xl border border-blue-500/20 bg-slate-900/80 p-5 shadow-lg space-y-3 text-xs">
+                            <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg space-y-3 text-xs">
                                 <div class="flex items-center gap-2 text-blue-400 font-bold">
                                     <i data-lucide="send" class="w-4 h-4"></i>
                                     <span>Telegram Bot Bilan Bog'lash</span>
@@ -1404,8 +1444,8 @@
                                     POST /api/ai/telegram-webhook
                                 </div>
                                 <div class="space-y-1.5 text-[11px] text-slate-400 pt-1">
-                                    <div>👤 <b>Mijoz yozganda:</b> AI sotuvchi va ombor qoldig'i bo'yicha maslahat beradi.</div>
-                                    <div>👑 <b>Admin yozganda:</b> <code class="text-amber-400">/admin 7788</code> kodi bilan kassa va moliyaviy hisobotlarni oladi.</div>
+                                    <div><b>Mijoz rejimi:</b> AI sotuvchi va ombor qoldig'i bo'yicha maslahat beradi.</div>
+                                    <div><b>Admin rejimi:</b> <code class="text-amber-400">/admin 7788</code> kodi bilan kassa va moliyaviy hisobotlarni oladi.</div>
                                 </div>
                             </div>
                         </div>
@@ -1417,11 +1457,11 @@
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs text-slate-400">Muloqot rejimi:</span>
                                     <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
-                                        <button type="button" id="btn-sim-role-customer" onclick="setChatSimulatorRole('customer')" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-sm transition">
-                                            👤 Mijoz (Mijoz Chat)
+                                        <button type="button" id="btn-sim-role-customer" onclick="setChatSimulatorRole('customer')" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold text-xs shadow-sm transition">
+                                            Mijoz Chat
                                         </button>
-                                        <button type="button" id="btn-sim-role-admin" onclick="setChatSimulatorRole('admin')" class="px-3 py-1.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white font-semibold text-xs transition">
-                                            👑 Bosh Admin (Hisobotlar)
+                                        <button type="button" id="btn-sim-role-admin" onclick="setChatSimulatorRole('admin')" class="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-white font-semibold text-xs transition">
+                                            Bosh Admin (Hisobotlar)
                                         </button>
                                     </div>
                                 </div>
@@ -1433,9 +1473,9 @@
 
                             <!-- Chat Messages Thread -->
                             <div id="ai-chat-messages-container" class="flex-1 p-5 overflow-y-auto space-y-4 max-h-[480px] bg-slate-950/40">
-                                <div class="p-4 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 text-xs text-indigo-300 leading-relaxed">
+                                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 leading-relaxed">
                                     <div class="font-bold flex items-center gap-1.5 mb-1 text-white">
-                                        <span>🤖 WMS Arenda AI Yordamchisiga xush kelibsiz!</span>
+                                        <span>WMS Arenda AI Yordamchisiga xush kelibsiz!</span>
                                     </div>
                                     <p>Men real vaqtda omborda bor-yo'q asboblar qoldig'i, narxlar va kassa hisobotlari bo'yicha 24/7 yordam beraman. Quyidagi tayyor savollardan birini tanlang yoki o'zingiz yozing:</p>
                                 </div>
@@ -1443,11 +1483,11 @@
 
                             <!-- Quick Suggestion Chips -->
                             <div class="px-4 py-2.5 bg-slate-950/80 border-t border-slate-800/80 overflow-x-auto flex gap-1.5 shrink-0">
-                                <button type="button" onclick="sendQuickPrompt('Perforator bormi va narxi qancha?')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 whitespace-nowrap transition">🔨 Perforator bormi?</button>
-                                <button type="button" onclick="sendQuickPrompt('Musor olib ketish xizmati qancha bo\'ladi?')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 whitespace-nowrap transition">🚛 Musor narxi?</button>
-                                <button type="button" onclick="sendQuickPrompt('Avtokran xizmati kerak, 4 soatga')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 whitespace-nowrap transition">🏗️ Avtokran 4 soat</button>
-                                <button type="button" onclick="sendQuickPrompt('Menga 1 kunga generator zakaz qilib bering (+998 90 123-45-67)')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 whitespace-nowrap transition">📝 Generator zakaz qilish</button>
-                                <button type="button" onclick="sendQuickPrompt('/admin 7788')" class="px-2.5 py-1 rounded-lg bg-purple-900/40 border border-purple-500/30 hover:bg-purple-900/60 text-[11px] text-purple-300 whitespace-nowrap transition">👑 /admin 7788 (Hisobot)</button>
+                                <button type="button" onclick="sendQuickPrompt('Perforator bormi va narxi qancha?')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 whitespace-nowrap transition border border-slate-700">Perforator bormi?</button>
+                                <button type="button" onclick="sendQuickPrompt('Musor olib ketish xizmati qancha bo\'ladi?')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 whitespace-nowrap transition border border-slate-700">Musor narxi?</button>
+                                <button type="button" onclick="sendQuickPrompt('Avtokran xizmati kerak, 4 soatga')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 whitespace-nowrap transition border border-slate-700">Avtokran 4 soat</button>
+                                <button type="button" onclick="sendQuickPrompt('Menga 1 kunga generator zakaz qilib bering (+998 90 123-45-67)')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 whitespace-nowrap transition border border-slate-700">Generator zakaz qilish</button>
+                                <button type="button" onclick="sendQuickPrompt('/admin 7788')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-amber-300 whitespace-nowrap transition border border-amber-500/30">/admin 7788 (Hisobot)</button>
                             </div>
 
                             <!-- Input Form -->
@@ -1606,8 +1646,8 @@
                     <div><h3 id="cd-name" class="text-base font-bold text-white">Mijoz Kartochkasi</h3><p id="cd-phone" class="text-xs text-slate-400 font-mono"></p></div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="toggleCustomerVip()" class="px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs font-semibold transition">⭐ VIP</button>
-                    <button onclick="promptBlacklistCustomer()" class="px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/20 text-xs font-semibold transition">🚫 Qora Ro'yxat</button>
+                    <button onclick="toggleCustomerVip()" class="px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 text-xs font-semibold transition">VIP Status</button>
+                    <button onclick="promptBlacklistCustomer()" class="px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs font-semibold transition">Qora Ro'yxat</button>
                     <button onclick="closeModal('modal-customer-detail')" class="text-slate-400 hover:text-white ml-2"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
             </div>
@@ -2034,9 +2074,9 @@
                 <div>
                     <label class="block text-xs font-semibold text-slate-400 mb-1">Xizmat Yo'nalishi *</label>
                     <select id="p-category" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none">
-                        <option value="kran">🏗️ Avtokran xizmati</option>
-                        <option value="musor_olib_ketish">🚛 Qurilish chiqindilarini (musor) olib ketish</option>
-                        <option value="gruzchik">💪 Gruzchiklar brigadasi</option>
+                        <option value="kran">Avtokran xizmati</option>
+                        <option value="musor_olib_ketish">Qurilish chiqindilarini (musor) olib ketish</option>
+                        <option value="gruzchik">Yuk tashuvchilar (gruzchik)</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -2108,9 +2148,9 @@
                     <div>
                         <label class="block text-xs font-semibold text-slate-400 mb-1">Xizmat Yo'nalishi *</label>
                         <select id="so-category" onchange="if (typeof onDispatchServiceCategoryChange === 'function') onDispatchServiceCategoryChange();" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none">
-                            <option value="kran">🏗️ Avtokran xizmati</option>
-                            <option value="musor_olib_ketish">🚛 Chiqindi (Musor) chiqarish</option>
-                            <option value="gruzchik">💪 Gruzchiklar xizmati</option>
+                            <option value="kran">Avtokran xizmati</option>
+                            <option value="musor_olib_ketish">Chiqindi (Musor) chiqarish</option>
+                            <option value="gruzchik">Yuk tashuvchilar xizmati</option>
                         </select>
                     </div>
                 </div>
@@ -2247,8 +2287,8 @@
                         <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                             <span class="text-xs font-bold text-white">2. Savatga Qo'shish</span>
                             <div class="flex gap-1">
-                                <button type="button" id="pos-tab-btn-tool" onclick="document.getElementById('pos-form-tool').classList.remove('hidden'); document.getElementById('pos-form-service').classList.add('hidden'); this.className='px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white'; document.getElementById('pos-tab-btn-srv').className='px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white';" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white">🔨 Asbob Ijarasi</button>
-                                <button type="button" id="pos-tab-btn-srv" onclick="document.getElementById('pos-form-service').classList.remove('hidden'); document.getElementById('pos-form-tool').classList.add('hidden'); this.className='px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-600 text-slate-950'; document.getElementById('pos-tab-btn-tool').className='px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white';" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white">🚚 Tashqi Xizmat (Kran/Musor)</button>
+                                <button type="button" id="pos-tab-btn-tool" onclick="document.getElementById('pos-form-tool').classList.remove('hidden'); document.getElementById('pos-form-service').classList.add('hidden'); this.className='px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white'; document.getElementById('pos-tab-btn-srv').className='px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white';" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white">Asbob Ijarasi</button>
+                                <button type="button" id="pos-tab-btn-srv" onclick="document.getElementById('pos-form-service').classList.remove('hidden'); document.getElementById('pos-form-tool').classList.add('hidden'); this.className='px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white'; document.getElementById('pos-tab-btn-tool').className='px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white';" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white">Tashqi Xizmat (Kran/Musor)</button>
                             </div>
                         </div>
 
@@ -2259,7 +2299,7 @@
                                     <label class="text-xs font-semibold text-slate-400">Ombordagi Bo'sh Asbob *</label>
                                     <button type="button" onclick="openCameraScanner('pos')" class="px-2.5 py-0.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 text-[11px] font-bold flex items-center gap-1 border border-blue-500/30 transition">
                                         <i data-lucide="camera" class="w-3.5 h-3.5 text-blue-400"></i>
-                                        <span>📷 Shtrix-kod Skaner</span>
+                                        <span>Shtrix-kod Skaner</span>
                                     </button>
                                 </div>
                                 <select id="pos-tool-unit-select" onchange="if (typeof onPosToolSelectChange === 'function') onPosToolSelectChange();" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></select>
@@ -2284,9 +2324,9 @@
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-400 mb-1">Xizmat Yo'nalishi</label>
                                     <select id="pos-service-category" onchange="if (typeof onPosServiceCategoryChange === 'function') onPosServiceCategoryChange();" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none">
-                                        <option value="kran">🏗️ Avtokran xizmati</option>
-                                        <option value="musor_olib_ketish">🚛 Chiqindi (Musor) chiqarish</option>
-                                        <option value="gruzchik">💪 Gruzchik brigadasi</option>
+                                        <option value="kran">Avtokran xizmati</option>
+                                        <option value="musor_olib_ketish">Chiqindi (Musor) chiqarish</option>
+                                        <option value="gruzchik">Yuk tashuvchilar brigadasi</option>
                                     </select>
                                 </div>
                                 <div>
@@ -2429,7 +2469,7 @@
                         <h4 class="text-xs font-bold text-white">Qaytarilayotgan Asboblar Tekshiruvi:</h4>
                         <button type="button" onclick="openCameraScanner('return')" class="px-2.5 py-0.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-[11px] font-bold flex items-center gap-1 border border-emerald-500/30 transition">
                             <i data-lucide="camera" class="w-3.5 h-3.5 text-emerald-400"></i>
-                            <span>📷 Seriyani Skanerlash</span>
+                            <span>Seriyani Skanerlash</span>
                         </button>
                     </div>
                     <div id="ret-tools-checklist-container" class="space-y-3"></div>
@@ -3206,10 +3246,10 @@
             document.getElementById('user-avatar').innerText = currentUser.full_name.charAt(0);
             
             const roleLabels = {
-                admin: "Bosh Admin 👑",
-                manager: "Menejer 💼",
-                cashier: "Kassir 💰",
-                warehouseman: "Skladchi 📦"
+                admin: "Bosh Admin",
+                manager: "Menejer",
+                cashier: "Kassir",
+                warehouseman: "Skladchi"
             };
             document.getElementById('user-role-badge').innerText = (typeof t === 'function' ? t(`role.${currentUser.role_id}`, roleLabels[currentUser.role_id]) : (roleLabels[currentUser.role_id] || currentUser.role_id));
 

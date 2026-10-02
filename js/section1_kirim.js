@@ -133,7 +133,7 @@ function renderPOTable() {
                         <span>Kirimga o'tkazish</span>
                     </button>
                 ` : `
-                    <span class="text-xs text-slate-500 font-medium">Kirim qilingan ✔</span>
+                    <span class="text-xs text-slate-500 font-medium">Kirim qilingan </span>
                 `}
             </td>
         `;
@@ -272,7 +272,7 @@ function renderReceiptsTable() {
 
         const discrepancyInfo = hasDiscrepancy 
             ? `<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20">Farq bor (${totalReceived - totalExpected})</span>`
-            : `<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">✔ To'liq keldi</span>`;
+            : `<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"> To'liq keldi</span>`;
 
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-800/40 transition";
@@ -509,12 +509,12 @@ function renderInventoryTable() {
     }
 
     const statusBadges = {
-        omborda_bosh: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">🟢 Omborda bo\'sh (Tayyor)</span>',
-        ijarada: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20">🔵 Ijarada</span>',
-        remontda: '<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20">🟡 Remontda</span>',
-        tozalanmoqda: '<span class="badge-status bg-purple-500/10 text-purple-400 border border-purple-500/20">🟣 Tozalanmoqda</span>',
-        brak: '<span class="badge-status bg-red-500/10 text-red-400 border border-red-500/20">🔴 Brak</span>',
-        vozvrat_qilingan: '<span class="badge-status bg-slate-700 text-slate-300">↩ Yetkazuvchiga qaytarilgan</span>'
+        omborda_bosh: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Omborda bo\'sh (Tayyor)</span>',
+        ijarada: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20">Ijarada</span>',
+        remontda: '<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20">Remontda</span>',
+        tozalanmoqda: '<span class="badge-status bg-purple-500/10 text-purple-400 border border-purple-500/20">Tozalanmoqda</span>',
+        brak: '<span class="badge-status bg-rose-500/10 text-rose-400 border border-rose-500/20">Brak</span>',
+        vozvrat_qilingan: '<span class="badge-status bg-slate-800 text-slate-400 border border-slate-700">Yetkazuvchiga qaytarilgan</span>'
     };
 
     filtered.forEach(item => {
@@ -591,12 +591,12 @@ function checkSerialNumberUniqueness(serialValue) {
     const exists = DB.product_items.some(it => it.serial_number.toLowerCase() === clean.toLowerCase());
 
     if (exists) {
-        if (badge) { badge.innerText = "❌ DUBLIKAT!"; badge.className = "text-[10px] font-bold text-red-400 animate-pulse"; }
+        if (badge) { badge.innerText = " DUBLIKAT!"; badge.className = "text-[10px] font-bold text-red-400 animate-pulse"; }
         if (errorMsg) errorMsg.classList.remove('hidden');
         if (saveBtn) { saveBtn.disabled = true; saveBtn.classList.add('opacity-50', 'cursor-not-allowed'); }
         return false;
     } else {
-        if (badge) { badge.innerText = "✔ UNIKAL (To'g'ri)"; badge.className = "text-[10px] font-bold text-emerald-400"; }
+        if (badge) { badge.innerText = " UNIKAL (To'g'ri)"; badge.className = "text-[10px] font-bold text-emerald-400"; }
         if (errorMsg) errorMsg.classList.add('hidden');
         if (saveBtn) { saveBtn.disabled = false; saveBtn.classList.remove('opacity-50', 'cursor-not-allowed'); }
         return true;

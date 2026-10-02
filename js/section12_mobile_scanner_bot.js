@@ -216,7 +216,7 @@ function handleDetectedBarcode(rawCode) {
 
     const statusEl = document.getElementById('scanner-status-text');
     if (statusEl) {
-        statusEl.innerText = `Skanerlandi: ${code} ✅`;
+        statusEl.innerText = `Skanerlandi: ${code} `;
         statusEl.className = "text-xs font-bold text-emerald-400 flex items-center justify-center gap-1.5";
     }
 
@@ -304,7 +304,7 @@ function processBarcodeAction(code, context) {
         const shelfName = unit.shelf_location || "Polkaga biriktirilmagan";
         closeCameraScanner();
         alert(
-            `📦 ASBOB TOPILDI:\n` +
+            ` ASBOB TOPILDI:\n` +
             `• Model: ${model ? model.model_name : 'Noma\'lum'}\n` +
             `• Seriya: ${unit.serial_number}\n` +
             `• Shtrix-kod: ${unit.barcode || '-'}\n` +
@@ -320,7 +320,7 @@ function processBarcodeAction(code, context) {
         if (typeof openLocationDetailsModal === 'function') {
             openLocationDetailsModal(shelf.shelf_code);
         } else {
-            alert(`📍 POLKA MANZILI: ${shelf.shelf_code} (${shelf.zone_name})`);
+            alert(` POLKA MANZILI: ${shelf.shelf_code} (${shelf.zone_name})`);
         }
         return;
     }
@@ -330,7 +330,7 @@ function processBarcodeAction(code, context) {
         if (typeof openOrderReceiptModal === 'function') {
             openOrderReceiptModal(order.id);
         } else {
-            alert(`🧾 BUYURTMA TOPILDI: #${order.order_number}`);
+            alert(` BUYURTMA TOPILDI: #${order.order_number}`);
         }
         return;
     }
@@ -377,7 +377,7 @@ function initPWA() {
         const banner = document.getElementById('pwa-install-banner');
         if (btnHeader) btnHeader.classList.add('hidden');
         if (banner) banner.classList.add('hidden');
-        showNotification("WMS Arenda ilovasi telefoningiz ekraniga muvaffaqiyatli o'rnatildi! 📱", "success");
+        showNotification("WMS Arenda ilovasi telefoningiz ekraniga muvaffaqiyatli o'rnatildi! ", "success");
     });
 }
 
@@ -394,7 +394,7 @@ function promptPWAInstall() {
         });
     } else {
         alert(
-            "📱 WMS ARENDA ILOVASINI TELEFONGA O'RNATISH QO'LLANMASI:\n\n" +
+            " WMS ARENDA ILOVASINI TELEFONGA O'RNATISH QO'LLANMASI:\n\n" +
             "1. Safari (iPhone) da: pastdagi 'Ulashish' (Share) tugmasini bosing -> 'Bosh ekranga qo'shish' (Add to Home Screen) ni tanlang.\n\n" +
             "2. Chrome (Android) da: brauzerning 3 ta nuqtasini bosing -> 'Ilovani o'rnatish' yoki 'Bosh ekranga qo'shish' ni bosing."
         );
@@ -453,7 +453,7 @@ async function dispatchOrderToPartnerBot(orderId) {
 
     // Open Interactive Partner Telegram Bot Simulator Modal
     openPartnerBotSimulator(order.id);
-    showNotification(`Buyurtma #${order.order_number} hamkor Telegram botiga yuborildi! 🔔`, "success");
+    showNotification(`Buyurtma #${order.order_number} hamkor Telegram botiga yuborildi! `, "success");
 }
 
 /**
@@ -514,7 +514,7 @@ function renderPartnerBotChatView(order, partner, customer) {
                     <span>Siz buyurtmani qabul qildingiz. Ishni bajargach, yakunlash tugmasini bosing:</span>
                 </div>
                 <button type="button" onclick="handlePartnerBotSimAction('finish')" class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition">
-                    <i data-lucide="flag" class="w-4 h-4"></i> 🏁 Ish Yakunlandi (Hisobga olish)
+                    <i data-lucide="flag" class="w-4 h-4"></i>  Ish Yakunlandi (Hisobga olish)
                 </button>
                 <a href="${mapUrl}" target="_blank" class="w-full py-1.5 px-3 rounded-xl bg-slate-800 text-blue-400 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-700">
                     <i data-lucide="map-pin" class="w-3.5 h-3.5 text-red-400"></i> Obyekt Manzili Xaritada
@@ -551,12 +551,12 @@ function renderPartnerBotChatView(order, partner, customer) {
             </div>
 
             <div class="space-y-1 leading-relaxed text-[11px]">
-                <div>🛠 <b>Xizmat:</b> <span class="text-amber-300 font-semibold">${order.service_category.toUpperCase()}</span></div>
-                <div>📍 <b>Ish joyi:</b> <span class="text-white">${order.destination_address}</span></div>
-                <div>🕒 <b>Vaqt:</b> <span class="text-white">${order.service_date} ${order.execution_time || '10:00'} da</span></div>
-                <div>👤 <b>Mijoz:</b> <span class="text-slate-300">${customer ? customer.full_name : 'Mijoz'} (${customer ? customer.phone_primary : ''})</span></div>
-                <div>💵 <b>Sizga to'lanadigan summa:</b> <b class="text-emerald-400 font-mono text-xs">${order.partner_payout_amount.toLocaleString()} so'm</b></div>
-                ${order.task_instruction ? `<div class="p-1.5 rounded-lg bg-slate-900 border border-slate-700/70 text-[10px] text-amber-200 font-mono mt-1">📋 <b>Topshiriq:</b> ${order.task_instruction}</div>` : ''}
+                <div> <b>Xizmat:</b> <span class="text-amber-300 font-semibold">${order.service_category.toUpperCase()}</span></div>
+                <div> <b>Ish joyi:</b> <span class="text-white">${order.destination_address}</span></div>
+                <div> <b>Vaqt:</b> <span class="text-white">${order.service_date} ${order.execution_time || '10:00'} da</span></div>
+                <div> <b>Mijoz:</b> <span class="text-slate-300">${customer ? customer.full_name : 'Mijoz'} (${customer ? customer.phone_primary : ''})</span></div>
+                <div> <b>Sizga to'lanadigan summa:</b> <b class="text-emerald-400 font-mono text-xs">${order.partner_payout_amount.toLocaleString()} so'm</b></div>
+                ${order.task_instruction ? `<div class="p-1.5 rounded-lg bg-slate-900 border border-slate-700/70 text-[10px] text-amber-200 font-mono mt-1"> <b>Topshiriq:</b> ${order.task_instruction}</div>` : ''}
             </div>
 
             <!-- Inline Interactive Telegram Buttons -->
@@ -600,7 +600,7 @@ async function handlePartnerBotSimAction(action) {
     if (action === 'accept') {
         order.order_status = 'bajarilmoqda';
         saveDB();
-        showNotification(`Hamkor [${partner ? partner.company_name : 'Hamkor'}] buyurtmani qabul qildi va ishni boshladi! 🚀`, "success");
+        showNotification(`Hamkor [${partner ? partner.company_name : 'Hamkor'}] buyurtmani qabul qildi va ishni boshladi! `, "success");
     } else if (action === 'reject') {
         order.order_status = 'yangi';
         saveDB();
@@ -612,7 +612,7 @@ async function handlePartnerBotSimAction(action) {
             partner.balance -= order.partner_payout_amount; // company owes partner
         }
         saveDB();
-        showNotification(`Buyurtma #${order.order_number} bajarildi! Hamkor balansiga +${order.partner_payout_amount.toLocaleString()} so'm yozildi. ✔`, "success");
+        showNotification(`Buyurtma #${order.order_number} bajarildi! Hamkor balansiga +${order.partner_payout_amount.toLocaleString()} so'm yozildi. `, "success");
     }
 
     if (typeof renderServiceOrdersTable === 'function') renderServiceOrdersTable();
@@ -681,8 +681,8 @@ function handleUniversalSearchQuery(rawQuery) {
                 type: 'customer',
                 title: c.full_name,
                 subtitle: `${c.phone_primary} • ${c.company_name || 'Jismoniy shaxs'}`,
-                badge: c.status === 'vip' ? 'VIP Mijoz ⭐' : (c.status === 'qarzdor' ? 'Qarzdor ⚠️' : 'Mijoz 👤'),
-                badgeColor: c.status === 'vip' ? 'bg-amber-500/20 text-amber-300' : (c.status === 'qarzdor' ? 'bg-red-500/20 text-red-300' : 'bg-blue-500/20 text-blue-300'),
+                badge: c.status === 'vip' ? 'VIP Mijoz' : (c.status === 'qarzdor' ? 'Qarzdor' : 'Mijoz'),
+                badgeColor: c.status === 'vip' ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20' : (c.status === 'qarzdor' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-blue-500/10 text-blue-300 border border-blue-500/20'),
                 extra: `Balans: ${(c.balance || 0).toLocaleString()} so'm`,
                 action: () => {
                     closeModal('modal-universal-search');
@@ -706,9 +706,9 @@ function handleUniversalSearchQuery(rawQuery) {
             matches.push({
                 type: 'tool',
                 title: `${modelName} (SN: ${u.serial_number})`,
-                subtitle: `📍 Polka: ${u.shelf_location || 'Biriktirilmagan'} • Shtrix-kod: ${u.barcode || '-'}`,
-                badge: u.status === 'omborda_bosh' ? 'Omborda bo\'sh 🟢' : (u.status === 'ijarada' ? 'Ijarada 🔵' : 'Remontda 🔴'),
-                badgeColor: u.status === 'omborda_bosh' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-blue-500/20 text-blue-300',
+                subtitle: `Polka: ${u.shelf_location || 'Biriktirilmagan'} • Shtrix-kod: ${u.barcode || '-'}`,
+                badge: u.status === 'omborda_bosh' ? 'Omborda bo\'sh' : (u.status === 'ijarada' ? 'Ijarada' : 'Remontda'),
+                badgeColor: u.status === 'omborda_bosh' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-300 border border-blue-500/20',
                 extra: `${(u.daily_price || 0).toLocaleString()} so'm/kun`,
                 action: () => {
                     closeModal('modal-universal-search');

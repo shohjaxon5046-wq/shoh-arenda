@@ -139,7 +139,7 @@ function openPickListModal(orderId) {
                     <thead class="bg-slate-200 font-bold text-slate-800">
                         <tr>
                             <th class="p-2 border border-slate-300 text-center w-8">№</th>
-                            <th class="p-2 border border-slate-300 bg-amber-100/80 text-amber-950 font-black">📍 Polka Manzili (WMS Joyi)</th>
+                            <th class="p-2 border border-slate-300 bg-amber-100/80 text-amber-950 font-black"> Polka Manzili (WMS Joyi)</th>
                             <th class="p-2 border border-slate-300">Uskuna Nomi & Modeli</th>
                             <th class="p-2 border border-slate-300">Zavod Seriya №</th>
                             <th class="p-2 border border-slate-300 text-center">Shtrix-kod</th>
@@ -177,7 +177,7 @@ function openPickListModal(orderId) {
                                     <div class="flex items-center justify-center gap-1.5">
                                         <input type="checkbox" ${isPicked ? 'checked' : ''} onchange="toggleItemPickedStatus(${order.id}, ${t.id}, this.checked)" class="w-4 h-4 rounded border-slate-400 text-emerald-600 focus:ring-0 cursor-pointer">
                                         <span class="text-[10px] font-bold ${isPicked ? 'text-emerald-700' : 'text-slate-500'}">
-                                            ${isPicked ? 'Tayyor ✔' : 'Kutilmoqda'}
+                                            ${isPicked ? 'Tayyor ' : 'Kutilmoqda'}
                                         </span>
                                     </div>
                                 </td>
@@ -308,7 +308,7 @@ function renderPickingVerificationList() {
                 <div class="p-3.5 rounded-2xl border ${isPicked ? 'border-emerald-500/50 bg-emerald-950/20' : 'border-slate-800 bg-slate-950'} flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition">
                     <div class="flex items-start gap-3">
                         <div class="w-9 h-9 rounded-xl ${isPicked ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-600/20 text-blue-400'} flex items-center justify-center font-bold text-sm shrink-0 mt-0.5">
-                            ${isPicked ? '✔' : idx + 1}
+                            ${isPicked ? '' : idx + 1}
                         </div>
                         <div>
                             <div class="font-bold text-white text-sm flex items-center gap-2">
@@ -378,7 +378,7 @@ function handlePickingScanInput(e) {
         matched.picking_status = 'olib_chiqildi';
         matched.picked_at = new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
         saveDB();
-        showNotification(`✔ ${matched.model_name} (SN: ${matched.serial_number}) muvaffaqiyatli olib chiqildi va tasdiqlandi!`, "success");
+        showNotification(` ${matched.model_name} (SN: ${matched.serial_number}) muvaffaqiyatli olib chiqildi va tasdiqlandi!`, "success");
         input.value = '';
         renderPickingVerificationList();
     } else {
@@ -394,7 +394,7 @@ function confirmItemPicked(orderId, toolItemId) {
     item.picking_status = 'olib_chiqildi';
     item.picked_at = new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
     saveDB();
-    showNotification(`✔ ${item.model_name} olib chiqildi deb belgilandi!`, "success");
+    showNotification(` ${item.model_name} olib chiqildi deb belgilandi!`, "success");
     renderPickingVerificationList();
 }
 
@@ -407,7 +407,7 @@ function toggleItemPickedStatus(orderId, toolItemId, isPicked) {
     saveDB();
     renderPickingVerificationList();
     if (activePickingOrderId === orderId) {
-        showNotification(isPicked ? `✔ Asbob olib chiqildi deb belgilandi!` : `Holat qaytarildi`, "success");
+        showNotification(isPicked ? ` Asbob olib chiqildi deb belgilandi!` : `Holat qaytarildi`, "success");
     }
 }
 
@@ -463,14 +463,14 @@ function renderWarehouseMap() {
                     let bgStatus = 'bg-slate-900/80';
 
                     if (occ.isEmpty) {
-                        statusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">🟢 Bo'sh (${occ.max} ta joy)</span>`;
+                        statusBadge = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium text-[10px]">Bo'sh (${occ.max} ta joy)</span>`;
                         cardBorder = 'border-emerald-500/30 hover:border-emerald-500';
                     } else if (occ.isFull) {
-                        statusBadge = `<span class="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 font-bold text-[10px]">🔴 To'lgan (${occ.count}/${occ.max})</span>`;
-                        cardBorder = 'border-red-500/40 hover:border-red-500';
-                        bgStatus = 'bg-red-950/10';
+                        statusBadge = `<span class="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium text-[10px]">To'lgan (${occ.count}/${occ.max})</span>`;
+                        cardBorder = 'border-rose-500/30 hover:border-rose-500';
+                        bgStatus = 'bg-rose-950/10';
                     } else {
-                        statusBadge = `<span class="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-bold text-[10px]">🔵 Band (${occ.count}/${occ.max})</span>`;
+                        statusBadge = `<span class="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium text-[10px]">Band (${occ.count}/${occ.max})</span>`;
                         cardBorder = 'border-blue-500/30 hover:border-blue-500';
                     }
 

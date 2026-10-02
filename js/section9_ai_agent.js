@@ -310,13 +310,13 @@ async function processUserMessage(rawMessage, role = 'customer', adminPin = '') 
         if (stats.authorized) {
             chatSimulatorRole = 'admin';
             return {
-                reply: `👑 **Admin rejimi faollashtirildi!**\n\n📊 **Bugungi Kassa va Biznes Hisoboti (${stats.report_time}):**\n• Bugungi sof tushum: **${stats.today_income.toLocaleString()} so'm**\n• Olingan garov (zalog): **${stats.today_deposits.toLocaleString()} so'm**\n• Oylik toza foyda (P&L): **${stats.monthly_net_profit.toLocaleString()} so'm**\n• Kechikkan buyurtmalar soni: **${stats.total_delayed_orders_count} ta**\n\n📦 **Ombor holati:** Jami: ${stats.inventory_summary.total_tools} ta (Bo'sh: ${stats.inventory_summary.available}, Ijarada: ${stats.inventory_summary.in_rent}, Ta'mirda: ${stats.inventory_summary.in_repair})`,
+                reply: ` **Admin rejimi faollashtirildi!**\n\n **Bugungi Kassa va Biznes Hisoboti (${stats.report_time}):**\n• Bugungi sof tushum: **${stats.today_income.toLocaleString()} so'm**\n• Olingan garov (zalog): **${stats.today_deposits.toLocaleString()} so'm**\n• Oylik toza foyda (P&L): **${stats.monthly_net_profit.toLocaleString()} so'm**\n• Kechikkan buyurtmalar soni: **${stats.total_delayed_orders_count} ta**\n\n **Ombor holati:** Jami: ${stats.inventory_summary.total_tools} ta (Bo'sh: ${stats.inventory_summary.available}, Ijarada: ${stats.inventory_summary.in_rent}, Ta'mirda: ${stats.inventory_summary.in_repair})`,
                 function_called: "get_admin_daily_stats",
                 function_result: stats
             };
         } else {
             return {
-                reply: `⛔ PIN kod noto'g'ri kiritildi! Iltimos, Bosh Admin PIN kodini tekshiring (Standart: 7788).`,
+                reply: ` PIN kod noto'g'ri kiritildi! Iltimos, Bosh Admin PIN kodini tekshiring (Standart: 7788).`,
                 function_called: "get_admin_daily_stats",
                 function_result: stats
             };
@@ -386,19 +386,19 @@ function runIntelligentRuleEngine(text, role, adminPin) {
     if (role === 'admin' || lower.includes('kassa') || lower.includes('hisobot') || lower.includes('foyda') || lower.includes('kechikkan') || lower.includes('otchyot')) {
         const stats = tool_get_admin_daily_stats(adminPin);
         if (stats.authorized) {
-            let reply = `👑 **Bosh Admin Uchun Jonli Hisobot (${stats.report_time}):**\n\n`;
-            reply += `💵 **Bugungi kassa tushumi:** ${stats.today_income.toLocaleString()} so'm\n`;
-            reply += `🔒 **Saqlanayotgan zaloglar:** ${stats.today_deposits.toLocaleString()} so'm\n`;
-            reply += `📈 **Shu oylik Toza Foyda:** ${stats.monthly_net_profit.toLocaleString()} so'm\n`;
-            reply += `⚠️ **Kechikkan buyurtmalar:** ${stats.total_delayed_orders_count} ta\n`;
+            let reply = `**Bosh Admin Uchun Jonli Hisobot (${stats.report_time}):**\n\n`;
+            reply += `• **Bugungi kassa tushumi:** ${stats.today_income.toLocaleString()} so'm\n`;
+            reply += `• **Saqlanayotgan zaloglar:** ${stats.today_deposits.toLocaleString()} so'm\n`;
+            reply += `• **Shu oylik Toza Foyda:** ${stats.monthly_net_profit.toLocaleString()} so'm\n`;
+            reply += `• **Kechikkan buyurtmalar:** ${stats.total_delayed_orders_count} ta\n`;
 
             if (stats.delayed_orders && stats.delayed_orders.length > 0) {
-                reply += `\n🚨 **Kechikayotgan mijozlar:**\n`;
+                reply += `\n**Kechikayotgan mijozlar:**\n`;
                 stats.delayed_orders.forEach(d => {
                     reply += `• ${d.customer} (${d.phone}) &mdash; ${d.tools} (Muddati: ${d.due_date})\n`;
                 });
             } else {
-                reply += `\n✅ Barcha uskunalar o'z vaqtida qaytarilmoqda!\n`;
+                reply += `\nBarcha uskunalar o'z vaqtida qaytarilmoqda!\n`;
             }
 
             return {
@@ -408,7 +408,7 @@ function runIntelligentRuleEngine(text, role, adminPin) {
             };
         } else if (lower.includes('kassa') || lower.includes('foyda') || lower.includes('hisobot')) {
             return {
-                reply: `🔒 Ushbu moliyaviy hisobot faqat Kompaniya Admini uchun ochiq. Iltimos, parolingizni kiriting: \`/admin [PIN]\` (Masalan: \`/admin 7788\`).`,
+                reply: ` Ushbu moliyaviy hisobot faqat Kompaniya Admini uchun ochiq. Iltimos, parolingizni kiriting: \`/admin [PIN]\` (Masalan: \`/admin 7788\`).`,
                 function_called: "get_admin_daily_stats",
                 function_result: stats
             };
@@ -428,7 +428,7 @@ function runIntelligentRuleEngine(text, role, adminPin) {
 
         const orderResult = tool_create_incoming_order({ name: name, phone: phone }, text, "Toshkent shahri", "Ertaga 09:00");
         return {
-            reply: `✅ **Buyurtmangiz muvaffaqiyatli qabul qilindi!**\n\n📋 **Buyurtma raqami:** #${orderResult.order_number}\n👤 **Mijoz:** ${orderResult.customer_name}\n📞 **Telefon:** ${orderResult.customer_phone}\n📝 **Tafsilot:** ${text}\n\n⚡️ Operatorimiz 5 daqiqa ichida siz bilan bog'lanib, yetkazib berish yoki ombordan olib ketish vaqtini tasdiqlaydi. Tashakkur!`,
+            reply: `**Buyurtmangiz muvaffaqiyatli qabul qilindi!**\n\n• **Buyurtma raqami:** #${orderResult.order_number}\n• **Mijoz:** ${orderResult.customer_name}\n• **Telefon:** ${orderResult.customer_phone}\n• **Tafsilot:** ${text}\n\nOperatorimiz 5 daqiqa ichida siz bilan bog'lanib, yetkazib berish yoki ombordan olib ketish vaqtini tasdiqlaydi. Tashakkur!`,
             function_called: "create_incoming_order",
             function_result: orderResult
         };
@@ -439,7 +439,7 @@ function runIntelligentRuleEngine(text, role, adminPin) {
         const hasDetails = lower.includes('qop') || lower.includes('gazel') || lower.includes('zil') || lower.includes('kamaz');
         if (!hasDetails) {
             return {
-                reply: `Assalomu alaykum! Qurilish chiqindilarini (musor) mamnuniyat bilan olib ketamiz.\n\nSizga eng maqbul va aniq narxni hisoblab berishim uchun quyidagilarni aytib bera olasizmi:\n1. 📦 Chiqindingiz taxminan qancha hajmda: qoplardami (necha qop) yoki mashina to'lami (Gazel, ZIL yoki KamAZ)?\n2. 🏢 Bino nechanchi qavatda va lift bormi?\n3. 👷 Yuklash uchun biz tomondan gruzchiklar (ishchilar) kerakmi?\n\n💡 **Asosiy tariflarimiz:**\n• Gazel (1.5t gacha / 40-50 qop) — **400 000 so'm** / reys\n• ZIL (5-6t gacha / 150 qop) — **800 000 so'm** / reys\n• KamAZ (10-15t gacha / 300 qop) — **1 500 000 so'm** / reys\n• Qoplab tashish: 1 qop = **12 000 so'm** (min 20 qop). Mashinaga ortish: 150 000 so'm (yoki 3 000 so'm/qop, qavatdan tushirish: +2 000 so'm/qavat).\n\nShularni aytsangiz, darhol aniq narxni hisoblab beraman!`,
+                reply: `Assalomu alaykum! Qurilish chiqindilarini (musor) mamnuniyat bilan olib ketamiz.\n\nSizga eng maqbul va aniq narxni hisoblab berishim uchun quyidagilarni aytib bera olasizmi:\n1. Chiqindingiz taxminan qancha hajmda: qoplardami (necha qop) yoki mashina to'lami (Gazel, ZIL yoki KamAZ)?\n2. Bino nechanchi qavatda va lift bormi?\n3. Yuklash uchun biz tomondan gruzchiklar (ishchilar) kerakmi?\n\n**Asosiy tariflarimiz:**\n• Gazel (1.5t gacha / 40-50 qop) — **400 000 so'm** / reys\n• ZIL (5-6t gacha / 150 qop) — **800 000 so'm** / reys\n• KamAZ (10-15t gacha / 300 qop) — **1 500 000 so'm** / reys\n• Qoplab tashish: 1 qop = **12 000 so'm** (min 20 qop). Mashinaga ortish: 150 000 so'm (yoki 3 000 so'm/qop, qavatdan tushirish: +2 000 so'm/qavat).\n\nShularni aytsangiz, darhol aniq narxni hisoblab beraman!`,
                 function_called: "get_service_price",
                 function_result: { service: "musor" }
             };
@@ -452,10 +452,10 @@ function runIntelligentRuleEngine(text, role, adminPin) {
         else if (lower.includes('gruzchik') || lower.includes('yukchi')) cat = 'gruzchik';
 
         const serviceInfo = tool_get_service_price(cat, text);
-        let reply = `🏗️ **${serviceInfo.service_name} bo'yicha ma'lumot:**\n\n`;
-        reply += `💰 **Narxi:** ${serviceInfo.price_quote}\n`;
-        reply += `⏱️ **Minimal muddat:** ${serviceInfo.min_order}\n`;
-        reply += `ℹ️ **Shartlar:** ${serviceInfo.terms}\n\n`;
+        let reply = `**${serviceInfo.service_name} bo'yicha ma'lumot:**\n\n`;
+        reply += `• **Narxi:** ${serviceInfo.price_quote}\n`;
+        reply += `• **Minimal muddat:** ${serviceInfo.min_order}\n`;
+        reply += `• **Shartlar:** ${serviceInfo.terms}\n\n`;
         reply += `Buyurtma rasmiylashtirish uchun ismingiz, telefon raqamingiz va aniq manzilni yozib yuboring!`;
 
         return {
@@ -478,7 +478,7 @@ function runIntelligentRuleEngine(text, role, adminPin) {
         if (toolInfo.found) {
             let reply = '';
             if (toolInfo.is_available) {
-                reply = `🔨 **${toolInfo.model_name} (${toolInfo.brand})** omborimizda **mavjud**!\n\n`;
+                reply = ` **${toolInfo.model_name} (${toolInfo.brand})** omborimizda **mavjud**!\n\n`;
                 reply += `• Omborda bo'sh: **${toolInfo.available_count} ta**\n`;
                 reply += `• 1 kunlik ijara: **${toolInfo.daily_price.toLocaleString()} so'm**\n`;
                 reply += `• Garov (Zalog) summasi: **${toolInfo.deposit_amount.toLocaleString()} so'm**\n`;
@@ -513,7 +513,7 @@ function runIntelligentRuleEngine(text, role, adminPin) {
 
     // Default polite conversational fallback
     return {
-        reply: `Assalomu alaykum! Men "WMS ARENDA" AI yordamchisiman.\n\nSizga quyidagi xizmatlar bo'yicha yordam bera olaman:\n1. 🔨 Qurilish asboblari ijarasi (perforator, otboynik, generator, svarka va h.k.);\n2. 🏗️ Avtokran xizmati;\n3. 🚛 Qurilish axlatini (musor) olib ketish;\n4. 👷 Gruzchik xizmati.\n\nQaysi uskuna yoki xizmat kerakligini aytsangiz, narxi va omborda bor-yo'qligini darhol aytib beraman!`,
+        reply: `Assalomu alaykum! Men "WMS ARENDA" AI yordamchisiman.\n\nSizga quyidagi xizmatlar bo'yicha yordam bera olaman:\n1. Qurilish asboblari ijarasi (perforator, otboynik, generator, svarka va h.k.);\n2. Avtokran xizmati;\n3. Chiqindi (musor) olib ketish;\n4. Gruzchik xizmati.\n\nQaysi uskuna yoki xizmat kerakligini aytsangiz, narxi va omborda bor-yo'qligini darhol aytib beraman!`,
         function_called: null,
         function_result: null
     };
@@ -610,7 +610,7 @@ async function callGeminiLLM(userPrompt, settings, role, adminPin) {
         else if (fnName === 'get_admin_daily_stats') fnResult = tool_get_admin_daily_stats(args.admin_pin || adminPin);
 
         return {
-            reply: `🛠️ **[Funksiya bajarildi: ${fnName}]**\n\nNatija: ${JSON.stringify(fnResult, null, 2)}`,
+            reply: `**[Funksiya bajarildi: ${fnName}]**\n\nNatija: ${JSON.stringify(fnResult, null, 2)}`,
             function_called: fnName,
             function_result: fnResult
         };
@@ -839,7 +839,7 @@ function appendChatMessage(sender, content, role = 'customer', functionCalled = 
         msgDiv.innerHTML = `
             <div class="max-w-[80%] rounded-2xl rounded-tr-none bg-blue-600 p-3 text-white shadow-md">
                 <div class="flex items-center justify-between gap-3 text-[10px] text-blue-200 mb-1 border-b border-blue-500/40 pb-0.5">
-                    <span>${role === 'admin' ? '👑 Bosh Admin' : '👤 Mijoz'}</span>
+                    <span>${role === 'admin' ? ' Bosh Admin' : ' Mijoz'}</span>
                     <span>${timeStr}</span>
                 </div>
                 <div class="leading-relaxed whitespace-pre-wrap">${escapeHtml(content)}</div>
@@ -853,7 +853,7 @@ function appendChatMessage(sender, content, role = 'customer', functionCalled = 
             functionBadgeHtml = `
                 <div class="mb-2 p-2 rounded-xl bg-slate-950 border border-blue-500/30 text-[10px] font-mono text-blue-300">
                     <div class="flex items-center justify-between font-bold text-blue-400">
-                        <span>🛠️ Funksiya bajarildi: ${functionCalled}()</span>
+                        <span>Funksiya bajarildi: ${functionCalled}()</span>
                         <span class="text-emerald-400">STATUS: OK</span>
                     </div>
                     ${functionResult ? `
@@ -868,7 +868,7 @@ function appendChatMessage(sender, content, role = 'customer', functionCalled = 
 
         msgDiv.innerHTML = `
             <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shrink-0 shadow-md">
-                🤖
+                
             </div>
             <div class="max-w-[85%] rounded-2xl rounded-tl-none bg-slate-900 border border-slate-800 p-3.5 text-slate-200 shadow-md space-y-1">
                 <div class="flex items-center justify-between text-[10px] text-slate-400 border-b border-slate-800 pb-1">
@@ -895,7 +895,7 @@ function appendTypingIndicator() {
     div.id = id;
     div.className = "flex justify-start gap-2.5 text-xs";
     div.innerHTML = `
-        <div class="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-white shrink-0">🤖</div>
+        <div class="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-white shrink-0"></div>
         <div class="p-3 rounded-2xl rounded-tl-none bg-slate-900 border border-slate-800 text-slate-400 flex items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"></span>
             <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce delay-100"></span>
@@ -920,7 +920,7 @@ function clearChatHistory() {
         container.innerHTML = `
             <div class="p-4 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 text-xs text-indigo-300 leading-relaxed">
                 <div class="font-bold flex items-center gap-1.5 mb-1 text-white">
-                    <span>🤖 WMS Arenda AI Yordamchisiga xush kelibsiz!</span>
+                    <span> WMS Arenda AI Yordamchisiga xush kelibsiz!</span>
                 </div>
                 <p>${DB.ai_settings?.welcome_message || "Men asboblar qoldig'i, narxlar va kassa hisobotlari bo'yicha 24/7 yordam beraman."}</p>
             </div>

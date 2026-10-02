@@ -53,9 +53,9 @@ function renderPartnersDirectory() {
         gruzchik: 'users-2'
     };
     const categoryLabels = {
-        kran: '🏗️ Avtokranlar',
-        musor_olib_ketish: '🚛 Musor Tashish',
-        gruzchik: '💪 Gruzchik Brigadasi'
+        kran: 'Avtokranlar',
+        musor_olib_ketish: 'Chiqindi (Musor) Tashish',
+        gruzchik: 'Yuk Tashuvchilar Brigadasi'
     };
 
     if (filtered.length === 0) {
@@ -79,7 +79,7 @@ function renderPartnersDirectory() {
                         <p class="text-xs text-slate-300">${p.contact_person}</p>
                     </div>
                     <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-amber-400 text-xs font-bold">
-                        ⭐ ${p.rating}
+                         ${p.rating}
                     </div>
                 </div>
 
@@ -282,11 +282,11 @@ function renderServiceOrdersTable() {
 
     const statusBadges = {
         yangi: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20">Yangi</span>',
-        hamkorga_uzatildi: '<span class="badge-status bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Uzatildi 📤</span>',
+        hamkorga_uzatildi: '<span class="badge-status bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Uzatildi </span>',
         qabul_qilindi: '<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20">Hamkor qabul qildi</span>',
         bajarilmoqda: '<span class="badge-status bg-purple-500/10 text-purple-400 border border-purple-500/20">Bajarilmoqda ⏳</span>',
-        bajarildi: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Bajarildi ✔</span>',
-        bekor_qilindi: '<span class="badge-status bg-red-500/10 text-red-400 border border-red-500/20">Bekor qilindi ❌</span>'
+        bajarildi: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Bajarildi </span>',
+        bekor_qilindi: '<span class="badge-status bg-red-500/10 text-red-400 border border-red-500/20">Bekor qilindi </span>'
     };
 
     const orders = (DB.service_orders || []).filter(o => !orderStatusFilter || o.order_status === orderStatusFilter);
@@ -313,8 +313,8 @@ function renderServiceOrdersTable() {
             </td>
             <td class="py-3 px-4 text-slate-300 max-w-xs" title="${o.details}">
                 <div class="font-medium text-white">${o.details}</div>
-                ${o.task_instruction ? `<div class="text-[10px] text-amber-300/90 font-mono mt-0.5 truncate bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title="${o.task_instruction}">📋 ${o.task_instruction}</div>` : ''}
-                <div class="text-[10px] text-slate-400 truncate mt-0.5">📍 ${o.destination_address}</div>
+                ${o.task_instruction ? `<div class="text-[10px] text-amber-300/90 font-mono mt-0.5 truncate bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title="${o.task_instruction}"> ${o.task_instruction}</div>` : ''}
+                <div class="text-[10px] text-slate-400 truncate mt-0.5"> ${o.destination_address}</div>
             </td>
             <td class="py-3 px-4">
                 <div class="font-semibold text-amber-300">${partner ? partner.company_name : 'Biriktirilmagan'}</div>
@@ -331,14 +331,14 @@ function renderServiceOrdersTable() {
             <td class="py-3 px-4 text-right">
                 <div class="flex items-center justify-end gap-1.5 flex-wrap">
                     <button onclick="dispatchOrderToPartnerBot(${o.id})" class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition" title="Hamkorning Telegram Botiga yuborish va simulyatorni ochish">
-                        <i data-lucide="bot" class="w-3.5 h-3.5"></i> <span>Bot 📲</span>
+                        <i data-lucide="bot" class="w-3.5 h-3.5"></i> <span>Bot </span>
                     </button>
                     <button onclick="copyPartnerDispatchTask(${o.id})" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-white text-xs font-semibold flex items-center gap-1 border border-slate-700" title="Hamkor uchun Telegram topshiriq nusxalash">
                         <i data-lucide="share-2" class="w-3.5 h-3.5"></i> <span>Topshiriq</span>
                     </button>
                     ${o.order_status === 'yangi' ? `
                         <button onclick="dispatchOrderToPartnerBot(${o.id})" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white">
-                            Uzatish 📤
+                            Uzatish 
                         </button>
                     ` : ''}
                     ${o.order_status === 'hamkorga_uzatildi' ? `
@@ -353,7 +353,7 @@ function renderServiceOrdersTable() {
                     ` : ''}
                     ${o.order_status === 'bajarilmoqda' ? `
                         <button onclick="advanceOrderStatus(${o.id}, 'bajarildi')" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white">
-                            Bajarildi ✔
+                            Bajarildi 
                         </button>
                     ` : ''}
                     ${o.order_status === 'bajarildi' ? `
@@ -417,13 +417,13 @@ function dispatchOrderToPartner(orderId) {
 function openModalCreateServiceOrder(presetPartnerId = null) {
     const custSelect = document.getElementById('so-customer-select');
     custSelect.innerHTML = (DB.customers || []).map(c => `
-        <option value="${c.id}">${c.full_name} (${c.phone_primary}) ${c.status === 'qora_royxat' ? '⛔ QORA RO\'YXAT!' : ''}</option>
+        <option value="${c.id}">${c.full_name} (${c.phone_primary}) ${c.status === 'qora_royxat' ? ' QORA RO\'YXAT!' : ''}</option>
     `).join('');
 
     const partnerSelect = document.getElementById('so-partner-select');
     partnerSelect.innerHTML = (DB.service_partners || []).map(p => `
         <option value="${p.id}" ${presetPartnerId && presetPartnerId === p.id ? 'selected' : ''}>
-            ${p.company_name} - ${p.service_category} (⭐ ${p.rating})
+            ${p.company_name} - ${p.service_category} ( ${p.rating})
         </option>
     `).join('');
 

@@ -109,7 +109,7 @@ function renderWebReceipt(order) {
 
             <!-- Items & Services List -->
             <div>
-                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">📦 ${typeof t === 'function' ? t('receipt.services_tools') : 'Xizmatlar va Asboblar'}:</p>
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2"> ${typeof t === 'function' ? t('receipt.services_tools') : 'Xizmatlar va Asboblar'}:</p>
                 <div class="space-y-2">
                     ${tools.map((item, idx) => {
                         const m = (DB.product_models || []).find(pm => pm.id === item.product_model_id);
@@ -134,7 +134,7 @@ function renderWebReceipt(order) {
                             <div>
                                 <div class="font-bold text-amber-300">${tools.length + idx + 1}. ${s.service_category.toUpperCase()}</div>
                                 <div class="text-[10px] text-slate-400 max-w-[200px] truncate">${s.service_details}</div>
-                                ${s.task_instruction ? `<div class="text-[9px] text-amber-300/80 font-mono mt-0.5 leading-tight">📋 ${s.task_instruction}</div>` : ''}
+                                ${s.task_instruction ? `<div class="text-[9px] text-amber-300/80 font-mono mt-0.5 leading-tight"> ${s.task_instruction}</div>` : ''}
                             </div>
                             <div class="text-right">
                                 <span class="font-mono font-bold text-white">${s.customer_price.toLocaleString()} ${currLabel}</span>
@@ -146,14 +146,14 @@ function renderWebReceipt(order) {
 
             <!-- Financial Calculation Box -->
             <div class="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2 text-xs">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">💰 ${typeof t === 'function' ? t('receipt.financial_calc') : 'Moliyaviy Hisob-kitob'}:</p>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider"> ${typeof t === 'function' ? t('receipt.financial_calc') : 'Moliyaviy Hisob-kitob'}:</p>
                 <div class="flex justify-between text-slate-300">
                     <span>${typeof t === 'function' ? t('receipt.total_fee') : 'Jami Xizmat Haqi'}:</span>
-                    <b class="text-emerald-400 font-mono">${(order.total_rent_amount || 0).toLocaleString()} ${currLabel} (${typeof t === 'function' ? t('receipt.paid') : "To'landi"} ✅)</b>
+                    <b class="text-emerald-400 font-mono">${(order.total_rent_amount || 0).toLocaleString()} ${currLabel} (${typeof t === 'function' ? t('receipt.paid') : "To'landi"} )</b>
                 </div>
                 <div class="flex justify-between text-slate-300 pt-1 border-t border-slate-800">
                     <span>${typeof t === 'function' ? t('receipt.deposit_collected') : 'Olingan Zalog (Depozit)'}:</span>
-                    <b class="text-amber-400 font-mono">${(order.total_deposit_amount || 0).toLocaleString()} ${currLabel} (${typeof t === 'function' ? t('receipt.holding') : 'Saqlanmoqda'} 🔒)</b>
+                    <b class="text-amber-400 font-mono">${(order.total_deposit_amount || 0).toLocaleString()} ${currLabel} (${typeof t === 'function' ? t('receipt.holding') : 'Saqlanmoqda'} )</b>
                 </div>
             </div>
 
@@ -243,48 +243,48 @@ function renderTelegramMessages(order) {
     const servicesLines = services.map((s, i) => {
         let line = `${tools.length + i + 1}. ${s.service_category.toUpperCase()} (${s.service_details})\n   • ${s.customer_price.toLocaleString()} ${currLabel}`;
         if (s.task_instruction) {
-            line += `\n   • 📋 ${s.task_instruction}`;
+            line += `\n   •  ${s.task_instruction}`;
         }
         return line;
     }).join('\n');
 
     // Template 1: Order Created Receipt
     const textOrderCreated = isRu ? 
-`🧾 ЧЕК ЗАКАЗА: #${order.order_number}
-🏢 Компания: "WMS ARENDA — Аренда и услуги"
-👤 Клиент: ${customer ? customer.full_name : 'Клиент'} (${customer ? customer.phone_primary : ''})
+` ЧЕК ЗАКАЗА: #${order.order_number}
+ Компания: "WMS ARENDA — Аренда и услуги"
+ Клиент: ${customer ? customer.full_name : 'Клиент'} (${customer ? customer.phone_primary : ''})
 
-📦 Услуги / Инструменты:
+ Услуги / Инструменты:
 ${toolsLines}
 ${servicesLines}
 
-💰 Финансовый расчет:
-• Итого за услуги: ${(order.total_rent_amount || 0).toLocaleString()} сум (Оплачено ✅)
-• Принятый залог (депозит): ${(order.total_deposit_amount || 0).toLocaleString()} сум (Удерживается 🔒)
+ Финансовый расчет:
+• Итого за услуги: ${(order.total_rent_amount || 0).toLocaleString()} сум (Оплачено )
+• Принятый залог (депозит): ${(order.total_deposit_amount || 0).toLocaleString()} сум (Удерживается )
 
-📅 Срок возврата: до ${order.expected_return_date || '-'}
-📍 Адрес возврата: г. Ташкент, Чиланзарская промзона, 4
-📞 Контакты: +998 71 200-00-00
+ Срок возврата: до ${order.expected_return_date || '-'}
+ Адрес возврата: г. Ташкент, Чиланзарская промзона, 4
+ Контакты: +998 71 200-00-00
 
-🔗 Посмотреть чек онлайн: ${onlineUrl}`
+ Посмотреть чек онлайн: ${onlineUrl}`
 :
-`🧾 BUYURTMA CHEKI: #${order.order_number}
-🏢 Kompaniya: "WMS ARENDA — Ijara & Xizmatlar"
-👤 Mijoz: ${customer ? customer.full_name : 'Mijoz'} (${customer ? customer.phone_primary : ''})
+` BUYURTMA CHEKI: #${order.order_number}
+ Kompaniya: "WMS ARENDA — Ijara & Xizmatlar"
+ Mijoz: ${customer ? customer.full_name : 'Mijoz'} (${customer ? customer.phone_primary : ''})
 
-📦 Xizmatlar / Asboblar:
+ Xizmatlar / Asboblar:
 ${toolsLines}
 ${servicesLines}
 
-💰 Moliyaviy hisob-kitob:
-• Jami xizmat haqi: ${(order.total_rent_amount || 0).toLocaleString()} so'm (To'landi ✅)
-• Olingan Zalog (Depozit): ${(order.total_deposit_amount || 0).toLocaleString()} so'm (Saqlanmoqda 🔒)
+ Moliyaviy hisob-kitob:
+• Jami xizmat haqi: ${(order.total_rent_amount || 0).toLocaleString()} so'm (To'landi )
+• Olingan Zalog (Depozit): ${(order.total_deposit_amount || 0).toLocaleString()} so'm (Saqlanmoqda )
 
-📅 Qaytarish vaqti: ${order.expected_return_date || '-'} gacha
-📍 Qaytarish manzili: Toshkent sh., Chilonzor sanoat zonasi, 4
-📞 Aloqa: +998 71 200-00-00
+ Qaytarish vaqti: ${order.expected_return_date || '-'} gacha
+ Qaytarish manzili: Toshkent sh., Chilonzor sanoat zonasi, 4
+ Aloqa: +998 71 200-00-00
 
-🔗 Onlayn chekni ko'rish: ${onlineUrl}`;
+ Onlayn chekni ko'rish: ${onlineUrl}`;
 
     // Template 2: 3-hour Reminder
     const textReminder = isRu ?
@@ -299,9 +299,9 @@ ${tools.map(t => {
 
 Срок вашей аренды истекает сегодня в ${order.expected_return_date ? order.expected_return_date.substring(11, 16) : '18:00'}. Просим вернуть оборудование вовремя, в исправном и очищенном виде.
 
-📍 Адрес: г. Ташкент, Чиланзарская промзона, 4
-📞 Контакты: +998 71 200-00-00
-🏢 WMS ARENDA`
+ Адрес: г. Ташкент, Чиланзарская промзона, 4
+ Контакты: +998 71 200-00-00
+ WMS ARENDA`
 :
 `⏰ HURMATLI ${customer ? customer.full_name.toUpperCase() : 'MIJOZ'}!
 
@@ -310,29 +310,29 @@ ${tools.map(t => `• ${t.model_name} (SN: ${t.serial_number})`).join('\n')}
 
 Ijarangiz muddati bugun ${order.expected_return_date ? order.expected_return_date.substring(11, 16) : '18:00'} da tugaydi. Uskunani o'z vaqtida, soz va tozalangan holda topshirishingizni so'raymiz.
 
-📍 Manzil: Toshkent sh., Chilonzor sanoat zonasi, 4
-📞 Aloqa: +998 71 200-00-00
-🏢 WMS ARENDA`;
+ Manzil: Toshkent sh., Chilonzor sanoat zonasi, 4
+ Aloqa: +998 71 200-00-00
+ WMS ARENDA`;
 
     // Template 3: Return Closing Confirmation
     const textClosing = isRu ?
-`✅ УВАЖАЕМЫЙ(АЯ) ${customer ? customer.full_name.toUpperCase() : 'КЛИЕНТ'}!
+` УВАЖАЕМЫЙ(АЯ) ${customer ? customer.full_name.toUpperCase() : 'КЛИЕНТ'}!
 
 Оборудование по вашему заказу (#${order.order_number}) успешно принято на склад.
-🔒 Принятый залог: ${(order.total_deposit_amount || 0).toLocaleString()} сум полностью возвращен.
+ Принятый залог: ${(order.total_deposit_amount || 0).toLocaleString()} сум полностью возвращен.
 
 Благодарим за сотрудничество!
-🏢 WMS ARENDA — Аренда строительного оборудования
-📞 +998 71 200-00-00`
+ WMS ARENDA — Аренда строительного оборудования
+ +998 71 200-00-00`
 :
-`✅ HURMATLI ${customer ? customer.full_name.toUpperCase() : 'MIJOZ'}!
+` HURMATLI ${customer ? customer.full_name.toUpperCase() : 'MIJOZ'}!
 
 Buyurtmangiz (#${order.order_number}) bo'yicha uskunalar muvaffaqiyatli qabul qilindi.
-🔒 Olingan zalog: ${(order.total_deposit_amount || 0).toLocaleString()} so'm to'liq qaytarildi.
+ Olingan zalog: ${(order.total_deposit_amount || 0).toLocaleString()} so'm to'liq qaytarildi.
 
 Xizmatimizdan foydalanganingiz uchun tashakkur, sizni yana kutib qolamiz!
-🏢 WMS ARENDA — Qurilish uskunalari ijarasi
-📞 +998 71 200-00-00`;
+ WMS ARENDA — Qurilish uskunalari ijarasi
+ +998 71 200-00-00`;
 
     const container = document.getElementById('telegram-messages-container');
     if (!container) return;

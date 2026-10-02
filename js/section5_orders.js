@@ -122,7 +122,7 @@ function renderOrdersTable() {
         yangi: '<span class="badge-status bg-slate-500/10 text-slate-400 border border-slate-500/20">Yangi</span>',
         faol_ijarada: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping"></span> Ijarada</span>',
         kechikkan: '<span class="badge-status bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1 font-bold animate-pulse"><i data-lucide="alert-triangle" class="w-3 h-3"></i> Kechikkan!</span>',
-        yakunlandi: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Yakunlandi ✔</span>',
+        yakunlandi: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Yakunlandi </span>',
         bekor_qilindi: '<span class="badge-status bg-slate-800 text-slate-400">Bekor qilindi</span>'
     };
 
@@ -141,8 +141,7 @@ function renderOrdersTable() {
             const exp = new Date(o.expected_return_date);
             const now = new Date();
             const diffHours = Math.max(1, Math.round((now - exp) / (1000 * 60 * 60)));
-            const diffDays = Math.ceil(diffHours / 24);
-            delayBadge = `<div class="text-[10px] text-red-400 font-bold mt-0.5">⚠️ ${diffDays} kun kechikdi (${diffHours} soat)</div>`;
+            delayBadge = `<div class="text-[10px] text-rose-400 font-semibold mt-0.5">${diffDays} kun kechikdi (${diffHours} soat)</div>`;
         }
 
         tr.innerHTML = `
@@ -155,8 +154,8 @@ function renderOrdersTable() {
             <td class="py-3 px-4">
                 <div class="flex items-center gap-1.5 font-semibold text-slate-200">
                     <span>${customer ? customer.full_name : 'Noma\'lum Mijoz'}</span>
-                    ${customer?.status === 'vip' ? '<span class="text-amber-400 text-xs">⭐</span>' : ''}
-                    ${customer?.status === 'qora_royxat' ? '<span class="text-red-400 text-xs font-bold font-mono">⛔ BLOK</span>' : ''}
+                    ${customer?.status === 'vip' ? '<span class="text-amber-400 text-xs"></span>' : ''}
+                    ${customer?.status === 'qora_royxat' ? '<span class="text-red-400 text-xs font-bold font-mono"> BLOK</span>' : ''}
                 </div>
                 <div class="text-[10px] text-slate-400 flex items-center gap-1">
                     <i data-lucide="phone" class="w-3 h-3 text-blue-400"></i>
@@ -171,9 +170,9 @@ function renderOrdersTable() {
                         return `
                             <div class="flex items-center gap-1.5 text-xs text-slate-200">
                                 <span class="px-1.5 py-0.2 rounded bg-slate-800 text-[10px] font-mono text-blue-300">${t.serial_number}</span>
-                                <span class="px-1 py-0.2 rounded bg-indigo-950 border border-indigo-500/40 text-[9px] font-mono font-bold text-amber-300">📍 ${locCode}</span>
+                                <span class="px-1 py-0.2 rounded bg-indigo-950 border border-indigo-500/40 text-[9px] font-mono font-bold text-amber-300"> ${locCode}</span>
                                 <span class="truncate max-w-[130px]">${t.model_name}</span>
-                                ${isPicked ? '<span class="text-[9px] text-emerald-400 font-bold" title="Ombordan olib chiqildi">✔</span>' : '<span class="text-[9px] text-amber-400" title="Olib chiqish kutilmoqda">⏳</span>'}
+                                ${isPicked ? '<span class="text-[9px] text-emerald-400 font-bold" title="Ombordan olib chiqildi"></span>' : '<span class="text-[9px] text-amber-400" title="Olib chiqish kutilmoqda">⏳</span>'}
                                 <span class="text-[10px] text-slate-400">(${t.rent_days} kun)</span>
                             </div>
                         `;
@@ -310,7 +309,7 @@ function populateAvailablePosTools() {
             const modelName = model ? model.name : 'Asbob';
             const price = model ? model.daily_price : 0;
             const locCode = typeof getLocationCode === 'function' ? getLocationCode(u.warehouse_location_id) : 'A-01-01';
-            return `<option value="${u.id}">${modelName} | SN: ${u.serial_number} [📍 ${locCode}] (${price.toLocaleString()} so'm/kun)</option>`;
+            return `<option value="${u.id}">${modelName} | SN: ${u.serial_number} [ ${locCode}] (${price.toLocaleString()} so'm/kun)</option>`;
         }).join('');
 
     select.onchange = function() {
@@ -324,7 +323,7 @@ function populatePosPartnersSelect() {
 
     pSelect.innerHTML = '<option value="">-- Ijrochi hamkorni tanlang --</option>' +
         (DB.service_partners || []).map(p => `
-            <option value="${p.id}">${p.company_name} (${p.service_category} - ⭐ ${p.rating})</option>
+            <option value="${p.id}">${p.company_name} (${p.service_category} -  ${p.rating})</option>
         `).join('');
 }
 
@@ -370,8 +369,8 @@ function handlePosCustomerSearch() {
             <div>
                 <div class="font-bold text-white flex items-center gap-1.5">
                     <span>${c.full_name}</span>
-                    ${c.status === 'vip' ? '<span class="text-amber-400">⭐ VIP</span>' : ''}
-                    ${c.status === 'qora_royxat' ? '<span class="text-red-400 font-bold bg-red-500/10 px-1 rounded">🚫 QORA RO\'YXAT</span>' : ''}
+                    ${c.status === 'vip' ? '<span class="text-amber-400"> VIP</span>' : ''}
+                    ${c.status === 'qora_royxat' ? '<span class="text-red-400 font-bold bg-red-500/10 px-1 rounded"> QORA RO\'YXAT</span>' : ''}
                 </div>
                 <div class="text-[11px] text-slate-400 font-mono">${c.phone_primary} | Pasport: ${c.passport_series_number}</div>
             </div>
@@ -407,17 +406,17 @@ function selectPosCustomer(customerId) {
         warningBox.innerHTML = `
             <i data-lucide="alert-octagon" class="w-5 h-5 text-red-400 shrink-0 mt-0.5"></i>
             <div>
-                <b class="text-red-400 uppercase tracking-wide">🚨 XAVF: Ushbu mijoz QORA RO'YXATDA!</b>
+                <b class="text-red-400 uppercase tracking-wide"> XAVF: Ushbu mijoz QORA RO'YXATDA!</b>
                 <p class="mt-0.5">Sababi: ${customer.blacklist_reason || 'Qarzdorlik yoki asbobni qaytarmaslik'}. Asbob berish taqiqlanadi!</p>
             </div>
         `;
     } else if (customer.current_debt > 0) {
         warningBox.classList.remove('hidden');
-        warningBox.className = "p-3 rounded-xl bg-amber-950/50 border border-amber-500/40 text-xs text-amber-200 flex items-start gap-2.5 mb-3";
+        warningBox.className = "p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-xs text-amber-200 flex items-start gap-2.5 mb-3";
         warningBox.innerHTML = `
             <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
             <div>
-                <b class="text-amber-400">⚠️ Ogohlantirish: Mijozda ${customer.current_debt.toLocaleString()} so'm oldingi qarz mavjud!</b>
+                <b class="text-amber-400">Ogohlantirish: Mijozda ${customer.current_debt.toLocaleString()} so'm oldingi qarz mavjud!</b>
             </div>
         `;
     } else {
@@ -610,12 +609,12 @@ function renderPosCartItems() {
         itemEl.className = "p-3 rounded-xl border border-slate-800 bg-slate-950 flex flex-col gap-2 text-xs";
         const locBadge = typeof renderWmsLocationBadgeHtml === 'function'
             ? renderWmsLocationBadgeHtml(t.warehouse_location_id)
-            : `<div class="text-[10px] text-indigo-300">📍 ${t.location_display || t.location_code}</div>`;
+            : `<div class="text-[10px] text-indigo-300"> ${t.location_display || t.location_code}</div>`;
 
         itemEl.innerHTML = `
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs">🔨</div>
+                    <div class="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs"></div>
                     <div>
                         <div class="font-bold text-white leading-tight">${t.model_name}</div>
                         <div class="text-[10px] text-slate-400 font-mono">SN: ${t.serial_number} | ${t.rent_days} kun x ${t.daily_price.toLocaleString()}</div>
@@ -642,7 +641,7 @@ function renderPosCartItems() {
         itemEl.className = "p-3 rounded-xl border border-slate-800 bg-slate-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs";
         itemEl.innerHTML = `
             <div class="flex items-start gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">🚚</div>
+                <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5"></div>
                 <div>
                     <div class="font-bold text-amber-300 leading-tight flex items-center gap-1.5">
                         <span>${s.category.toUpperCase()}</span>
@@ -651,7 +650,7 @@ function renderPosCartItems() {
                     <div class="text-[11px] text-white mt-0.5 font-medium">${s.details}</div>
                     ${s.task_instruction ? `
                         <div class="text-[10px] text-slate-400 font-mono italic mt-1 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
-                            📲 Hamkor topshirig'i: ${s.task_instruction}
+                             Hamkor topshirig'i: ${s.task_instruction}
                         </div>
                     ` : ''}
                 </div>
@@ -926,7 +925,7 @@ function openOrderReturnModal(orderId) {
         });
     }
 
-    document.getElementById('ret-delay-days').innerText = delayDays > 0 ? `${delayDays} kun kechikish` : 'Vaqtida keldi ✔';
+    document.getElementById('ret-delay-days').innerText = delayDays > 0 ? `${delayDays} kun kechikish` : 'Vaqtida keldi ';
     document.getElementById('ret-delay-penalty').value = lateFee;
 
     // Render Checklist for each rented tool with WMS Putaway placement
@@ -955,25 +954,24 @@ function openOrderReturnModal(orderId) {
         div.innerHTML = `
             <div class="flex justify-between items-center pb-2 border-b border-slate-800">
                 <div class="font-bold text-white flex items-center gap-1.5">
-                    <span>🔨 ${t.model_name}</span>
+                    <span> ${t.model_name}</span>
                     <span class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-mono text-blue-300">${t.serial_number}</span>
                 </div>
                 <div>
                     <select id="ret-unit-condition-${t.id}" class="rounded-lg border border-slate-700 bg-slate-800 text-[11px] py-1 px-2 text-slate-200" onchange="calculateReturnDepositRefund()">
-                        <option value="butun">✅ Soz (Nuqsonsiz)</option>
-                        <option value="remont">⚠️ Buzilgan (Remont talab)</option>
-                        <option value="yoqolgan">❌ Yo'qolgan / Yaroqsiz</option>
+                        <option value="butun">Soz (Nuqsonsiz)</option>
+                        <option value="remont">Buzilgan (Remont talab)</option>
+                        <option value="yoqolgan">Yo'qolgan / Yaroqsiz</option>
                     </select>
                 </div>
             </div>
 
             <!-- WMS PUTAWAY / POLKAGA QAYTA JOYLASHTIRISH BLOKI -->
-            <div class="p-3 rounded-xl bg-slate-900/90 border border-indigo-500/30 space-y-2">
+            <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                     <div>
                         <span class="text-[10px] text-slate-400 uppercase font-bold block">Asbobning Asl Joyi (WMS Putaway):</span>
                         <b class="text-xs text-white flex items-center gap-1.5">
-                            <span class="text-amber-400">👉</span>
                             <span>${origLocText}</span>
                         </b>
                     </div>
@@ -981,7 +979,7 @@ function openOrderReturnModal(orderId) {
                         <span class="px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 font-mono font-bold text-xs border border-amber-400/30">
                             Kod: ${origLocCode}
                         </span>
-                        ${origOcc.isFull ? '<span class="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px] font-bold">⚠️ Polka to\'lgan</span>' : '<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px]">Joy bor</span>'}
+                        ${origOcc.isFull ? '<span class="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px] font-semibold">Polka to\'lgan</span>' : '<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">Joy bor</span>'}
                     </div>
                 </div>
 
