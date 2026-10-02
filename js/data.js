@@ -736,6 +736,12 @@ function loadDB() {
     }
 
     // Ensure all collections are present if older version existed in localStorage
+    if (!DB.users || !Array.isArray(DB.users) || DB.users.length === 0) DB.users = JSON.parse(JSON.stringify(DEFAULT_DB.users || []));
+    if (!DB.product_models) DB.product_models = JSON.parse(JSON.stringify(DEFAULT_DB.product_models || []));
+    if (!DB.product_items) DB.product_items = JSON.parse(JSON.stringify(DEFAULT_DB.product_items || []));
+    if (!DB.customers) DB.customers = JSON.parse(JSON.stringify(DEFAULT_DB.customers || []));
+    if (!DB.suppliers) DB.suppliers = JSON.parse(JSON.stringify(DEFAULT_DB.suppliers || []));
+    if (!DB.role_permissions) DB.role_permissions = JSON.parse(JSON.stringify(DEFAULT_DB.role_permissions || {}));
     if (!DB.orders) DB.orders = JSON.parse(JSON.stringify(DEFAULT_DB.orders || []));
     if (!DB.order_tool_items) DB.order_tool_items = JSON.parse(JSON.stringify(DEFAULT_DB.order_tool_items || []));
     if (!DB.order_service_items) DB.order_service_items = JSON.parse(JSON.stringify(DEFAULT_DB.order_service_items || []));

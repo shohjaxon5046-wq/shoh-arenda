@@ -146,7 +146,7 @@
                                 class="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none transition">
                         </div>
                     </div>
-                    <button type="submit" class="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 py-2.5 text-xs font-semibold text-white shadow-sm transition">
+                    <button type="submit" onclick="handleLogin(event)" class="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 py-2.5 text-xs font-semibold text-white shadow-sm transition cursor-pointer">
                         <span data-i18n="action.login">Tizimga kirish</span>
                         <i data-lucide="arrow-right" class="w-4 h-4"></i>
                     </button>
@@ -3197,78 +3197,187 @@
     
     <script>
         function handleLogin(e) {
-            e.preventDefault();
-            const usernameInput = document.getElementById('login-username').value.trim();
-            const passwordInput = document.getElementById('login-password').value.trim();
+            if (e && typeof e.preventDefault === 'function') e.preventDefault();
 
-            const user = DB.users.find(u => (u.username === usernameInput || u.full_name.toLowerCase().includes(usernameInput.toLowerCase())) && u.password === passwordInput);
-            if (user) {
-                if (!user.is_active) {
-                    alert(typeof t === 'function' ? t('alert.blocked_account') : "Ushbu hisob bloklangan! Bosh Admin bilan bog'laning.");
+            try {
+                const usernameEl = document.getElementById('login-username');
+                const passwordEl = document.getElementById('login-password');
+                const errBox = document.getElementById('login-error');
+                const errText = document.getElementById('login-error-text');
+
+                const usernameInput = (usernameEl ? usernameEl.value : '').trim();
+                const passwordInput = (passwordEl ? passwordEl.value : '').trim();
+
+                if (!usernameInput || !passwordInput) {
+                    if (errBox) {
+                        errBox.classList.remove('hidden');
+                        errBox.style.setProperty('display', 'block', 'important');
+                    }
+                    if (errText) errText.innerText = "Iltimos, login va parolni kiriting!";
                     return;
                 }
-                user.last_login = new Date().toLocaleString('uz-UZ');
-                currentUser = { id: user.id, full_name: user.full_name, username: user.username, role_id: user.role_id, phone: user.phone };
-                localStorage.setItem('WMS_USER_SESSION', JSON.stringify(currentUser));
-                saveDB();
-                document.getElementById('login-error').classList.add('hidden');
-                showMainApp();
-                const welcomeTxt = typeof t === 'function' ? `${t('alert.welcome_user')}, ${user.full_name}!` : `Xush kelibsiz, ${user.full_name}!`;
-                showNotification(welcomeTxt, "success");
-            } else {
-                const errBox = document.getElementById('login-error');
-                errBox.classList.remove('hidden');
-                document.getElementById('login-error-text').innerText = typeof t === 'function' ? t('alert.login_error') : "Foydalanuvchi nomi yoki parol noto'g'ri!";
-                lucide.createIcons();
+
+                // Ensure DB and users array exist
+                if (typeof DB === 'undefined' || !DB) DB = {};
+                if (!Array.isArray(DB.users) || DB.users.length === 0) {
+                    if (typeof DEFAULT_DB !== 'undefined' && Array.isArray(DEFAULT_DB.users)) {
+                        DB.users = JSON.parse(JSON.stringify(DEFAULT_DB.users));
+                    }
+                }
+
+                const usersList = Array.isArray(DB.users) ? DB.users : (typeof DEFAULT_DB !== 'undefined' ? DEFAULT_DB.users : []);
+
+                const user = usersList.find(u => 
+                    (u.username.toLowerCase() === usernameInput.toLowerCase() || 
+                     (u.full_name && u.full_name.toLowerCase().includes(usernameInput.toLowerCase()))) && 
+                    u.password === passwordInput
+                );
+
+                if (user) {
+                    if (!user.is_active) {
+                        alert(typeof t === 'function' ? t('alert.blocked_account') : "Ushbu hisob bloklangan! Bosh Admin bilan bog'laning.");
+                        return;
+                    }
+                    user.last_login = new Date().toLocaleString('uz-UZ');
+                    currentUser = { 
+                        id: user.id, 
+                        full_name: user.full_name || user.username || 'Foydalanuvchi', 
+                        username: user.username, 
+                        role_id: user.role_id || 'admin', 
+                        phone: user.phone || '' 
+                    };
+
+                    try {
+                        localStorage.setItem('WMS_USER_SESSION', JSON.stringify(currentUser));
+                    } catch (err) {}
+
+                    try {
+                        if (typeof saveDB === 'function') saveDB();
+                    } catch (err) {}
+
+                    if (errBox) {
+                        errBox.classList.add('hidden');
+                        errBox.style.setProperty('display', 'none', 'important');
+                    }
+
+                    showMainApp();
+
+                    const welcomeTxt = typeof t === 'function' ? `${t('alert.welcome_user')}, ${currentUser.full_name}!` : `Xush kelibsiz, ${currentUser.full_name}!`;
+                    if (typeof showNotification === 'function') {
+                        showNotification(welcomeTxt, "success");
+                    }
+                } else {
+                    if (errBox) {
+                        errBox.classList.remove('hidden');
+                        errBox.style.setProperty('display', 'block', 'important');
+                    }
+                    if (errText) {
+                        errText.innerText = (typeof t === 'function' ? t('alert.login_error') : "Foydalanuvchi nomi yoki parol noto'g'ri!") + " (Standart: admin / admin123)";
+                    }
+                    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                        lucide.createIcons();
+                    }
+                }
+            } catch (err) {
+                console.error("handleLogin xatosi:", err);
+                alert("Kirishda xatolik yuz berdi: " + err.message);
             }
         }
 
         function handleLogout() {
             if (confirm("Tizimdan chiqmoqchimisiz?")) {
-                localStorage.removeItem('WMS_USER_SESSION');
+                try {
+                    localStorage.removeItem('WMS_USER_SESSION');
+                } catch (e) {}
                 currentUser = null;
                 showAuthScreen();
             }
         }
 
         function showAuthScreen() {
-            document.getElementById('auth-screen').classList.remove('hidden');
-            document.getElementById('main-app').classList.add('hidden');
-            if (typeof updateLanguageUI === 'function') updateLanguageUI();
-            if (typeof updateStaticDOMTranslations === 'function') updateStaticDOMTranslations();
+            const authScreen = document.getElementById('auth-screen');
+            const mainApp = document.getElementById('main-app');
+            if (authScreen) {
+                authScreen.classList.remove('hidden');
+                authScreen.style.setProperty('display', 'flex', 'important');
+            }
+            if (mainApp) {
+                mainApp.classList.add('hidden');
+                mainApp.style.setProperty('display', 'none', 'important');
+            }
+            try { if (typeof updateLanguageUI === 'function') updateLanguageUI(); } catch (e) {}
+            try { if (typeof updateStaticDOMTranslations === 'function') updateStaticDOMTranslations(); } catch (e) {}
+            try { if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons(); } catch (e) {}
         }
 
         function showMainApp() {
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('main-app').classList.remove('hidden');
-            
-            document.getElementById('user-name').innerText = currentUser.full_name;
-            document.getElementById('user-avatar').innerText = currentUser.full_name.charAt(0);
-            
+            const authScreen = document.getElementById('auth-screen');
+            const mainApp = document.getElementById('main-app');
+
+            // 1. Immediately toggle screens using both classes and explicit style to guarantee transition
+            if (authScreen) {
+                authScreen.classList.add('hidden');
+                authScreen.style.setProperty('display', 'none', 'important');
+            }
+            if (mainApp) {
+                mainApp.classList.remove('hidden');
+                mainApp.style.setProperty('display', 'flex', 'important');
+            }
+
+            // 2. Set user credentials in header safely
+            const fullName = (currentUser && currentUser.full_name) ? currentUser.full_name : (currentUser && currentUser.username ? currentUser.username : "Admin");
+            const roleId = (currentUser && currentUser.role_id) ? currentUser.role_id : 'admin';
+
+            const userNameEl = document.getElementById('user-name');
+            const userAvatarEl = document.getElementById('user-avatar');
+            const userRoleEl = document.getElementById('user-role-badge');
+
+            if (userNameEl) userNameEl.innerText = fullName;
+            if (userAvatarEl) userAvatarEl.innerText = fullName.charAt(0).toUpperCase();
+
             const roleLabels = {
                 admin: "Bosh Admin",
                 manager: "Menejer",
                 cashier: "Kassir",
                 warehouseman: "Skladchi"
             };
-            document.getElementById('user-role-badge').innerText = (typeof t === 'function' ? t(`role.${currentUser.role_id}`, roleLabels[currentUser.role_id]) : (roleLabels[currentUser.role_id] || currentUser.role_id));
+            if (userRoleEl) {
+                userRoleEl.innerText = (typeof t === 'function' ? t(`role.${roleId}`, roleLabels[roleId]) : (roleLabels[roleId] || roleId));
+            }
 
-            if (typeof updateLanguageUI === 'function') updateLanguageUI();
-            if (typeof updateStaticDOMTranslations === 'function') updateStaticDOMTranslations();
-            if (typeof updateDatabaseLocalization === 'function') updateDatabaseLocalization();
+            // 3. Update localization
+            try { if (typeof updateLanguageUI === 'function') updateLanguageUI(); } catch (e) {}
+            try { if (typeof updateStaticDOMTranslations === 'function') updateStaticDOMTranslations(); } catch (e) {}
+            try { if (typeof updateDatabaseLocalization === 'function') updateDatabaseLocalization(); } catch (e) {}
 
-            renderAllTabs();
-            renderCatalogCards();
-            renderStaffTable();
-            renderSuppliersLedger();
-            renderCustomersCRM();
-            if (typeof renderPartnersDirectory === 'function') renderPartnersDirectory();
-            if (typeof renderOrdersSection === 'function') renderOrdersSection();
-            if (typeof renderFinanceSection === 'function') renderFinanceSection();
-            if (typeof renderDashboard === 'function') renderDashboard();
-            if (typeof renderAISettingsForm === 'function') renderAISettingsForm();
-            switchSection('section-dashboard');
-            lucide.createIcons();
+            // 4. Safely render modules
+            try { if (typeof renderAllTabs === 'function') renderAllTabs(); } catch (e) { console.warn(e); }
+            try { if (typeof renderCatalogCards === 'function') renderCatalogCards(); } catch (e) { console.warn(e); }
+            try { if (typeof renderStaffTable === 'function') renderStaffTable(); } catch (e) { console.warn(e); }
+            try { if (typeof renderSuppliersLedger === 'function') renderSuppliersLedger(); } catch (e) { console.warn(e); }
+            try { if (typeof renderCustomersCRM === 'function') renderCustomersCRM(); } catch (e) { console.warn(e); }
+            try { if (typeof renderPartnersDirectory === 'function') renderPartnersDirectory(); } catch (e) { console.warn(e); }
+            try { if (typeof renderOrdersSection === 'function') renderOrdersSection(); } catch (e) { console.warn(e); }
+            try { if (typeof renderFinanceSection === 'function') renderFinanceSection(); } catch (e) { console.warn(e); }
+            try { if (typeof renderDashboard === 'function') renderDashboard(); } catch (e) { console.warn(e); }
+            try { if (typeof renderAISettingsForm === 'function') renderAISettingsForm(); } catch (e) { console.warn(e); }
+
+            // 5. Activate default section and render icons
+            try {
+                if (typeof switchSection === 'function') {
+                    switchSection('section-dashboard');
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+
+            try {
+                if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                    lucide.createIcons();
+                }
+            } catch (e) {
+                console.warn(e);
+            }
         }
     </script>
 </body>
