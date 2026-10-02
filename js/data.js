@@ -754,13 +754,16 @@ function loadDB() {
     if (!DB.ai_settings) {
         DB.ai_settings = {
             is_enabled: true,
-            provider: "demo", // "gemini", "openai", "demo"
+            provider: "builtin", // "builtin", "groq", "gemini"
             api_key: "",
-            model_name: "gemini-1.5-flash",
+            model_name: "builtin-nlp",
             admin_pin: "7788",
-            welcome_message: "Assalomu alaykum! Men WMS Arenda AI aqlli yordamchisiman. Asboblar ijarasi, kran, musor olib ketish va gruzchik xizmatlari bo'yicha qanday yordam bera olaman?",
-            system_prompt: "Siz WMS ARENDA kompaniyasining aqlli sotuvchi yordamchisisiz. Faqat omborda haqiqatda bor uskunalar va tasdiqlangan xizmatlar narxi bo'yicha professional ma'lumot bering. Buyurtma qabul qiling va admin uchun kassa hisobotlarini taqdim eting."
+            welcome_message: "Assalomu alaykum! WMS Arenda xizmatiga xush kelibsiz! Sizga qanday asbob yoki xizmat (kran, musor, gruzchik) kerak?",
+            system_prompt: "Siz WMS ARENDA kompaniyasining 100% avtonom ichki aqlli AI sotuvchi maslahatchisisiz. Narxlar, asboblar va xizmatlar bo'yicha aniq ma'lumot bering."
         };
+    }
+    if (!DB.ai_settings.provider || DB.ai_settings.provider === 'demo') {
+        DB.ai_settings.provider = 'builtin';
     }
 
     // Ensure all orders have a uuid for online receipts

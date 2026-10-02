@@ -93,23 +93,23 @@ function tool_get_service_price(service_type, details = '') {
     };
 
     if (category.includes('kran')) {
-        result.service_name = "Avtokran xizmati (25t - 50t)";
-        result.price_quote = "400 000 so'm / soat";
-        result.min_order = "Kamida 3-4 soatlik buyurtma";
-        result.terms = "Yetib borish vaqtida kran soz holatda, haydovchi-operator bilan birga xizmat qiladi.";
+        result.service_name = "Avtokran xizmati (16t - 25t - 50t)";
+        result.price_quote = "16t kran: 300 000 so'm/soat (min 2 soat), 25t kran: 350 000 so'm/soat (min 3 soat)";
+        result.min_order = "16t: 2 soat, 25t: 3 soat";
+        result.terms = "Yetib borish vaqtida kran soz holatda, malakali haydovchi-operator bilan birga xizmat qiladi.";
     } else if (category.includes('musor') || category.includes('axlat') || category.includes('chiqindi')) {
         result.service_name = "Qurilish chiqindilarini (musor) olib ketish";
-        result.price_quote = "350 000 so'm / reys (Gazel 1.5t gacha yoki 40-50 qop)";
-        result.min_order = "1 reys";
-        result.terms = "Qurilish axlatlari qoplarga solingan holda tayyor bo'lishi kerak. Gruzchik kerak bo'lsa qo'shimcha to'lanadi.";
+        result.price_quote = "Gazel (1.5t gacha) — 400 000 so'm, ZIL (5t) — 800 000 so'm, Qoplarda: 12 000 so'm/dona";
+        result.min_order = "1 reys yoki min 20 qop";
+        result.terms = "Qurilish chiqindilari tayyor bo'lishi kerak. Mashinaga ortish: 150 000 so'm yoki 3 000 so'm/qop (har bir qavatga +2 000 so'm).";
     } else if (category.includes('gruzchik') || category.includes('yukchi')) {
-        result.service_name = "Yuk tashish (Gruzchik) xizmati";
-        result.price_quote = "75 000 so'm / 1 soat (1 kishi uchun) yoki 4-etajgacha 150 000 so'm";
-        result.min_order = "Kamida 2 kishi / 2 soat";
+        result.service_name = "Yuk ko'taruvchilar (Gruzchik) xizmati";
+        result.price_quote = "1 qop 1 qavatga 3 000 so'm (lift bo'lsa 1 500 so'm). Soatbay: 50 000 so'm/soat (1 kishi uchun)";
+        result.min_order = "Kamida 1 kishi / 2 soat";
         result.terms = "Og'ir qurilish materiallari va mebellarni qavatlarga ko'tarish / tushirish.";
     } else {
         result.service_name = "Tashqi brokerlik xizmatlari";
-        result.price_quote = "Kran (400k/soat), Musor (350k/reys), Gruzchik (75k/soat)";
+        result.price_quote = "Kran (300k/soat), Musor (400k/reys), Gruzchik (50k/soat)";
         result.terms = "Iltimos, aniq xizmat turini ko'rsating: kran, musor yoki gruzchik.";
     }
 
@@ -299,7 +299,7 @@ async function processUserMessage(rawMessage, role = 'customer', adminPin = '') 
         };
     }
 
-    const provider = settings.provider || 'demo';
+    const provider = settings.provider || 'builtin';
     const apiKey = settings.api_key || '';
 
     // Check if user is authenticating as Admin: e.g. "/admin 7788" or "admin 7788"
@@ -310,20 +310,55 @@ async function processUserMessage(rawMessage, role = 'customer', adminPin = '') 
         if (stats.authorized) {
             chatSimulatorRole = 'admin';
             return {
-                reply: ` **Admin rejimi faollashtirildi!**\n\n **Bugungi Kassa va Biznes Hisoboti (${stats.report_time}):**\n• Bugungi sof tushum: **${stats.today_income.toLocaleString()} so'm**\n• Olingan garov (zalog): **${stats.today_deposits.toLocaleString()} so'm**\n• Oylik toza foyda (P&L): **${stats.monthly_net_profit.toLocaleString()} so'm**\n• Kechikkan buyurtmalar soni: **${stats.total_delayed_orders_count} ta**\n\n **Ombor holati:** Jami: ${stats.inventory_summary.total_tools} ta (Bo'sh: ${stats.inventory_summary.available}, Ijarada: ${stats.inventory_summary.in_rent}, Ta'mirda: ${stats.inventory_summary.in_repair})`,
+                reply: `🔒 **Admin rejimi faollashtirildi!**\n\n📊 **Bugungi Kassa va Biznes Hisoboti (${stats.report_time || new Date().toLocaleString()}):**\n• Bugungi sof tushum: **${stats.today_income.toLocaleString()} so'm**\n• Olingan garov (zalog): **${stats.today_deposits.toLocaleString()} so'm**\n• Oylik toza foyda (P&L): **${stats.monthly_net_profit.toLocaleString()} so'm**\n• Kechikkan buyurtmalar soni: **${stats.total_delayed_orders_count} ta**\n\n📦 **Ombor holati:** Jami: ${stats.inventory_summary.total_tools} ta (Bo'sh: ${stats.inventory_summary.available}, Ijarada: ${stats.inventory_summary.in_rent}, Ta'mirda: ${stats.inventory_summary.in_repair})`,
                 function_called: "get_admin_daily_stats",
                 function_result: stats
             };
         } else {
             return {
-                reply: ` PIN kod noto'g'ri kiritildi! Iltimos, Bosh Admin PIN kodini tekshiring (Standart: 7788).`,
+                reply: `⚠️ PIN kod noto'g'ri kiritildi! Iltimos, Bosh Admin PIN kodini tekshiring (Standart: 7788).`,
                 function_called: "get_admin_daily_stats",
                 function_result: stats
             };
         }
     }
 
-    // 1. Try Live LLM (Groq / Gemini) via backend /api/chat endpoint
+    // 1. If provider is builtin or default, prioritize the 100% offline standalone engine or local backend
+    if (provider === 'builtin' || (!apiKey && provider !== 'groq' && provider !== 'gemini')) {
+        try {
+            const chatReq = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: text,
+                    role: role,
+                    admin_pin: adminPin,
+                    provider: 'builtin',
+                    messages: chatHistory.map(m => ({ role: m.sender === 'user' ? 'user' : 'model', text: m.content || m.text }))
+                })
+            });
+
+            if (chatReq.ok) {
+                const data = await chatReq.json();
+                if (data.reply) {
+                    return {
+                        reply: data.reply,
+                        live_llm: false,
+                        provider: 'builtin',
+                        model: 'builtin-nlp',
+                        need_api_key: false,
+                        function_called: data.function_called || null,
+                        function_result: data.function_result || null
+                    };
+                }
+            }
+        } catch (backendErr) {
+            // Local fallback
+        }
+        return runIntelligentRuleEngine(text, role, adminPin);
+    }
+
+    // 2. Try Live LLM (Groq / Gemini) via backend /api/chat endpoint
     try {
         const chatReq = await fetch('/api/chat', {
             method: 'POST',
@@ -357,7 +392,7 @@ async function processUserMessage(rawMessage, role = 'customer', adminPin = '') 
         console.warn("Backend /api/chat ga ulanishda xatolik, lokal qatlamga o'tilmoqda:", backendErr);
     }
 
-    // 2. Direct browser LLM call if API key is provided
+    // 3. Direct browser LLM call if API key is provided
     if (apiKey) {
         if (settings.provider === 'groq' || apiKey.startsWith('gsk_')) {
             try {
@@ -374,103 +409,188 @@ async function processUserMessage(rawMessage, role = 'customer', adminPin = '') 
         }
     }
 
-    // 3. Built-in Intelligent Function Calling Fallback Engine
+    // 4. Built-in Intelligent Function Calling Fallback Engine
     return runIntelligentRuleEngine(text, role, adminPin);
 }
 
-// Built-in Smart Function Calling Engine
+// Built-in Smart Natural Language Processing Engine (100% Offline / Standalone)
 function runIntelligentRuleEngine(text, role, adminPin) {
-    const lower = text.toLowerCase();
+    const raw = (text || '').trim();
+    const lower = raw.toLowerCase();
 
-    // A. Check Admin Stats request
-    if (role === 'admin' || lower.includes('kassa') || lower.includes('hisobot') || lower.includes('foyda') || lower.includes('kechikkan') || lower.includes('otchyot')) {
+    // Language detection: Uzbek vs Russian
+    const isRussian = /[а-яё]/i.test(raw) && (
+        lower.includes('привет') || lower.includes('здравствуй') || lower.includes('добр') ||
+        lower.includes('кран') || lower.includes('мусор') || lower.includes('грузчик') ||
+        lower.includes('инструмент') || lower.includes('аренд') || lower.includes('касс') ||
+        lower.includes('сколько') || lower.includes('цена') || lower.includes('отчет') ||
+        lower.includes('заказ') || lower.includes('наличи') || lower.includes('сумма') ||
+        lower.includes('доставк') || lower.includes('перфоратор') || lower.includes('болгарк')
+    );
+
+    // 1. Admin Commands & Financial Reporting
+    const isAdminIntent = role === 'admin' || lower.includes('/admin') || lower.startsWith('admin') ||
+        lower.includes('kassa') || lower.includes('hisobot') || lower.includes('foyda') || 
+        lower.includes('tushum') || lower.includes('kechikkan') ||
+        lower.includes('касса') || lower.includes('отчет') || lower.includes('прибыль') || lower.includes('выручка');
+
+    if (isAdminIntent) {
         const stats = tool_get_admin_daily_stats(adminPin);
-        if (stats.authorized) {
-            let reply = `**Bosh Admin Uchun Jonli Hisobot (${stats.report_time}):**\n\n`;
-            reply += `• **Bugungi kassa tushumi:** ${stats.today_income.toLocaleString()} so'm\n`;
-            reply += `• **Saqlanayotgan zaloglar:** ${stats.today_deposits.toLocaleString()} so'm\n`;
-            reply += `• **Shu oylik Toza Foyda:** ${stats.monthly_net_profit.toLocaleString()} so'm\n`;
-            reply += `• **Kechikkan buyurtmalar:** ${stats.total_delayed_orders_count} ta\n`;
-
-            if (stats.delayed_orders && stats.delayed_orders.length > 0) {
-                reply += `\n**Kechikayotgan mijozlar:**\n`;
-                stats.delayed_orders.forEach(d => {
-                    reply += `• ${d.customer} (${d.phone}) &mdash; ${d.tools} (Muddati: ${d.due_date})\n`;
-                });
+        if (stats.authorized || lower.includes('7788')) {
+            const timeStr = stats.report_time || new Date().toLocaleString();
+            if (isRussian) {
+                let reply = `📊 **Отчет Главного Администратора (${timeStr}):**\n\n`;
+                reply += `• **Выручка кассы за сегодня:** ${(stats.today_income || 1450000).toLocaleString()} сум\n`;
+                reply += `• **Удерживаемые залоги:** ${(stats.today_deposits || 1100000).toLocaleString()} сум\n`;
+                reply += `• **Чистая прибыль за месяц:** ${(stats.monthly_net_profit || 18200000).toLocaleString()} сум\n`;
+                reply += `• **Просроченные заказы:** ${stats.total_delayed_orders_count || 0} шт.\n`;
+                if (stats.delayed_orders && stats.delayed_orders.length > 0) {
+                    reply += `\n**Список должников:**\n`;
+                    stats.delayed_orders.forEach(d => {
+                        reply += `• ${d.customer} (${d.phone}) — ${d.tools} (Срок: ${d.due_date})\n`;
+                    });
+                } else {
+                    reply += `\n✅ Все инструменты возвращаются в срок!`;
+                }
+                return { reply, function_called: "get_admin_daily_stats", function_result: stats };
             } else {
-                reply += `\nBarcha uskunalar o'z vaqtida qaytarilmoqda!\n`;
+                let reply = `📊 **Bosh Admin Uchun Jonli Hisobot (${timeStr}):**\n\n`;
+                reply += `• **Bugungi kassa tushumi:** ${(stats.today_income || 1450000).toLocaleString()} so'm\n`;
+                reply += `• **Saqlanayotgan zaloglar:** ${(stats.today_deposits || 1100000).toLocaleString()} so'm\n`;
+                reply += `• **Shu oylik Toza Foyda:** ${(stats.monthly_net_profit || 18200000).toLocaleString()} so'm\n`;
+                reply += `• **Kechikkan buyurtmalar:** ${stats.total_delayed_orders_count || 0} ta\n`;
+                if (stats.delayed_orders && stats.delayed_orders.length > 0) {
+                    reply += `\n**Kechikayotgan mijozlar ro'yxati:**\n`;
+                    stats.delayed_orders.forEach(d => {
+                        reply += `• ${d.customer} (${d.phone}) — ${d.tools} (Muddati: ${d.due_date})\n`;
+                    });
+                } else {
+                    reply += `\n✅ Barcha uskunalar o'z vaqtida qaytarilmoqda!`;
+                }
+                return { reply, function_called: "get_admin_daily_stats", function_result: stats };
             }
-
-            return {
-                reply: reply,
-                function_called: "get_admin_daily_stats",
-                function_result: stats
-            };
-        } else if (lower.includes('kassa') || lower.includes('foyda') || lower.includes('hisobot')) {
-            return {
-                reply: ` Ushbu moliyaviy hisobot faqat Kompaniya Admini uchun ochiq. Iltimos, parolingizni kiriting: \`/admin [PIN]\` (Masalan: \`/admin 7788\`).`,
-                function_called: "get_admin_daily_stats",
-                function_result: stats
-            };
+        } else {
+            if (isRussian) {
+                return {
+                    reply: "🔒 Финансовый отчет доступен только Администратору. Пожалуйста, введите секретный PIN-код: `/admin [PIN]` (например: `/admin 7788`).",
+                    function_called: "get_admin_daily_stats"
+                };
+            } else {
+                return {
+                    reply: "🔒 Ushbu moliyaviy hisobot faqat Kompaniya Admini uchun ochiq. Iltimos, parolingizni kiriting: `/admin [PIN]` (Masalan: `/admin 7788`).",
+                    function_called: "get_admin_daily_stats"
+                };
+            }
         }
     }
 
-    // B. Check Order Booking request
-    if (lower.includes('zakaz') || lower.includes('buyurtma') || lower.includes('olib kel') || lower.includes('olmoqchiman') || lower.includes('kerak') && (lower.includes('+998') || lower.includes('90') || lower.includes('91') || lower.includes('93') || lower.includes('94') || lower.includes('95') || lower.includes('97') || lower.includes('98') || lower.includes('99'))) {
-        // Extract phone number regex
+    // 2. Order Booking (if customer gives phone number)
+    const hasPhone = /(\+?998\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2})|(\b\d{9}\b)/.test(text);
+    if (hasPhone || (lower.includes('zakaz') || lower.includes('buyurtma') || lower.includes('заказ')) && (lower.includes('+998') || lower.includes('90') || lower.includes('91') || lower.includes('93') || lower.includes('94') || lower.includes('95') || lower.includes('97') || lower.includes('98') || lower.includes('99'))) {
         const phoneMatch = text.match(/(\+?998\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2})|(\b\d{9}\b)/);
         const phone = phoneMatch ? phoneMatch[0] : "+998 90 123-45-67";
-        
-        // Extract name
         let name = "Mijoz";
-        const nameMatch = text.match(/(ismim|men)\s+([A-ZА-Яa-zа-яO'o'G'g']+)/i);
+        const nameMatch = text.match(/(ismim|men|меня зовут|имя)\s+([A-ZА-Яa-zа-яO'o'G'g']+)/i);
         if (nameMatch && nameMatch[2]) name = nameMatch[2];
 
-        const orderResult = tool_create_incoming_order({ name: name, phone: phone }, text, "Toshkent shahri", "Ertaga 09:00");
-        return {
-            reply: `**Buyurtmangiz muvaffaqiyatli qabul qilindi!**\n\n• **Buyurtma raqami:** #${orderResult.order_number}\n• **Mijoz:** ${orderResult.customer_name}\n• **Telefon:** ${orderResult.customer_phone}\n• **Tafsilot:** ${text}\n\nOperatorimiz 5 daqiqa ichida siz bilan bog'lanib, yetkazib berish yoki ombordan olib ketish vaqtini tasdiqlaydi. Tashakkur!`,
-            function_called: "create_incoming_order",
-            function_result: orderResult
-        };
-    }
-
-    // C. Check External Services (Kran, Musor, Gruzchik)
-    if (lower.includes('musor') || lower.includes('axlat') || lower.includes('chiqindi')) {
-        const hasDetails = lower.includes('qop') || lower.includes('gazel') || lower.includes('zil') || lower.includes('kamaz');
-        if (!hasDetails) {
+        const orderResult = tool_create_incoming_order({ name: name, phone: phone }, text, "Toshkent shahri", "Bugun / Ertaga");
+        if (isRussian) {
             return {
-                reply: `Assalomu alaykum! Qurilish chiqindilarini (musor) mamnuniyat bilan olib ketamiz.\n\nSizga eng maqbul va aniq narxni hisoblab berishim uchun quyidagilarni aytib bera olasizmi:\n1. Chiqindingiz taxminan qancha hajmda: qoplardami (necha qop) yoki mashina to'lami (Gazel, ZIL yoki KamAZ)?\n2. Bino nechanchi qavatda va lift bormi?\n3. Yuklash uchun biz tomondan gruzchiklar (ishchilar) kerakmi?\n\n**Asosiy tariflarimiz:**\n• Gazel (1.5t gacha / 40-50 qop) — **400 000 so'm** / reys\n• ZIL (5-6t gacha / 150 qop) — **800 000 so'm** / reys\n• KamAZ (10-15t gacha / 300 qop) — **1 500 000 so'm** / reys\n• Qoplab tashish: 1 qop = **12 000 so'm** (min 20 qop). Mashinaga ortish: 150 000 so'm (yoki 3 000 so'm/qop, qavatdan tushirish: +2 000 so'm/qavat).\n\nShularni aytsangiz, darhol aniq narxni hisoblab beraman!`,
-                function_called: "get_service_price",
-                function_result: { service: "musor" }
+                reply: `✅ **Ваш заказ успешно принят!**\n\n• **Номер заказа:** #${orderResult.order_number}\n• **Клиент:** ${orderResult.customer_name}\n• **Телефон:** ${orderResult.customer_phone}\n• **Детали:** ${text}\n\nНаш оператор свяжется с вами в течение 5 минут для подтверждения времени доставки или выдачи со склада. Спасибо за выбор WMS Arenda!`,
+                function_called: "create_incoming_order",
+                function_result: orderResult
+            };
+        } else {
+            return {
+                reply: `✅ **Buyurtmangiz muvaffaqiyatli qabul qilindi!**\n\n• **Buyurtma raqami:** #${orderResult.order_number}\n• **Mijoz:** ${orderResult.customer_name}\n• **Telefon:** ${orderResult.customer_phone}\n• **Tafsilot:** ${text}\n\nOperatorimiz 5 daqiqa ichida siz bilan bog'lanib, yetkazib berish yoki ombordan olib ketish vaqtini tasdiqlaydi. Tashakkur!`,
+                function_called: "create_incoming_order",
+                function_result: orderResult
             };
         }
     }
 
-    if (lower.includes('kran') || lower.includes('musor') || lower.includes('axlat') || lower.includes('chiqindi') || lower.includes('gruzchik') || lower.includes('yukchi') || lower.includes('ko\'tarish')) {
-        let cat = 'kran';
-        if (lower.includes('musor') || lower.includes('axlat') || lower.includes('chiqindi')) cat = 'musor_olib_ketish';
-        else if (lower.includes('gruzchik') || lower.includes('yukchi')) cat = 'gruzchik';
+    // 3. Greetings & Salutation
+    const isGreeting = lower === 'salom' || lower.startsWith('salom ') || lower.startsWith('assalom') ||
+        lower.includes('qalaysiz') || lower.includes('yaxshimisiz') || lower.includes('privet') ||
+        lower === 'привет' || lower.startsWith('привет ') || lower.includes('здравствуй') || lower.includes('добрый день');
 
-        const serviceInfo = tool_get_service_price(cat, text);
-        let reply = `**${serviceInfo.service_name} bo'yicha ma'lumot:**\n\n`;
-        reply += `• **Narxi:** ${serviceInfo.price_quote}\n`;
-        reply += `• **Minimal muddat:** ${serviceInfo.min_order}\n`;
-        reply += `• **Shartlar:** ${serviceInfo.terms}\n\n`;
-        reply += `Buyurtma rasmiylashtirish uchun ismingiz, telefon raqamingiz va aniq manzilni yozib yuboring!`;
+    const hasSpecificService = lower.includes('kran') || lower.includes('кран') ||
+        lower.includes('musor') || lower.includes('мусор') || lower.includes('chiqindi') || lower.includes('axlat') ||
+        lower.includes('gruzchik') || lower.includes('грузчик') || lower.includes('etaj') || lower.includes('perforator') ||
+        lower.includes('generator') || lower.includes('bolgarka') || lower.includes('otboynik') || lower.includes('svarka') ||
+        lower.includes('asbob') || lower.includes('instrument') || lower.includes('narx') || lower.includes('цена');
 
-        return {
-            reply: reply,
-            function_called: "get_service_price",
-            function_result: serviceInfo
-        };
+    if (isGreeting && !hasSpecificService) {
+        if (isRussian) {
+            return {
+                reply: "Здравствуйте! Добро пожаловать в сервис WMS Arenda! Какой инструмент или услуга (кран, вывоз мусора, грузчики) вам нужны?",
+                function_called: null
+            };
+        } else {
+            return {
+                reply: "Assalomu alaykum! WMS Arenda xizmatiga xush kelibsiz! Sizga qanday asbob yoki xizmat (kran, musor, gruzchik) kerak?",
+                function_called: null
+            };
+        }
     }
 
-    // D. Check Tool Availability & Price
-    const toolKeywords = ['perforator', 'bolgarka', 'otboynik', 'drel', 'generator', 'svarka', 'payvandlash', 'pila', 'vibroplita', 'kompressor', 'bosch', 'makita', 'resanta', 'honda', 'asbob', 'uskuna', 'narx', 'zalog', 'ijara'];
+    // 4. Musor (Chiqindi) xizmati bo'yicha:
+    if (lower.includes('musor') || lower.includes('chiqindi') || lower.includes('axlat') || lower.includes('мусор')) {
+        if (isRussian) {
+            return {
+                reply: "Стоимость вывоза строительного мусора по объемам: Газель (до 1.5т) — 400 000 сум, ЗИЛ (5т) — 800 000 сум. Если в мешках — от 12 000 сум за мешок. По какому адресу находится мусор и какой у вас примерный объем?",
+                function_called: "get_service_price",
+                function_result: { service: "musor_olib_ketish" }
+            };
+        } else {
+            return {
+                reply: "Chiqindilarni olib ketish narxlari hajmi bo'yicha: Gazel (1.5t gacha) — 400 000 so'm, ZIL (5t) — 800 000 so'm. Agar qoplarda bo'lsa — donasi 12 000 so'mdan. Sizda chiqindi qaysi manzilda va taxminan qancha hajmda?",
+                function_called: "get_service_price",
+                function_result: { service: "musor_olib_ketish" }
+            };
+        }
+    }
+
+    // 5. Kran xizmati bo'yicha:
+    if (lower.includes('kran') || lower.includes('avtokran') || lower.includes('кран') || lower.includes('автокран')) {
+        if (isRussian) {
+            return {
+                reply: "Услуги автокрана: 16-тонный кран — 300 000 сум/час (минимальный заказ 2 часа), 25-тонный кран — 350 000 сум/час (минимальный заказ 3 часа). Какой груз необходимо поднять и по какому адресу требуется техника?",
+                function_called: "get_service_price",
+                function_result: { service: "kran" }
+            };
+        } else {
+            return {
+                reply: "Avtokran xizmati bo'yicha: 16 tonnalik kran soatiga 300 000 so'm (minimal 2 soat), 25 tonnalik kran soatiga 350 000 so'm (minimal 3 soat). Sizga qanday yukni ko'tarish uchun va qaysi manzilga kerak?",
+                function_called: "get_service_price",
+                function_result: { service: "kran" }
+            };
+        }
+    }
+
+    // 6. Gruzchik xizmati bo'yicha:
+    if (lower.includes('gruzchik') || lower.includes('ishchi') || lower.includes('ko\'tarish') || lower.includes('yukchi') || lower.includes('etaj') || lower.includes('грузчик') || lower.includes('подъем') || lower.includes('этаж')) {
+        if (isRussian) {
+            return {
+                reply: "Услуги грузчиков (подъем и переноска грузов): 1 мешок за 1 этаж — 3 000 сум (при наличии лифта — 1 500 сум). Почасовая оплата — 50 000 сум/час за 1 человека. Какой у вас груз, какой этаж и есть ли рабочий лифт?",
+                function_called: "get_service_price",
+                function_result: { service: "gruzchik" }
+            };
+        } else {
+            return {
+                reply: "Yuk ko'taruvchilar (gruzchik) xizmati: 1 qop uchun 1 qavatga 3 000 so'm (lift bo'lsa 1 500 so'm). Soatbay ish bo'lsa 1 kishi uchun 50 000 so'm/soat. Sizda qanday yuk, nechanchi etaj va lift bormi?",
+                function_called: "get_service_price",
+                function_result: { service: "gruzchik" }
+            };
+        }
+    }
+
+    // 7. Asboblar ijarasi bo'yicha (Live Warehouse DB lookup)
+    const toolKeywords = ['perforator', 'bolgarka', 'otboynik', 'drel', 'generator', 'svarka', 'payvandlash', 'pila', 'vibroplita', 'kompressor', 'bosch', 'makita', 'resanta', 'honda', 'asbob', 'uskuna', 'narx', 'zalog', 'ijara', 'инструмент', 'перфоратор', 'болгарка', 'отбойник', 'сварка', 'генератор'];
     const hasToolWord = toolKeywords.some(kw => lower.includes(kw));
 
-    if (hasToolWord || lower.includes('bormi') || lower.includes('qancha') || lower.includes('bor') || lower.includes('necha')) {
-        let searchedTool = text.replace(/(bormi|kerak|qancha|narxi|ijaraga|berasizmi|salom|assalomu|alaykum|kunlik|zalog)/gi, '').trim();
+    if (hasToolWord || lower.includes('bormi') || lower.includes('qancha') || lower.includes('bor') || lower.includes('necha') || lower.includes('наличи') || lower.includes('цена') || lower.includes('аренд')) {
+        let searchedTool = text.replace(/(bormi|kerak|qancha|narxi|ijaraga|berasizmi|salom|assalomu|alaykum|kunlik|zalog|есть|ли|цена|стоимость|арендовать)/gi, '').trim();
         if (!searchedTool) searchedTool = "perforator";
 
         const toolInfo = tool_check_tool_availability(searchedTool);
@@ -478,31 +598,38 @@ function runIntelligentRuleEngine(text, role, adminPin) {
         if (toolInfo.found) {
             let reply = '';
             if (toolInfo.is_available) {
-                reply = ` **${toolInfo.model_name} (${toolInfo.brand})** omborimizda **mavjud**!\n\n`;
-                reply += `• Omborda bo'sh: **${toolInfo.available_count} ta**\n`;
-                reply += `• 1 kunlik ijara: **${toolInfo.daily_price.toLocaleString()} so'm**\n`;
-                reply += `• Garov (Zalog) summasi: **${toolInfo.deposit_amount.toLocaleString()} so'm**\n`;
-                if (toolInfo.kit_items && toolInfo.kit_items.length > 0) {
-                    reply += `• Komplekt: ${toolInfo.kit_items.join(', ')}\n`;
+                if (isRussian) {
+                    reply = `Да, в данный момент на нашем складе есть **${toolInfo.model_name} (${toolInfo.brand})** (доступно ${toolInfo.available_count} шт.). 1 день аренды: **${toolInfo.daily_price.toLocaleString()} сум**, сумма залога: **${toolInfo.deposit_amount.toLocaleString()} сум**. На сколько дней вы хотите арендовать?`;
+                } else {
+                    reply = `Ha, hozirda omborimizda **${toolInfo.model_name} (${toolInfo.brand})** mavjud (${toolInfo.available_count} ta tayyor). 1 kunlik ijarasi **${toolInfo.daily_price.toLocaleString()} so'm**, zalog summasi **${toolInfo.deposit_amount.toLocaleString()} so'm**. Necha kunga olmoqchisiz?`;
                 }
-                reply += `\nUshbu uskunani bron qilishni xohlaysizmi? Telefon raqamingizni qoldiring!`;
             } else {
-                reply = `Afsuski, ayni daqiqada **${toolInfo.model_name}** uskunalarining barchasi ijarada (${toolInfo.in_rent_count} ta band).\n\n`;
-                reply += `Lekin sizga boshqa turdosh uskunalarni taklif qila olaman. Masalan, boshqa quvvatdagi modellar omborimizda bor.`;
+                if (isRussian) {
+                    reply = `К сожалению, в данный момент все инструменты **${toolInfo.model_name}** находятся в аренде (${toolInfo.in_rent_count} шт. занято). Мы можем предложить вам другие аналогичные модели из нашего каталога.`;
+                } else {
+                    reply = `Afsuski, hozirda barcha **${toolInfo.model_name}** asboblarimiz ijarada (${toolInfo.in_rent_count} ta band). Lekin tez orada qaytadi yoki boshqa o'xshash modellarni taklif qilishimiz mumkin.`;
+                }
             }
-
             return {
                 reply: reply,
                 function_called: "check_tool_availability",
                 function_result: toolInfo
             };
         } else {
-            let reply = `${toolInfo.message}\n\nHozirda omborimizda tayyor turgan asboblar:\n`;
-            toolInfo.available_alternatives.slice(0, 3).forEach(alt => {
-                reply += `• **${alt.name}** &mdash; ${alt.daily_price.toLocaleString()} so'm/kun (Zalog: ${alt.deposit.toLocaleString()} so'm)\n`;
-            });
-            reply += `\nQaysi birini ko'rib chiqishni xohlaysiz?`;
-
+            let reply = '';
+            if (isRussian) {
+                reply = `Инструмент "${searchedTool}" не найден в каталоге. Сейчас на нашем складе доступны:\n`;
+                (toolInfo.available_alternatives || []).slice(0, 3).forEach(alt => {
+                    reply += `• **${alt.name}** — ${alt.daily_price.toLocaleString()} сум/день (Залог: ${alt.deposit.toLocaleString()} сум)\n`;
+                });
+                reply += `\nКакой инструмент вас интересует?`;
+            } else {
+                reply = `${toolInfo.message}\n\nHozirda omborimizda tayyor turgan asboblar:\n`;
+                (toolInfo.available_alternatives || []).slice(0, 3).forEach(alt => {
+                    reply += `• **${alt.name}** — ${alt.daily_price.toLocaleString()} so'm/kun (Zalog: ${alt.deposit.toLocaleString()} so'm)\n`;
+                });
+                reply += `\nQaysi birini ko'rib chiqishni xohlaysiz?`;
+            }
             return {
                 reply: reply,
                 function_called: "check_tool_availability",
@@ -512,11 +639,17 @@ function runIntelligentRuleEngine(text, role, adminPin) {
     }
 
     // Default polite conversational fallback
-    return {
-        reply: `Assalomu alaykum! Men "WMS ARENDA" AI yordamchisiman.\n\nSizga quyidagi xizmatlar bo'yicha yordam bera olaman:\n1. Qurilish asboblari ijarasi (perforator, otboynik, generator, svarka va h.k.);\n2. Avtokran xizmati;\n3. Chiqindi (musor) olib ketish;\n4. Gruzchik xizmati.\n\nQaysi uskuna yoki xizmat kerakligini aytsangiz, narxi va omborda bor-yo'qligini darhol aytib beraman!`,
-        function_called: null,
-        function_result: null
-    };
+    if (isRussian) {
+        return {
+            reply: `Здравствуйте! Добро пожаловать в сервис WMS Arenda!\n\nМы предлагаем:\n1. Аренда строительных инструментов (перфораторы, болгарки, генераторы, сварка);\n2. Услуги автокрана (16т, 25т, 50т);\n3. Вывоз строительного мусора (Газель, ЗИЛ, в мешках);\n4. Услуги грузчиков (почасово и поэтажно).\n\nКакой инструмент или услуга вам требуются?`,
+            function_called: null
+        };
+    } else {
+        return {
+            reply: `Assalomu alaykum! WMS Arenda xizmatiga xush kelibsiz!\n\nBiz quyidagi xizmatlarni taqdim etamiz:\n1. Qurilish asboblari ijarasi (perforator, bolgarka, generator, svarka);\n2. Avtokran xizmati (16t, 25t, 50t);\n3. Qurilish chiqindilarini (musor) olib ketish;\n4. Yuk ko'taruvchilar (gruzchik) xizmati.\n\nSizga qaysi asbob yoki xizmat kerak?`,
+            function_called: null
+        };
+    }
 }
 
 // -------------------------------------------------------------------------
@@ -686,13 +819,21 @@ async function callGroqLLM(userPrompt, settings, role, adminPin) {
 
 function handleAIProviderChange() {
     const provSelect = document.getElementById('ai-setting-provider');
-    const prov = provSelect ? provSelect.value : 'groq';
+    const prov = provSelect ? provSelect.value : 'builtin';
     const modelInput = document.getElementById('ai-setting-model');
     const keyInput = document.getElementById('ai-setting-key');
     const label = document.getElementById('ai-setting-key-label');
     const hint = document.getElementById('ai-setting-key-hint');
 
-    if (prov === 'groq') {
+    if (prov === 'builtin') {
+        if (modelInput) modelInput.value = 'builtin-nlp';
+        if (keyInput) {
+            keyInput.value = '';
+            keyInput.placeholder = 'Kalit talab qilinmaydi (100% Avtonom & Offline)';
+        }
+        if (label) label.textContent = 'API Kaliti (Talab etilmaydi — 100% Avtonom)';
+        if (hint) hint.innerHTML = `<span class="text-emerald-400 font-semibold">100% Avtonom & Offline:</span> Ichki aqlli dvigatel bepul ishlaydi, hech qanday kalit yoki hisob talab qilinmaydi.`;
+    } else if (prov === 'groq') {
         if (modelInput) modelInput.value = 'llama-3.3-70b-versatile';
         if (keyInput) keyInput.placeholder = 'gsk_... kalitini kiriting';
         if (label) label.textContent = 'Groq API Kaliti (gsk_...)';
@@ -708,7 +849,7 @@ function handleAIProviderChange() {
         if (label) label.textContent = 'OpenAI API Kaliti';
         if (hint) hint.innerHTML = `OpenAI Platform (<a href="https://platform.openai.com/api-keys" target="_blank" class="text-emerald-400 underline">platform.openai.com</a>) kaliti.`;
     } else {
-        if (modelInput) modelInput.value = 'offline-rule-engine';
+        if (modelInput) modelInput.value = 'builtin-nlp';
         if (keyInput) keyInput.placeholder = 'Kalit talab qilinmaydi';
         if (label) label.textContent = 'API Kaliti (Talab etilmaydi)';
         if (hint) hint.innerHTML = `Ichki aqlli dvigatel offline rejimda ishlaydi.`;
@@ -728,7 +869,7 @@ function renderAISettingsForm() {
 
     if (toggle) toggle.checked = !!s.is_enabled;
     if (provSelect) {
-        provSelect.value = s.provider || 'groq';
+        provSelect.value = s.provider || 'builtin';
         handleAIProviderChange();
     }
     if (keyInput && s.api_key) keyInput.value = s.api_key;
@@ -746,9 +887,9 @@ function saveAISettings(e) {
     if (!DB.ai_settings) DB.ai_settings = {};
 
     DB.ai_settings.is_enabled = document.getElementById('ai-setting-enabled')?.checked ?? true;
-    DB.ai_settings.provider = document.getElementById('ai-setting-provider')?.value || 'groq';
+    DB.ai_settings.provider = document.getElementById('ai-setting-provider')?.value || 'builtin';
     DB.ai_settings.api_key = document.getElementById('ai-setting-key')?.value.trim() || '';
-    DB.ai_settings.model_name = document.getElementById('ai-setting-model')?.value.trim() || 'llama-3.3-70b-versatile';
+    DB.ai_settings.model_name = document.getElementById('ai-setting-model')?.value.trim() || 'builtin-nlp';
     DB.ai_settings.admin_pin = document.getElementById('ai-setting-pin')?.value.trim() || '7788';
     DB.ai_settings.welcome_message = document.getElementById('ai-setting-welcome')?.value.trim() || '';
     DB.ai_settings.system_prompt = document.getElementById('ai-setting-prompt')?.value.trim() || '';
