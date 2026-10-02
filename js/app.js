@@ -2,24 +2,6 @@
 // WMS ARENDA ERP - MAIN APPLICATION CONTROLLER & ROUTER
 // =========================================================================
 
-// High-performance debounced Lucide icon creator (prevents full-page DOM scanning overhead)
-let _lucideGlobalTimer = null;
-function safeCreateIcons(container) {
-    if (typeof lucide === 'undefined') return;
-    if (container && container instanceof Element) {
-        try {
-            lucide.createIcons({ root: container });
-            return;
-        } catch (e) {}
-    }
-    clearTimeout(_lucideGlobalTimer);
-    _lucideGlobalTimer = setTimeout(() => {
-        try {
-            lucide.createIcons();
-        } catch (e) {}
-    }, 30);
-}
-
 let currentSection = 'section-dashboard';
 
 function switchSection(secId) {
@@ -86,7 +68,7 @@ function switchSection(secId) {
     if (secId === 'section-finance') renderFinanceSection();
     if (secId === 'section-ai' && typeof renderAISettingsForm === 'function') renderAISettingsForm();
 
-    safeCreateIcons();
+    lucide.createIcons();
 }
 
 // Fast Global Scanner / Search with Live Customer & Item Lookups

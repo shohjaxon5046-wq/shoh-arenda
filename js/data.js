@@ -732,24 +732,7 @@ function loadDB() {
         }
     } else {
         DB = JSON.parse(JSON.stringify(DEFAULT_DB));
-        saveDB(true);
-    }
-
-    // Background sync with server file (multi-device & disk backup)
-    if (typeof fetch !== 'undefined') {
-        fetch('/api/db')
-            .then(res => res.ok ? res.json() : null)
-            .then(serverDB => {
-                if (serverDB && typeof serverDB === 'object' && Array.isArray(serverDB.orders)) {
-                    // Only update if server has data
-                    DB = serverDB;
-                    try {
-                        localStorage.setItem('WMS_ARENDA_DB_V3', JSON.stringify(DB));
-                    } catch (e) {}
-                    if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges();
-                }
-            })
-            .catch(() => {});
+        saveDB();
     }
 
     // Ensure all collections are present if older version existed in localStorage
@@ -870,45 +853,9 @@ function getLocationOccupancy(locationId) {
     };
 }
 
-let _saveDBTimer = null;
-let _serverSyncTimer = null;
-
-function saveDB(immediate = false) {
-    const doSave = () => {
-        try {
-            localStorage.setItem('WMS_ARENDA_DB_V3', JSON.stringify(DB));
-        } catch (e) {
-            console.error("LocalStorage save xatosi:", e);
-            if (e.name === 'QuotaExceededError' || e.code === 22) {
-                console.warn("Brauzer local xotirasi to'ldi. Serverga yozish davom etmoqda.");
-            }
-        }
-
-        // Asynchronous debounced sync with server disk
-        clearTimeout(_serverSyncTimer);
-        _serverSyncTimer = setTimeout(() => {
-            try {
-                if (typeof fetch !== 'undefined') {
-                    fetch('/api/db/sync', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(DB)
-                    }).catch(() => {});
-                }
-            } catch (err) {}
-        }, 300);
-    };
-
-    if (immediate) {
-        doSave();
-    } else {
-        clearTimeout(_saveDBTimer);
-        _saveDBTimer = setTimeout(doSave, 80);
-    }
-
-    if (typeof updateStatsAndBadges === 'function') {
-        updateStatsAndBadges();
-    }
+function saveDB() {
+    localStorage.setItem('WMS_ARENDA_DB_V3', JSON.stringify(DB));
+    if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges();
 }
 
 function resetDemoData() {

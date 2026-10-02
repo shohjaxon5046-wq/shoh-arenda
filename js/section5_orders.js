@@ -96,23 +96,6 @@ function filterOrdersByStatus(status) {
     renderOrdersTable();
 }
 
-let ordersPageLimit = 50;
-let ordersCurrentPage = 1;
-let _ordersSearchDebounce = null;
-
-function handleOrdersSearchInput() {
-    clearTimeout(_ordersSearchDebounce);
-    _ordersSearchDebounce = setTimeout(() => {
-        ordersCurrentPage = 1;
-        renderOrdersTable();
-    }, 180);
-}
-
-function loadMoreOrders() {
-    ordersCurrentPage++;
-    renderOrdersTable();
-}
-
 function renderOrdersTable() {
     const tbody = document.getElementById('orders-table-tbody');
     if (!tbody) return;
@@ -143,11 +126,7 @@ function renderOrdersTable() {
         bekor_qilindi: '<span class="badge-status bg-slate-800 text-slate-400">Bekor qilindi</span>'
     };
 
-    const totalCount = filtered.length;
-    const visibleCount = ordersCurrentPage * ordersPageLimit;
-    const pageOrders = filtered.slice(0, visibleCount);
-
-    pageOrders.forEach(o => {
+    filtered.forEach(o => {
         const customer = (DB.customers || []).find(c => c.id === o.customer_id);
         const tools = (DB.order_tool_items || []).filter(t => t.order_id === o.id);
         const services = (DB.order_service_items || []).filter(s => s.order_id === o.id);
@@ -162,7 +141,6 @@ function renderOrdersTable() {
             const exp = new Date(o.expected_return_date);
             const now = new Date();
             const diffHours = Math.max(1, Math.round((now - exp) / (1000 * 60 * 60)));
-            const diffDays = Math.max(1, Math.ceil(diffHours / 24));
             delayBadge = `<div class="text-[10px] text-rose-400 font-semibold mt-0.5">${diffDays} kun kechikdi (${diffHours} soat)</div>`;
         }
 
@@ -270,23 +248,7 @@ function renderOrdersTable() {
         tbody.appendChild(tr);
     });
 
-    if (totalCount > visibleCount) {
-        const trMore = document.createElement('tr');
-        trMore.innerHTML = `
-            <td colspan="7" class="py-3 text-center bg-slate-900/40 border-t border-slate-800">
-                <button onclick="loadMoreOrders()" class="px-4 py-2 rounded-xl bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30 text-blue-400 font-semibold text-xs transition">
-                    Yana ko'proq buyurtmalarni yuklash (${visibleCount} / ${totalCount} ta)
-                </button>
-            </td>
-        `;
-        tbody.appendChild(trMore);
-    }
-
-    if (typeof safeCreateIcons === 'function') {
-        safeCreateIcons(tbody);
-    } else if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    lucide.createIcons();
 }
 
 

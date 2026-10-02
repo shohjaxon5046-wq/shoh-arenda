@@ -659,44 +659,8 @@ const server = http.createServer((req, res) => {
     const pathname = parsedUrl.pathname;
 
     // =========================================================================
-    // REST API ENDPOINTS FOR DATA PERSISTENCE & SYNC (HIGH-SCALE ORDERS SAFETY)
+    // REST API ENDPOINTS FOR WEBSITE INTEGRATION (BO'LIM 8)
     // =========================================================================
-
-    // 0. GET /api/db (Load full centralized DB for multi-device sync)
-    if (req.method === 'GET' && pathname === '/api/db') {
-        const dbFile = path.join(DATA_DIR, 'db.json');
-        if (fs.existsSync(dbFile)) {
-            try {
-                const data = fs.readFileSync(dbFile, 'utf8');
-                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-                res.end(data);
-                return;
-            } catch (e) {}
-        }
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'DB not initialized on server' }));
-        return;
-    }
-
-    // 0. POST /api/db/sync (Save centralized DB to server disk - prevents 5MB localStorage crash)
-    if (req.method === 'POST' && pathname === '/api/db/sync') {
-        let body = '';
-        req.on('data', chunk => { body += chunk.toString(); });
-        req.on('end', () => {
-            try {
-                if (body && body.length > 5) {
-                    const dbFile = path.join(DATA_DIR, 'db.json');
-                    fs.writeFileSync(dbFile, body, 'utf8');
-                }
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ ok: true, timestamp: new Date().toISOString() }));
-            } catch (e) {
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ ok: false, error: e.message }));
-            }
-        });
-        return;
-    }
 
     // 1. GET /api/public/tools/available
     if (req.method === 'GET' && pathname === '/api/public/tools/available') {
