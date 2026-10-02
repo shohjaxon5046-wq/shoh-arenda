@@ -36,10 +36,16 @@ function switchSection(secId) {
         const el = document.getElementById(s);
         const btn = document.getElementById(navButtons[s]);
         if (s === secId) {
-            if (el) el.classList.remove('hidden');
+            if (el) {
+                el.classList.remove('hidden');
+                el.style.setProperty('display', 'flex', 'important');
+            }
             if (btn) btn.className = "w-full flex items-center justify-between px-3 py-2 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 font-semibold text-xs transition";
         } else {
-            if (el) el.classList.add('hidden');
+            if (el) {
+                el.classList.add('hidden');
+                el.style.setProperty('display', 'none', 'important');
+            }
             if (btn) btn.className = "w-full flex items-center justify-between px-3 py-2 rounded-xl border border-transparent text-slate-300 hover:bg-slate-800 hover:text-white font-semibold text-xs transition";
         }
     });
@@ -50,25 +56,37 @@ function switchSection(secId) {
     const subnavKirim = document.getElementById('subnav-kirim');
     const chevronKirim = document.getElementById('icon-chevron-kirim');
     if (secId === 'section-kirim') {
-        if (subnavKirim) subnavKirim.classList.remove('hidden');
+        if (subnavKirim) {
+            subnavKirim.classList.remove('hidden');
+            subnavKirim.style.setProperty('display', 'flex', 'important');
+        }
         if (chevronKirim) chevronKirim.classList.remove('-rotate-90');
-        renderAllTabs();
+        try { if (typeof renderAllTabs === 'function') renderAllTabs(); } catch (e) { console.error(e); }
     } else {
-        if (subnavKirim) subnavKirim.classList.add('hidden');
+        if (subnavKirim) {
+            subnavKirim.classList.add('hidden');
+            subnavKirim.style.setProperty('display', 'none', 'important');
+        }
         if (chevronKirim) chevronKirim.classList.add('-rotate-90');
     }
 
-    if (secId === 'section-dashboard' && typeof renderDashboard === 'function') renderDashboard();
-    if (secId === 'section-orders') renderOrdersSection();
-    if (secId === 'section-catalog') renderCatalogCards();
-    if (secId === 'section-partners') switchPartnerTab(partnerActiveSubtab || 'ptab-directory');
-    if (secId === 'section-staff') renderStaffTable();
-    if (secId === 'section-suppliers') renderSuppliersLedger();
-    if (secId === 'section-crm') renderCustomersCRM();
-    if (secId === 'section-finance') renderFinanceSection();
-    if (secId === 'section-ai' && typeof renderAISettingsForm === 'function') renderAISettingsForm();
+    try {
+        if (secId === 'section-dashboard' && typeof renderDashboard === 'function') renderDashboard();
+        if (secId === 'section-orders' && typeof renderOrdersSection === 'function') renderOrdersSection();
+        if (secId === 'section-catalog' && typeof renderCatalogCards === 'function') renderCatalogCards();
+        if (secId === 'section-partners' && typeof switchPartnerTab === 'function') switchPartnerTab(partnerActiveSubtab || 'ptab-directory');
+        if (secId === 'section-staff' && typeof renderStaffTable === 'function') renderStaffTable();
+        if (secId === 'section-suppliers' && typeof renderSuppliersLedger === 'function') renderSuppliersLedger();
+        if (secId === 'section-crm' && typeof renderCustomersCRM === 'function') renderCustomersCRM();
+        if (secId === 'section-finance' && typeof renderFinanceSection === 'function') renderFinanceSection();
+        if (secId === 'section-ai' && typeof renderAISettingsForm === 'function') renderAISettingsForm();
+    } catch (renderErr) {
+        console.error("switchSection rendering error:", renderErr);
+    }
 
-    lucide.createIcons();
+    try {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    } catch (e) {}
 }
 
 // Fast Global Scanner / Search with Live Customer & Item Lookups
