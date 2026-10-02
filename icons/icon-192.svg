@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bgGrad192" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="accentGrad192" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="blueGrad192" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+  </defs>
+
+  <rect width="192" height="192" rx="42" fill="url(#bgGrad192)"/>
+  <rect x="6" y="6" width="180" height="180" rx="36" fill="none" stroke="#334155" stroke-width="2" opacity="0.6"/>
+
+  <path d="M36 135 L96 159 L156 135 L96 111 Z" fill="url(#blueGrad192)" opacity="0.9"/>
+  <path d="M36 105 L96 129 L156 105 L96 81 Z" fill="url(#blueGrad192)" opacity="0.75"/>
+
+  <path d="M60 70 L96 85 L132 70 L96 55 Z" fill="url(#accentGrad192)"/>
+  <path d="M60 70 L96 85 L96 107 L60 92 Z" fill="#b45309"/>
+  <path d="M96 85 L132 70 L132 92 L96 107 Z" fill="#d97706"/>
+
+  <text x="96" y="175" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="16" fill="#ffffff" letter-spacing="1">WMS ARENDA</text>
+</svg>

@@ -1,0 +1,15 @@
+{
+  "name": "wms-arenda-erp",
+  "version": "1.0.0",
+  "description": "WMS Arenda ERP — Qurilish asboblari ijarasi va xizmatlar platformasi",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["wms", "arenda", "erp", "pwa"],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
