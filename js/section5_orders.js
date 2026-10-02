@@ -141,6 +141,7 @@ function renderOrdersTable() {
             const exp = new Date(o.expected_return_date);
             const now = new Date();
             const diffHours = Math.max(1, Math.round((now - exp) / (1000 * 60 * 60)));
+            const diffDays = Math.max(1, Math.ceil(diffHours / 24));
             delayBadge = `<div class="text-[10px] text-rose-400 font-semibold mt-0.5">${diffDays} kun kechikdi (${diffHours} soat)</div>`;
         }
 
