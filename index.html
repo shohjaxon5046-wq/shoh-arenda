@@ -801,7 +801,7 @@
                     <div class="flex flex-col lg:flex-row justify-between gap-3">
                         <div id="catalog-category-pills" class="flex items-center gap-1.5 overflow-x-auto pb-1"></div>
                         <div class="flex items-center gap-2">
-                            <input type="text" id="filter-catalog-search" oninput="renderCatalogCards()" placeholder="Nomi yoki brendi..." class="rounded-xl border border-slate-700 bg-slate-800 py-1.5 px-3 text-xs text-white focus:outline-none">
+                            <input type="text" id="filter-catalog-search" oninput="handleCatalogSearchInput()" placeholder="Nomi yoki brendi..." class="rounded-xl border border-slate-700 bg-slate-800 py-1.5 px-3 text-xs text-white focus:outline-none">
                             <select id="filter-catalog-availability" onchange="renderCatalogCards()" class="rounded-xl border border-slate-700 bg-slate-800 py-1.5 px-2.5 text-xs text-slate-300">
                                 <option value="">Barcha holatlar</option>
                                 <option value="available">Omborda bor</option>
@@ -1002,7 +1002,7 @@
                             <button id="btn-ord-completed" onclick="filterOrdersByStatus('yakunlandi')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-transparent text-slate-400 hover:text-white transition">Yakunlangan</button>
                         </div>
                         <div class="relative w-full sm:w-72">
-                            <input type="text" id="filter-orders-search" oninput="renderOrdersTable()" placeholder="Buyurtma №, mijoz yoki telefon..." class="w-full rounded-xl border border-slate-700 bg-slate-800 py-1.5 pl-8 pr-3 text-xs text-white focus:outline-none">
+                            <input type="text" id="filter-orders-search" oninput="handleOrdersSearchInput()" placeholder="Buyurtma №, mijoz yoki telefon..." class="w-full rounded-xl border border-slate-700 bg-slate-800 py-1.5 pl-8 pr-3 text-xs text-white focus:outline-none">
                             <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5"></i>
                         </div>
                     </div>
@@ -1096,7 +1096,7 @@
                         </button>
                     </div>
                     <div class="flex items-center gap-3">
-                        <input type="text" id="filter-crm-search" oninput="renderCustomersCRM()" placeholder="F.I.O, telefon raqami yoki pasport..." class="rounded-xl border border-slate-700 bg-slate-800 py-1.5 px-3 text-xs text-white focus:outline-none w-80">
+                        <input type="text" id="filter-crm-search" oninput="handleCrmSearchInput()" placeholder="F.I.O, telefon raqami yoki pasport..." class="rounded-xl border border-slate-700 bg-slate-800 py-1.5 px-3 text-xs text-white focus:outline-none w-80">
                         <select id="filter-crm-status" onchange="renderCustomersCRM()" class="rounded-xl border border-slate-700 bg-slate-800 py-1.5 px-2.5 text-xs text-slate-300">
                             <option value="">Barcha mijozlar</option>
                             <option value="vip">VIP Mijozlar</option>
@@ -3257,18 +3257,13 @@
             if (typeof updateStaticDOMTranslations === 'function') updateStaticDOMTranslations();
             if (typeof updateDatabaseLocalization === 'function') updateDatabaseLocalization();
 
-            renderAllTabs();
-            renderCatalogCards();
-            renderStaffTable();
-            renderSuppliersLedger();
-            renderCustomersCRM();
-            if (typeof renderPartnersDirectory === 'function') renderPartnersDirectory();
-            if (typeof renderOrdersSection === 'function') renderOrdersSection();
-            if (typeof renderFinanceSection === 'function') renderFinanceSection();
-            if (typeof renderDashboard === 'function') renderDashboard();
-            if (typeof renderAISettingsForm === 'function') renderAISettingsForm();
+            // Lazy section rendering: only render active section on load to eliminate lag
             switchSection('section-dashboard');
-            lucide.createIcons();
+            if (typeof safeCreateIcons === 'function') {
+                safeCreateIcons();
+            } else if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         }
     </script>
 </body>

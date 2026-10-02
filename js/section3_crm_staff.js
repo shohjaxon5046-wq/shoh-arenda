@@ -330,6 +330,14 @@ function printAktSverka() {
 // 3. CUSTOMERS CRM 360°
 // -------------------------------------------------------------
 let selectedCustomerForDetail = null;
+let _crmSearchDebounce = null;
+
+function handleCrmSearchInput() {
+    clearTimeout(_crmSearchDebounce);
+    _crmSearchDebounce = setTimeout(() => {
+        renderCustomersCRM();
+    }, 180);
+}
 
 function renderCustomersCRM() {
     const grid = document.getElementById('customers-cards-grid');

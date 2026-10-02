@@ -6,6 +6,14 @@ let selectedCategoryFilter = 0;
 let currentEditingModel = null;
 let currentKitItems = [];
 let currentConsumables = [];
+let _catalogSearchDebounce = null;
+
+function handleCatalogSearchInput() {
+    clearTimeout(_catalogSearchDebounce);
+    _catalogSearchDebounce = setTimeout(() => {
+        renderCatalogCards();
+    }, 180);
+}
 
 function renderCatalogCards() {
     renderCategoryPills();
