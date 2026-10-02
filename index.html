@@ -110,7 +110,7 @@
                         <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5" data-i18n="receipt.operator">Foydalanuvchi nomi</label>
                         <div class="relative">
                             <i data-lucide="user" class="absolute left-3.5 top-3 w-4 h-4 text-slate-400"></i>
-                            <input type="text" id="login-username" required placeholder="admin, manager yoki skladchi" 
+                            <input type="text" id="login-username" required placeholder="Loginni kiriting" 
                                 class="w-full rounded-xl border border-slate-700 bg-slate-800/80 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none transition">
                         </div>
                     </div>
@@ -127,15 +127,6 @@
                         <i data-lucide="arrow-right" class="w-4 h-4"></i>
                     </button>
                 </form>
-
-                <div class="mt-6 pt-5 border-t border-slate-800">
-                    <p class="text-xs text-center text-slate-400 mb-3">Tezkor kirish (Demo hisoblar):</p>
-                    <div class="grid grid-cols-3 gap-2">
-                        <button type="button" onclick="fillLogin('admin', 'admin123')" class="px-2 py-1.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-xs font-medium text-slate-300 transition text-center hover:border-blue-500">👑 Admin</button>
-                        <button type="button" onclick="fillLogin('manager', 'mgr123')" class="px-2 py-1.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-xs font-medium text-slate-300 transition text-center hover:border-indigo-500">💼 Menejer</button>
-                        <button type="button" onclick="fillLogin('skladchi', 'sklad123')" class="px-2 py-1.5 rounded-lg border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-xs font-medium text-slate-300 transition text-center hover:border-amber-500">📦 Skladchi</button>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -3189,11 +3180,6 @@
                 document.getElementById('login-error-text').innerText = typeof t === 'function' ? t('alert.login_error') : "Foydalanuvchi nomi yoki parol noto'g'ri!";
                 lucide.createIcons();
             }
-        }
-
-        function fillLogin(u, p) {
-            document.getElementById('login-username').value = u;
-            document.getElementById('login-password').value = p;
         }
 
         function handleLogout() {
