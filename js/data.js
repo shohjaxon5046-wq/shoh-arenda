@@ -721,6 +721,7 @@ const DEFAULT_DB = {
 
 // State storage
 let DB = {};
+if (typeof window !== 'undefined') window.DB = DB;
 
 function loadDB() {
     const saved = localStorage.getItem('WMS_ARENDA_DB_V3');
@@ -732,8 +733,8 @@ function loadDB() {
         }
     } else {
         DB = JSON.parse(JSON.stringify(DEFAULT_DB));
-        saveDB();
     }
+    if (typeof window !== 'undefined') window.DB = DB;
 
     // Ensure all collections are present if older version existed in localStorage
     if (!DB.users || !Array.isArray(DB.users) || DB.users.length === 0) DB.users = JSON.parse(JSON.stringify(DEFAULT_DB.users || []));
@@ -860,8 +861,13 @@ function getLocationOccupancy(locationId) {
 }
 
 function saveDB() {
-    localStorage.setItem('WMS_ARENDA_DB_V3', JSON.stringify(DB));
-    if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges();
+    if (typeof window !== 'undefined') window.DB = DB;
+    try {
+        localStorage.setItem('WMS_ARENDA_DB_V3', JSON.stringify(DB));
+    } catch(e) {}
+    try {
+        if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges();
+    } catch(e) {}
 }
 
 function resetDemoData() {

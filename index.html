@@ -3383,6 +3383,10 @@
                 console.warn(e);
             }
         }
+
+        window.showSection = function(id) {
+            if (typeof switchSection === 'function') return switchSection(id);
+        };
     </script>
 </body>
 </html>

@@ -3,9 +3,109 @@
 // =========================================================================
 
 let currentSection = 'section-dashboard';
+if (typeof window !== 'undefined') window.currentSection = currentSection;
+
+const SECTION_ALIASES = {
+    'dashboard': 'section-dashboard',
+    'boshqaruv': 'section-dashboard',
+    'paneli': 'section-dashboard',
+    'boshqaruv paneli': 'section-dashboard',
+    'section-dashboard': 'section-dashboard',
+    
+    'ombor': 'section-kirim',
+    'warehouse': 'section-kirim',
+    'kirim': 'section-kirim',
+    'inbound': 'section-kirim',
+    'po': 'section-kirim',
+    'kirim zanjiri': 'section-kirim',
+    'section-kirim': 'section-kirim',
+    
+    'catalog': 'section-catalog',
+    'katalog': 'section-catalog',
+    'asboblar': 'section-catalog',
+    'asboblar katalogi': 'section-catalog',
+    'tools': 'section-catalog',
+    'section-catalog': 'section-catalog',
+    
+    'staff': 'section-staff',
+    'xodimlar': 'section-staff',
+    'rollar': 'section-staff',
+    'xodimlar va rollar': 'section-staff',
+    'users': 'section-staff',
+    'section-staff': 'section-staff',
+    
+    'partners': 'section-partners',
+    'hamkorlar': 'section-partners',
+    'tashqi': 'section-partners',
+    'tashqi xizmatlar': 'section-partners',
+    'xizmatlar': 'section-partners',
+    'kran': 'section-partners',
+    'musor': 'section-partners',
+    'gruzchik': 'section-partners',
+    'section-partners': 'section-partners',
+    
+    'orders': 'section-orders',
+    'buyurtmalar': 'section-orders',
+    'pos': 'section-orders',
+    'zakazlar': 'section-orders',
+    'operator': 'section-orders',
+    'section-orders': 'section-orders',
+    
+    'suppliers': 'section-suppliers',
+    'yetkazib_beruvchilar': 'section-suppliers',
+    'yetkazib-beruvchilar': 'section-suppliers',
+    'yetkazibberuvchilar': 'section-suppliers',
+    'yetkazib beruvchilar': 'section-suppliers',
+    'section-suppliers': 'section-suppliers',
+    
+    'crm': 'section-crm',
+    'mijozlar': 'section-crm',
+    'mijozlar crm': 'section-crm',
+    'customers': 'section-crm',
+    'section-crm': 'section-crm',
+    
+    'finance': 'section-finance',
+    'kassa': 'section-finance',
+    'moliya': 'section-finance',
+    'kassa & moliya': 'section-finance',
+    'kassa va moliya': 'section-finance',
+    'pnl': 'section-finance',
+    'pl': 'section-finance',
+    'foyda': 'section-finance',
+    'section-finance': 'section-finance',
+    
+    'ai': 'section-ai',
+    'agent': 'section-ai',
+    'ai agent': 'section-ai',
+    'bot': 'section-ai',
+    'gemini': 'section-ai',
+    'section-ai': 'section-ai'
+};
+
+function normalizeSectionId(rawId) {
+    if (!rawId) return 'section-dashboard';
+    const clean = String(rawId).toLowerCase().trim();
+    if (SECTION_ALIASES[clean]) return SECTION_ALIASES[clean];
+    if (clean.startsWith('section-')) return clean;
+    return `section-${clean}`;
+}
 
 function switchSection(secId) {
+    if (!secId) secId = 'section-dashboard';
+    const clean = String(secId).toLowerCase().trim();
+
+    // Check if it refers to a subtab inside Kirim Zanjiri
+    if (clean.startsWith('tab-') || ['po', 'receipt', 'placement', 'returns', 'warehouse-map'].includes(clean)) {
+        secId = 'section-kirim';
+        if (typeof switchTab === 'function') {
+            switchTab(clean);
+        }
+    } else {
+        secId = normalizeSectionId(secId);
+    }
+
     currentSection = secId;
+    if (typeof window !== 'undefined') window.currentSection = currentSection;
     const sections = ['section-dashboard', 'section-orders', 'section-kirim', 'section-catalog', 'section-partners', 'section-staff', 'section-suppliers', 'section-crm', 'section-finance', 'section-ai'];
     const navButtons = {
         'section-dashboard': 'btn-section-dashboard',
@@ -74,7 +174,10 @@ function switchSection(secId) {
         if (secId === 'section-dashboard' && typeof renderDashboard === 'function') renderDashboard();
         if (secId === 'section-orders' && typeof renderOrdersSection === 'function') renderOrdersSection();
         if (secId === 'section-catalog' && typeof renderCatalogCards === 'function') renderCatalogCards();
-        if (secId === 'section-partners' && typeof switchPartnerTab === 'function') switchPartnerTab(partnerActiveSubtab || 'ptab-directory');
+        if (secId === 'section-partners' && typeof switchPartnerTab === 'function') {
+            const subtab = (typeof partnerActiveSubtab !== 'undefined' ? partnerActiveSubtab : 'ptab-directory');
+            switchPartnerTab(subtab);
+        }
         if (secId === 'section-staff' && typeof renderStaffTable === 'function') renderStaffTable();
         if (secId === 'section-suppliers' && typeof renderSuppliersLedger === 'function') renderSuppliersLedger();
         if (secId === 'section-crm' && typeof renderCustomersCRM === 'function') renderCustomersCRM();
@@ -88,6 +191,14 @@ function switchSection(secId) {
         if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
     } catch (e) {}
 }
+
+// Universal alias to support both switchSection and showSection
+function showSection(secId) {
+    return switchSection(secId);
+}
+
+window.switchSection = switchSection;
+window.showSection = showSection;
 
 // Fast Global Scanner / Search with Live Customer & Item Lookups
 function handleGlobalScan(e) {

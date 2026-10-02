@@ -4,7 +4,15 @@
 
 let activeTab = 'tab-po';
 
+function normalizeTabId(rawId) {
+    if (!rawId) return 'tab-po';
+    const clean = String(rawId).toLowerCase().trim();
+    if (clean.startsWith('tab-')) return clean;
+    return `tab-${clean}`;
+}
+
 function switchTab(tabId) {
+    tabId = normalizeTabId(tabId);
     activeTab = tabId;
     const tabs = ['tab-po', 'tab-receipt', 'tab-placement', 'tab-returns', 'tab-warehouse-map'];
     const names = {
@@ -21,11 +29,17 @@ function switchTab(tabId) {
         const sideBtn = document.getElementById(`btn-${t}`);
 
         if (t === tabId) {
-            if (el) el.classList.remove('hidden');
+            if (el) {
+                el.classList.remove('hidden');
+                el.style.setProperty('display', 'block', 'important');
+            }
             if (pill) pill.className = "tab-pill pb-3 px-4 text-xs font-bold border-b-2 border-blue-500 text-blue-400 flex items-center gap-2 transition";
             if (sideBtn) sideBtn.className = "nav-subtab w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-slate-800 transition";
         } else {
-            if (el) el.classList.add('hidden');
+            if (el) {
+                el.classList.add('hidden');
+                el.style.setProperty('display', 'none', 'important');
+            }
             if (pill) pill.className = "tab-pill pb-3 px-4 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white flex items-center gap-2 transition";
             if (sideBtn) sideBtn.className = "nav-subtab w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800/60 transition";
         }
@@ -33,11 +47,19 @@ function switchTab(tabId) {
 
     const bTab = document.getElementById('breadcrumb-current-tab');
     if (bTab) bTab.innerText = names[tabId] || '';
-    if (tabId === 'tab-warehouse-map' && typeof renderWarehouseMap === 'function') {
-        renderWarehouseMap();
+    try {
+        if (tabId === 'tab-warehouse-map' && typeof renderWarehouseMap === 'function') {
+            renderWarehouseMap();
+        }
+    } catch(err) {
+        console.error("switchTab render error:", err);
     }
-    lucide.createIcons();
+    try {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    } catch (e) {}
 }
+
+window.switchTab = switchTab;
 
 function renderAllTabs() {
     updateStatsAndBadges();

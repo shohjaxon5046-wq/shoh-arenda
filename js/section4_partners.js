@@ -13,21 +13,35 @@ function switchPartnerTab(tabId) {
         const el = document.getElementById(t);
         const btn = document.getElementById(`btn-${t}`);
         if (t === tabId) {
-            if (el) el.classList.remove('hidden');
+            if (el) {
+                el.classList.remove('hidden');
+                el.style.setProperty('display', 'block', 'important');
+            }
             if (btn) btn.className = "pb-3 px-4 text-xs font-bold border-b-2 border-amber-500 text-amber-400 flex items-center gap-2 transition";
         } else {
-            if (el) el.classList.add('hidden');
+            if (el) {
+                el.classList.add('hidden');
+                el.style.setProperty('display', 'none', 'important');
+            }
             if (btn) btn.className = "pb-3 px-4 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white flex items-center gap-2 transition";
         }
     });
 
-    if (tabId === 'ptab-directory') renderPartnersDirectory();
-    if (tabId === 'ptab-prices') renderPartnerPricesTable();
-    if (tabId === 'ptab-orders') renderServiceOrdersTable();
-    if (tabId === 'ptab-finance') renderPartnerFinanceSummary();
+    try {
+        if (tabId === 'ptab-directory') renderPartnersDirectory();
+        if (tabId === 'ptab-prices') renderPartnerPricesTable();
+        if (tabId === 'ptab-orders') renderServiceOrdersTable();
+        if (tabId === 'ptab-finance') renderPartnerFinanceSummary();
+    } catch(err) {
+        console.error("switchPartnerTab render error:", err);
+    }
 
-    lucide.createIcons();
+    try {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    } catch (e) {}
 }
+
+window.switchPartnerTab = switchPartnerTab;
 
 // -------------------------------------------------------------------------
 // 1. PARTNERS DIRECTORY
