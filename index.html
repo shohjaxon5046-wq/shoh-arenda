@@ -19,6 +19,17 @@
             } catch(e) {}
         })();
     </script>
+    <!-- Early Session Initializer to prevent login screen flashing on F5 -->
+    <script>
+        (function() {
+            try {
+                const session = localStorage.getItem('WMS_USER_SESSION');
+                if (session) {
+                    document.write('<style id="early-session-style">#auth-screen{display:none !important;}#main-app{display:flex !important;}</style>');
+                }
+            } catch(e) {}
+        })();
+    </script>
     <!-- PWA Web App Manifest & Mobile Meta -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#f8fafc">
@@ -2300,13 +2311,54 @@
     </div>
 
     <div id="modal-placement" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-        <div class="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+        <div class="w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
             <div class="flex justify-between items-center pb-4 border-b border-slate-800">
-                <h3 class="text-base font-bold text-white flex items-center gap-2"><i data-lucide="barcode" class="w-4 h-4 text-emerald-400"></i> Uskunani Joylashtirish</h3>
+                <h3 class="text-base font-bold text-white flex items-center gap-2"><i data-lucide="package-plus" class="w-5 h-5 text-emerald-400"></i> Asbobni Omborga Joylashtirish (Kirim)</h3>
                 <button onclick="closeModal('modal-placement')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <form onsubmit="handleSavePlacement(event)" class="mt-4 space-y-4">
-                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Model</label><select id="place-model-select" onchange="onModelChangePlacement(this.value)" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white"></select></div>
+                <!-- Mode Switcher -->
+                <div class="flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+                    <button type="button" id="place-mode-btn-new" onclick="togglePlacementMode('new')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white transition">+ Yangi Asbob Kiritish</button>
+                    <button type="button" id="place-mode-btn-existing" onclick="togglePlacementMode('existing')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition">Mavjud Modelni Tanlash</button>
+                </div>
+                <input type="hidden" id="place-mode" value="new">
+
+                <!-- New Model Fields -->
+                <div id="place-fields-new" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Asbob / Model Nomi *</label>
+                        <input type="text" id="place-new-name" placeholder="Masalan: Bosch GBH 2-26 DFR Perforator" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white placeholder-slate-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Kategoriya *</label>
+                            <select id="place-new-category" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Brend</label>
+                            <input type="text" id="place-new-brand" placeholder="Bosch, DeWalt, Makita..." class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white placeholder-slate-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Kunlik Ijara Narxi (so'm) *</label>
+                            <input type="number" id="place-new-daily-price" placeholder="120000" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white font-mono placeholder-slate-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Zalog Depozit (so'm) *</label>
+                            <input type="number" id="place-new-deposit" placeholder="500000" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white font-mono placeholder-slate-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Existing Model Dropdown -->
+                <div id="place-fields-existing" class="hidden">
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Modelni Tanlang *</label>
+                    <select id="place-model-select" onchange="onModelChangePlacement(this.value)" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white"></select>
+                </div>
+
+                <!-- Serial Number -->
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="text-xs font-semibold text-slate-300">Seriya Raqami (UNIKAL) *</label>
@@ -2314,24 +2366,32 @@
                     </div>
                     <div class="relative">
                         <input type="text" id="place-serial-number" required oninput="checkSerialNumberUniqueness(this.value)" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 pl-3 pr-24 text-xs font-mono text-white">
-                        <button type="button" onclick="generateAutoSerial()" class="absolute right-1.5 top-1 px-2.5 py-1 rounded-lg bg-slate-700 text-[10px] text-blue-400">Auto Seriya</button>
+                        <button type="button" onclick="generateAutoSerial()" class="absolute right-1.5 top-1 px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-[10px] text-blue-400 cursor-pointer">Auto Seriya</button>
                     </div>
                     <p id="serial-error-msg" class="hidden mt-1 text-[11px] text-red-400 font-medium">Bu seriya raqami allaqachon mavjud! Dublikatga ruxsat yo'q.</p>
                 </div>
+
+                <!-- Barcode -->
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="text-xs font-semibold text-slate-300">Shtrix-kod</label>
-                        <button type="button" onclick="generateNewBarcode()" class="text-[11px] text-emerald-400">+ Yangi shtrix-kod</button>
+                        <button type="button" onclick="generateNewBarcode()" class="text-[11px] text-emerald-400 cursor-pointer">+ Yangi shtrix-kod</button>
                     </div>
                     <input type="text" id="place-barcode" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs font-mono text-white">
                 </div>
                 <div class="p-3 rounded-xl border border-slate-800 bg-slate-950 flex flex-col items-center justify-center">
-                    <svg id="barcode-preview-svg" class="max-h-16"></svg>
+                    <svg id="barcode-preview-svg" class="max-h-14"></svg>
                 </div>
-                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Ombordagi Joyi</label><select id="place-location-select" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white"></select></div>
+
+                <!-- Warehouse Location / Shelf -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Ombordagi Joyi (Polka / Yacheyka) *</label>
+                    <select id="place-location-select" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white"></select>
+                </div>
+
                 <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
-                    <button type="button" onclick="closeModal('modal-placement')" class="px-4 py-2 rounded-xl border border-slate-700 text-xs text-slate-300">Bekor qilish</button>
-                    <button type="submit" id="btn-save-placement" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white">Omborga Joylashtirish</button>
+                    <button type="button" onclick="closeModal('modal-placement')" class="px-4 py-2 rounded-xl border border-slate-700 text-xs text-slate-300 hover:text-white transition">Bekor qilish</button>
+                    <button type="submit" id="btn-save-placement" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white shadow-md transition cursor-pointer">Omborga Joylashtirish</button>
                 </div>
             </form>
         </div>

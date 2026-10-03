@@ -347,6 +347,40 @@ function populateAvailablePosTools() {
     };
 }
 
+function onPosToolSelectChange() {
+    const select = document.getElementById('pos-tool-unit-select');
+    const alertBox = document.getElementById('pos-tool-location-alert');
+    if (!select || !alertBox) return;
+
+    const unitId = parseInt(select.value);
+    if (!unitId) {
+        alertBox.classList.add('hidden');
+        alertBox.innerHTML = '';
+        return;
+    }
+
+    const unit = (DB.product_items || []).find(u => u.id === unitId);
+    if (!unit) return;
+
+    const model = (DB.product_models || []).find(m => m.id === unit.product_model_id);
+    const loc = (DB.warehouse_locations || []).find(l => l.id === unit.warehouse_location_id);
+    const locStr = loc ? `${loc.sector || loc.zone || 'Sektor'} -> ${loc.shelf || '1-Polka'} (${loc.bin || loc.code || '1-Yacheyka'})` : 'Ombor';
+
+    alertBox.className = "p-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-xs flex items-center justify-between text-blue-300 mt-2";
+    alertBox.innerHTML = `
+        <div class="flex items-center gap-2">
+            <i data-lucide="map-pin" class="w-4 h-4 text-blue-400 shrink-0"></i>
+            <span><strong>Joyi:</strong> ${locStr}</span>
+        </div>
+        <div class="font-mono text-[11px] font-bold text-emerald-400">
+            Kunlik: ${(model ? model.daily_price || 0 : 0).toLocaleString()} so'm | Zalog: ${(model ? model.deposit_amount || 0 : 0).toLocaleString()} so'm
+        </div>
+    `;
+    alertBox.classList.remove('hidden');
+    try { if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons(); } catch(e) {}
+}
+window.onPosToolSelectChange = onPosToolSelectChange;
+
 function populatePosPartnersSelect() {
     const pSelect = document.getElementById('pos-service-partner-select');
     if (!pSelect) return;
@@ -872,8 +906,10 @@ function handleCheckoutPosOrder(e) {
         });
     });
 
-    // 4. Record Payments
+    // 4. Record Payments & Update Cash Registers & Safe Deposits
     if (!DB.order_payments) DB.order_payments = [];
+    if (!DB.financial_transactions) DB.financial_transactions = [];
+
     if (paidDeposit > 0) {
         DB.order_payments.push({
             id: Date.now() + 1,
@@ -886,6 +922,22 @@ function handleCheckoutPosOrder(e) {
             date: new Date().toLocaleString('uz-UZ')
         });
         customer.current_deposit = (customer.current_deposit || 0) + paidDeposit;
+
+        // Update safe deposit holding
+        if (!DB.deposit_safe) DB.deposit_safe = { id: 1, total_holding_deposit: 0 };
+        DB.deposit_safe.total_holding_deposit = (DB.deposit_safe.total_holding_deposit || 0) + paidDeposit;
+
+        // Record in financial transactions
+        DB.financial_transactions.unshift({
+            id: Date.now() + 11,
+            type: "zalog_kirim",
+            cash_register_id: 1,
+            amount: paidDeposit,
+            order_id: orderNumber,
+            description: `Zalog depozit qabul qilindi (#${orderNumber}, ${customer.full_name})`,
+            date: `${new Date().toISOString().substring(0, 10)} ${new Date().toTimeString().substring(0, 5)}`,
+            performed_by_user_id: currentUser ? currentUser.id : 1
+        });
     }
 
     if (paidAmount > 0) {
@@ -899,6 +951,24 @@ function handleCheckoutPosOrder(e) {
             cashier_user_id: currentUser ? currentUser.id : 1,
             date: new Date().toLocaleString('uz-UZ')
         });
+
+        // Add to matching cash register balance
+        let reg = (DB.cash_registers || []).find(r => r.code === paymentMethod) || (DB.cash_registers || [])[0];
+        if (reg) {
+            reg.current_balance = (reg.current_balance || 0) + paidAmount;
+        }
+
+        // Record in financial transactions
+        DB.financial_transactions.unshift({
+            id: Date.now() + 12,
+            type: "ijara_tushumi",
+            cash_register_id: reg ? reg.id : 1,
+            amount: paidAmount,
+            order_id: orderNumber,
+            description: `Ijara tushumi (#${orderNumber}, ${customer.full_name})`,
+            date: `${new Date().toISOString().substring(0, 10)} ${new Date().toTimeString().substring(0, 5)}`,
+            performed_by_user_id: currentUser ? currentUser.id : 1
+        });
     }
 
     if (remainingDebt > 0) {
@@ -909,8 +979,10 @@ function handleCheckoutPosOrder(e) {
     saveDB();
     closeModal('modal-pos-new-order');
     renderOrdersSection();
+    if (typeof populateAvailablePosTools === 'function') populateAvailablePosTools();
     if (typeof renderInventoryTable === 'function') renderInventoryTable();
     if (typeof renderCatalogCards === 'function') renderCatalogCards();
+    if (typeof renderCashRegistersDashboard === 'function') renderCashRegistersDashboard();
 
     showNotification(`Buyurtma ${orderNumber} rasmiylashtirildi!`, "success");
 
@@ -1102,11 +1174,7 @@ function handleProcessOrderReturn(e) {
         if (unit) {
             unit.warehouse_location_id = chosenLocId;
             if (conditionVal === 'butun') {
-                if (isPlaced) {
-                    unit.status = 'omborda_bosh'; // Back to available inventory!
-                } else {
-                    unit.status = 'tozalanmoqda'; // Awaiting shelf placement confirmation!
-                }
+                unit.status = 'omborda_bosh'; // Immediately available in warehouse, catalog & POS!
                 unit.condition = 'yaxshi';
             } else if (conditionVal === 'remont') {
                 unit.status = 'remontda';
@@ -1130,6 +1198,12 @@ function handleProcessOrderReturn(e) {
 
     // 2. Record Return Payment & Deposit Refund
     if (!DB.order_payments) DB.order_payments = [];
+    if (!DB.financial_transactions) DB.financial_transactions = [];
+
+    // Recalculate and reduce safe holding deposit
+    if (!DB.deposit_safe) DB.deposit_safe = { id: 1, total_holding_deposit: 0 };
+    DB.deposit_safe.total_holding_deposit = Math.max(0, (DB.deposit_safe.total_holding_deposit || 0) - (currentReturnOrder.total_deposit_amount || 0));
+
     if (refundAmount > 0) {
         DB.order_payments.push({
             id: Date.now() + 1,
@@ -1140,6 +1214,17 @@ function handleProcessOrderReturn(e) {
             payment_method: "naqd",
             cashier_user_id: currentUser ? currentUser.id : 1,
             date: new Date().toLocaleString('uz-UZ')
+        });
+
+        DB.financial_transactions.unshift({
+            id: Date.now() + 21,
+            type: "zalog_chiqim",
+            cash_register_id: 1,
+            amount: refundAmount,
+            order_id: currentReturnOrder.order_number,
+            description: `Zalog qaytarildi (#${currentReturnOrder.order_number})`,
+            date: `${new Date().toISOString().substring(0, 10)} ${new Date().toTimeString().substring(0, 5)}`,
+            performed_by_user_id: currentUser ? currentUser.id : 1
         });
     }
 
@@ -1153,6 +1238,23 @@ function handleProcessOrderReturn(e) {
             payment_method: "zalogdan_ushlab_qolindi",
             cashier_user_id: currentUser ? currentUser.id : 1,
             date: new Date().toLocaleString('uz-UZ')
+        });
+
+        // Retained deduction is income for the business
+        const mainCash = (DB.cash_registers || [])[0];
+        if (mainCash) {
+            mainCash.current_balance = (mainCash.current_balance || 0) + totalDeductions;
+        }
+
+        DB.financial_transactions.unshift({
+            id: Date.now() + 22,
+            type: "jarima_tushumi",
+            cash_register_id: mainCash ? mainCash.id : 1,
+            amount: totalDeductions,
+            order_id: currentReturnOrder.order_number,
+            description: `Kechikish/ta'mir jarimasi zalogdan ushlandi (#${currentReturnOrder.order_number})`,
+            date: `${new Date().toISOString().substring(0, 10)} ${new Date().toTimeString().substring(0, 5)}`,
+            performed_by_user_id: currentUser ? currentUser.id : 1
         });
     }
 
@@ -1169,8 +1271,10 @@ function handleProcessOrderReturn(e) {
     saveDB();
     closeModal('modal-order-return');
     renderOrdersSection();
+    if (typeof populateAvailablePosTools === 'function') populateAvailablePosTools();
     if (typeof renderInventoryTable === 'function') renderInventoryTable();
     if (typeof renderCatalogCards === 'function') renderCatalogCards();
+    if (typeof renderCashRegistersDashboard === 'function') renderCashRegistersDashboard();
 
     showNotification(`Asboblar qabul qilindi va buyurtma ${currentReturnOrder.order_number} yakunlandi!`, "success");
     if (typeof openOrderReceiptModal === 'function') {

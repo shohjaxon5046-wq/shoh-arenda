@@ -580,13 +580,52 @@ function renderInventoryTable() {
     lucide.createIcons();
 }
 
+function togglePlacementMode(mode) {
+    const modeInput = document.getElementById('place-mode');
+    if (modeInput) modeInput.value = mode;
+
+    const btnNew = document.getElementById('place-mode-btn-new');
+    const btnExist = document.getElementById('place-mode-btn-existing');
+    const fieldsNew = document.getElementById('place-fields-new');
+    const fieldsExist = document.getElementById('place-fields-existing');
+
+    if (mode === 'new') {
+        if (btnNew) btnNew.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white transition";
+        if (btnExist) btnExist.className = "flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition";
+        if (fieldsNew) fieldsNew.classList.remove('hidden');
+        if (fieldsExist) fieldsExist.classList.add('hidden');
+    } else {
+        if (btnExist) btnExist.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white transition";
+        if (btnNew) btnNew.className = "flex-1 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition";
+        if (fieldsExist) fieldsExist.classList.remove('hidden');
+        if (fieldsNew) fieldsNew.classList.add('hidden');
+    }
+}
+window.togglePlacementMode = togglePlacementMode;
+
 function openModalAddDirectItem(presetModelId = null) {
+    const catSelect = document.getElementById('place-new-category');
+    if (catSelect) {
+        catSelect.innerHTML = (DB.categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    }
+
     const modelSelect = document.getElementById('place-model-select');
-    modelSelect.innerHTML = DB.product_models.map(m => `<option value="${m.id}">${m.name} (${m.brand})</option>`).join('');
-    if (presetModelId) modelSelect.value = presetModelId;
+    const hasModels = (DB.product_models || []).length > 0;
+    if (modelSelect) {
+        modelSelect.innerHTML = (DB.product_models || []).map(m => `<option value="${m.id}">${m.name} (${m.brand}) - ${(m.daily_price || 0).toLocaleString()} so'm/kun</option>`).join('');
+        if (presetModelId) modelSelect.value = presetModelId;
+    }
+
+    if (!hasModels || !presetModelId) {
+        togglePlacementMode(hasModels && presetModelId ? 'existing' : 'new');
+    } else {
+        togglePlacementMode('existing');
+    }
 
     const locSelect = document.getElementById('place-location-select');
-    locSelect.innerHTML = DB.warehouse_locations.map(l => `<option value="${l.id}">${l.zone} -> ${l.shelf} (${l.bin})</option>`).join('');
+    if (locSelect) {
+        locSelect.innerHTML = (DB.warehouse_locations || []).map(l => `<option value="${l.id}">${l.zone || l.sector} -> ${l.shelf} (${l.bin || l.code})</option>`).join('');
+    }
 
     generateAutoSerial();
     generateNewBarcode();
@@ -610,7 +649,7 @@ function checkSerialNumberUniqueness(serialValue) {
         return false;
     }
 
-    const exists = DB.product_items.some(it => it.serial_number.toLowerCase() === clean.toLowerCase());
+    const exists = (DB.product_items || []).some(it => it.serial_number && it.serial_number.toLowerCase() === clean.toLowerCase());
 
     if (exists) {
         if (badge) { badge.innerText = " DUBLIKAT!"; badge.className = "text-[10px] font-bold text-red-400 animate-pulse"; }
@@ -626,9 +665,17 @@ function checkSerialNumberUniqueness(serialValue) {
 }
 
 function generateAutoSerial() {
-    const modelSelect = document.getElementById('place-model-select');
-    const model = DB.product_models.find(m => m.id === parseInt(modelSelect.value));
-    const brandCode = model ? model.brand.substring(0, 3).toUpperCase() : 'WMS';
+    const mode = document.getElementById('place-mode')?.value || 'new';
+    let brandCode = 'WMS';
+    if (mode === 'existing') {
+        const modelSelect = document.getElementById('place-model-select');
+        const model = (DB.product_models || []).find(m => m.id === parseInt(modelSelect?.value));
+        if (model && model.brand) brandCode = model.brand.substring(0, 3).toUpperCase();
+    } else {
+        const brandInput = document.getElementById('place-new-brand')?.value.trim();
+        if (brandInput) brandCode = brandInput.substring(0, 3).toUpperCase();
+    }
+
     const randomNum = Math.floor(10000 + Math.random() * 90000);
     const serial = `SN-${brandCode}-${randomNum}`;
     
@@ -652,30 +699,82 @@ function generateNewBarcode() {
 
 function renderLiveBarcodePreview(barcodeValue) {
     try {
-        JsBarcode("#barcode-preview-svg", barcodeValue, {
-            format: "CODE128",
-            lineColor: "#ffffff",
-            width: 2,
-            height: 40,
-            displayValue: true,
-            background: "transparent",
-            fontSize: 12
-        });
+        if (typeof JsBarcode !== 'undefined') {
+            JsBarcode("#barcode-preview-svg", barcodeValue, {
+                format: "CODE128",
+                lineColor: "#ffffff",
+                width: 2,
+                height: 40,
+                displayValue: true,
+                background: "transparent",
+                fontSize: 12
+            });
+        }
     } catch(e) {}
 }
 
 function handleSavePlacement(e) {
     e.preventDefault();
-    const modelId = parseInt(document.getElementById('place-model-select').value);
+    const mode = document.getElementById('place-mode')?.value || 'new';
     const serialNumber = document.getElementById('place-serial-number').value.trim();
-    const barcode = document.getElementById('place-barcode').value.trim();
-    const locationId = parseInt(document.getElementById('place-location-select').value);
+    const barcode = document.getElementById('place-barcode').value.trim() || `2026${Math.floor(10000000 + Math.random() * 90000000)}`;
+    const locationId = parseInt(document.getElementById('place-location-select').value) || 1;
 
     if (!checkSerialNumberUniqueness(serialNumber)) {
         alert("Seriya raqami unikal bo'lishi shart! Dublikatga ruxsat berilmaydi.");
         return;
     }
 
+    let modelId = null;
+    let modelName = "";
+
+    if (mode === 'new') {
+        const toolName = document.getElementById('place-new-name').value.trim();
+        const catId = parseInt(document.getElementById('place-new-category').value) || 1;
+        const brand = document.getElementById('place-new-brand').value.trim() || 'WMS';
+        const dailyPrice = parseFloat(document.getElementById('place-new-daily-price').value) || 100000;
+        const deposit = parseFloat(document.getElementById('place-new-deposit').value) || 300000;
+
+        if (!toolName) {
+            alert("Iltimos, asbob nomini kiriting!");
+            return;
+        }
+
+        // Check if model already exists or create new
+        if (!DB.product_models) DB.product_models = [];
+        let existingModel = DB.product_models.find(m => m.name.toLowerCase() === toolName.toLowerCase());
+        if (!existingModel) {
+            existingModel = {
+                id: Date.now(),
+                name: toolName,
+                brand: brand,
+                category_id: catId,
+                model_code: `ART-${Math.floor(1000 + Math.random() * 9000)}`,
+                daily_price: dailyPrice,
+                deposit_amount: deposit,
+                image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=400&q=80",
+                created_at: new Date().toISOString().split('T')[0]
+            };
+            DB.product_models.unshift(existingModel);
+        } else {
+            existingModel.daily_price = dailyPrice;
+            existingModel.deposit_amount = deposit;
+        }
+
+        modelId = existingModel.id;
+        modelName = existingModel.name;
+    } else {
+        modelId = parseInt(document.getElementById('place-model-select').value);
+        const m = (DB.product_models || []).find(x => x.id === modelId);
+        modelName = m ? m.name : "Asbob";
+    }
+
+    if (!modelId) {
+        alert("Iltimos, asbob modelini tanlang yoki yangi asbob kiriting!");
+        return;
+    }
+
+    if (!DB.product_items) DB.product_items = [];
     const newItem = {
         id: Date.now(),
         product_model_id: modelId,
@@ -683,7 +782,7 @@ function handleSavePlacement(e) {
         barcode: barcode,
         warehouse_location_id: locationId,
         condition: "a_lo",
-        status: "omborda_bosh",
+        status: "omborda_bosh", // Darhol bo'sh tovar bo'lib tushadi!
         total_rental_count: 0,
         total_revenue: 0,
         created_at: new Date().toISOString().split('T')[0]
@@ -703,11 +802,20 @@ function handleSavePlacement(e) {
 
     saveDB();
     closeModal('modal-placement');
-    renderInventoryTable();
-    checkPendingPlacements();
-    showNotification(`Uskuna omborga joylashtirildi! (${serialNumber})`, "success");
 
-    setTimeout(() => openPrintStickerModal(newItem.id), 300);
+    // Darhol barcha bo'limlarni yangilash:
+    // 1-bo'lim (Joylashtirish), 2-bo'lim (Katalog), 5-bo'lim (Buyurtmalar/POS)
+    try { if (typeof renderInventoryTable === 'function') renderInventoryTable(); } catch (e) {}
+    try { if (typeof checkPendingPlacements === 'function') checkPendingPlacements(); } catch (e) {}
+    try { if (typeof renderCatalogCards === 'function') renderCatalogCards(); } catch (e) {}
+    try { if (typeof populateAvailablePosTools === 'function') populateAvailablePosTools(); } catch (e) {}
+    try { if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges(); } catch (e) {}
+
+    showNotification(`"${modelName}" omborga joylashtirildi va bo'sh tovar sifatida qo'shildi! (${serialNumber})`, "success");
+
+    setTimeout(() => {
+        if (typeof openPrintStickerModal === 'function') openPrintStickerModal(newItem.id);
+    }, 300);
 }
 
 // TAB 4: RETURNS

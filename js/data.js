@@ -309,10 +309,96 @@ function loadDB() {
         DB.service_pricing_rules = JSON.parse(JSON.stringify(DEFAULT_DB.service_pricing_rules));
     }
 
+    // Attach Single Source of Truth aliases and getters
+    syncDbProperties(DB);
+
     // Auto-cleanup stale client caches and hydrate from server SQLite
     try {
         autoCleanupClientCache();
         fetchServerDB();
+    } catch (e) {}
+}
+
+// =========================================================================
+// SINGLE SOURCE OF TRUTH ALIASES & HELPERS (DB.tools, DB.cash, DB.partners)
+// =========================================================================
+function syncDbProperties(targetDb) {
+    if (!targetDb) return;
+
+    // 1. DB.tools (asboblar: seriya raqami, zalog, kunlik narx, holati: 'bosh'/'ijarada', polkasi)
+    try {
+        Object.defineProperty(targetDb, 'tools', {
+            get() {
+                return (targetDb.product_items || []).map(item => {
+                    const model = (targetDb.product_models || []).find(m => m.id === item.product_model_id) || {};
+                    const loc = (targetDb.warehouse_locations || []).find(l => l.id === item.warehouse_location_id);
+                    const polkasi = loc ? `${loc.sector || loc.zone || 'Sektor'} | ${loc.shelf || '1-Polka'} | ${loc.bin || loc.code || '1-Yacheyka'}` : 'Ombor';
+                    return {
+                        id: item.id,
+                        product_model_id: item.product_model_id,
+                        name: model.name || 'Asbob',
+                        brand: model.brand || '',
+                        model_code: model.model_code || '',
+                        serial_number: item.serial_number || '',
+                        barcode: item.barcode || '',
+                        zalog: model.deposit_amount || 0,
+                        deposit: model.deposit_amount || 0,
+                        kunlik_narx: model.daily_price || 0,
+                        daily_price: model.daily_price || 0,
+                        status: item.status,
+                        holati: (item.status === 'omborda_bosh' ? 'bosh' : (item.status === 'ijarada' ? 'ijarada' : item.status)),
+                        warehouse_location_id: item.warehouse_location_id,
+                        polkasi: polkasi,
+                        condition: item.condition || 'a_lo',
+                        total_rental_count: item.total_rental_count || 0,
+                        total_revenue: item.total_revenue || 0
+                    };
+                });
+            },
+            configurable: true
+        });
+    } catch (e) {}
+
+    // 2. DB.cash (kassa tushumi, toza foyda, xarajatlar, saqlanayotgan zaloglar)
+    try {
+        Object.defineProperty(targetDb, 'cash', {
+            get() {
+                const totalBal = (targetDb.cash_registers || []).reduce((sum, r) => sum + (r.current_balance || 0), 0);
+                const holdingDeposit = targetDb.deposit_safe ? (targetDb.deposit_safe.total_holding_deposit || 0) : 0;
+                const totalExpenses = (targetDb.expenses || []).reduce((sum, e) => sum + (e.amount || 0), 0);
+                let rentalRevenue = 0;
+                (targetDb.orders || []).forEach(o => { rentalRevenue += (o.paid_amount || 0); });
+                (targetDb.financial_transactions || []).forEach(t => {
+                    if (t.type && (t.type.includes('tushum') || t.type.includes('marja')) && !t.order_id) {
+                        rentalRevenue += (t.amount || 0);
+                    }
+                });
+                return {
+                    cash_registers: targetDb.cash_registers,
+                    current_total: totalBal,
+                    kassa_tushumi: rentalRevenue,
+                    saqlanayotgan_zaloglar: holdingDeposit,
+                    xarajatlar: totalExpenses,
+                    toza_foyda: Math.max(0, rentalRevenue - totalExpenses)
+                };
+            },
+            configurable: true
+        });
+    } catch (e) {}
+
+    // 3. DB.partners (kran, musor, gruzchik hamkorlari va narxlari)
+    try {
+        Object.defineProperty(targetDb, 'partners', {
+            get() {
+                return (targetDb.service_partners || []).map(p => {
+                    return {
+                        ...p,
+                        price_list: (targetDb.partner_price_list || []).filter(pr => pr.partner_id === p.id)
+                    };
+                });
+            },
+            configurable: true
+        });
     } catch (e) {}
 }
 
@@ -464,6 +550,7 @@ window.clearSystemCacheAndMemory = async function() {
 
 function saveDB() {
     if (typeof window !== 'undefined') window.DB = DB;
+    syncDbProperties(DB);
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
     } catch(e) {}
@@ -483,6 +570,7 @@ window.wipeDatabaseToCleanSlate = function() {
         DB = JSON.parse(JSON.stringify(DEFAULT_DB));
         localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
         if (typeof window !== 'undefined') window.DB = DB;
+        syncDbProperties(DB);
         syncDBToServer(true);
 
         // Re-render all modules
@@ -509,6 +597,7 @@ window.resetDemoData = window.wipeDatabaseToCleanSlate;
 
 // User session
 let currentUser = null;
+if (typeof window !== 'undefined') window.currentUser = currentUser;
 
 function checkSession() {
     // Check if customer is viewing an online receipt via URL parameter or hash
@@ -529,7 +618,9 @@ function checkSession() {
     if (session) {
         try {
             currentUser = JSON.parse(session);
+            if (typeof window !== 'undefined') window.currentUser = currentUser;
             showMainApp();
+            return;
         } catch(e) {
             showAuthScreen();
         }
