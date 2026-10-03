@@ -700,3 +700,630 @@ function printModelSticker() {
         alert("Ushbu modelga tegishli hech bo'lmaganda 1 dona uskuna kiritilgan bo'lishi kerak!");
     }
 }
+
+// =========================================================================
+// PAPKADAN / FAYLDAN OMMAVIY TOVAR TORTISH (BULK IMPORT: EXCEL, CSV, FOLDER)
+// =========================================================================
+
+let bulkImportItems = [];
+let bulkImportSearchQuery = '';
+
+function openModalBulkImportProducts() {
+    try {
+        // Populate categories
+        const catSelect = document.getElementById('import-default-category');
+        if (catSelect) {
+            catSelect.innerHTML = (DB.categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        }
+
+        // Populate locations
+        const locSelect = document.getElementById('import-default-location');
+        if (locSelect) {
+            locSelect.innerHTML = (DB.warehouse_locations || []).map(l => `<option value="${l.id}">${l.zone || 'Zona'} - ${l.shelf || 'Javun'} (${l.bin || 'Yacheyka'})</option>`).join('');
+        }
+
+        renderImportPreviewTable();
+        openModal('modal-bulk-import-products');
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    } catch (err) {
+        console.error("openModalBulkImportProducts error:", err);
+    }
+}
+
+function togglePasteArea() {
+    const area = document.getElementById('import-paste-section');
+    const label = document.getElementById('btn-toggle-paste-label');
+    if (!area) return;
+    if (area.classList.contains('hidden')) {
+        area.classList.remove('hidden');
+        if (label) label.innerText = "✖ Matn maydonini yopish";
+    } else {
+        area.classList.add('hidden');
+        if (label) label.innerText = "📋 Matndan / Exceldan nusxa qo'yish";
+    }
+}
+
+// Drag & Drop handlers
+function handleImportDragOver(e) {
+    e.preventDefault();
+    const zone = document.getElementById('bulk-import-dropzone');
+    if (zone) {
+        zone.classList.add('border-indigo-400', 'bg-indigo-900/30');
+    }
+}
+
+function handleImportDragLeave(e) {
+    e.preventDefault();
+    const zone = document.getElementById('bulk-import-dropzone');
+    if (zone) {
+        zone.classList.remove('border-indigo-400', 'bg-indigo-900/30');
+    }
+}
+
+function handleImportDrop(e) {
+    e.preventDefault();
+    handleImportDragLeave(e);
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processImportFiles(e.dataTransfer.files);
+    }
+}
+
+function handleProductFilesSelect(e) {
+    if (e.target.files && e.target.files.length > 0) {
+        processImportFiles(e.target.files);
+        e.target.value = ''; // Reset input to allow re-selection
+    }
+}
+
+function handleProductFolderSelect(e) {
+    if (e.target.files && e.target.files.length > 0) {
+        processImportFiles(e.target.files);
+        e.target.value = ''; // Reset input to allow re-selection
+    }
+}
+
+// Process single or multiple files (including entire folder contents)
+async function processImportFiles(fileList) {
+    const files = Array.from(fileList);
+    let loadedCount = 0;
+
+    for (const file of files) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        try {
+            if (['xlsx', 'xls', 'csv'].includes(ext)) {
+                await parseSpreadsheetFile(file);
+                loadedCount++;
+            } else if (ext === 'json') {
+                await parseJsonFile(file);
+                loadedCount++;
+            } else if (ext === 'txt') {
+                await parseTextFile(file);
+                loadedCount++;
+            }
+        } catch (err) {
+            console.error(`Faylni o'qishda xatolik (${file.name}):`, err);
+        }
+    }
+
+    if (loadedCount > 0) {
+        renderImportPreviewTable();
+        if (typeof showNotification === 'function') {
+            showNotification(`${loadedCount} ta fayl muvaffaqiyatli o'qildi!`, "success");
+        }
+    } else {
+        alert("Mos keladigan fayl (.xlsx, .xls, .csv, .json) topilmadi.");
+    }
+}
+
+// Parse Excel or CSV using SheetJS (or CSV fallback)
+function parseSpreadsheetFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                if (typeof XLSX !== 'undefined') {
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    // Read all sheets in workbook
+                    workbook.SheetNames.forEach(sheetName => {
+                        const worksheet = workbook.Sheets[sheetName];
+                        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                        if (rows && rows.length > 0) {
+                            parseMatrixRows(rows, file.name);
+                        }
+                    });
+                } else {
+                    // Fallback simple text reader
+                    const text = new TextDecoder("utf-8").decode(data);
+                    parseDelimitedText(text, file.name);
+                }
+                resolve();
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// Parse JSON files
+function parseJsonFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const json = JSON.parse(e.target.result);
+                const items = Array.isArray(json) ? json : (json.products || json.items || json.data || [json]);
+                items.forEach(it => {
+                    if (it && typeof it === 'object') {
+                        addNormalizedImportItem({
+                            name: it.name || it.nomi || it.title || '',
+                            brand: it.brand || it.brend || it.manufacturer || '',
+                            category: it.category || it.kategoriya || '',
+                            model_code: it.model_code || it.code || it.artikul || it.kod || '',
+                            daily_price: it.daily_price || it.kunlik_narx || it.price || 0,
+                            deposit_amount: it.deposit_amount || it.zalog || it.deposit || 0,
+                            quantity: it.quantity || it.soni || it.qoldiq || 1,
+                            specs: it.specs || it.quvvat || it.tavsif || '',
+                            image: it.image || it.rasm || '',
+                            fileName: file.name
+                        });
+                    }
+                });
+                resolve();
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsText(file);
+    });
+}
+
+// Parse plain text file
+function parseTextFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                parseDelimitedText(e.target.result, file.name);
+                resolve();
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsText(file);
+    });
+}
+
+// Parse Matrix Rows (from XLSX sheet_to_json with header: 1)
+function parseMatrixRows(matrix, fileName) {
+    if (!matrix || matrix.length === 0) return;
+
+    let headerIndex = -1;
+    let colMap = {};
+
+    // 1. Detect header row
+    for (let r = 0; r < Math.min(matrix.length, 5); r++) {
+        const row = matrix[r];
+        if (!Array.isArray(row)) continue;
+        const rowStr = row.map(c => String(c || '').toLowerCase()).join(' ');
+        if (rowStr.includes('nom') || rowStr.includes('name') || rowStr.includes('brend') || rowStr.includes('brand') || rowStr.includes('narx') || rowStr.includes('price')) {
+            headerIndex = r;
+            // Build column map
+            row.forEach((col, cIdx) => {
+                const h = String(col || '').toLowerCase().trim();
+                if (h.includes('nom') || h.includes('name') || h.includes('tovar') || h.includes('mahsulot') || h.includes('наименование') || h.includes('название')) colMap.name = cIdx;
+                else if (h.includes('brend') || h.includes('brand') || h.includes('ishlab') || h.includes('производитель') || h.includes('бренд')) colMap.brand = cIdx;
+                else if (h.includes('kat') || h.includes('cat') || h.includes('guruh') || h.includes('group') || h.includes('категория')) colMap.category = cIdx;
+                else if (h.includes('kod') || h.includes('code') || h.includes('artikul') || h.includes('sku') || h.includes('артикул') || h.includes('model')) colMap.model_code = cIdx;
+                else if (h.includes('kunlik') || (h.includes('narx') && !h.includes('zalog')) || (h.includes('price') && !h.includes('deposit')) || h.includes('ijara') || h.includes('аренда') || h.includes('цена')) colMap.daily_price = cIdx;
+                else if (h.includes('zalog') || h.includes('depozit') || h.includes('deposit') || h.includes('залог') || h.includes('депозит')) colMap.deposit_amount = cIdx;
+                else if (h.includes('soni') || h.includes('son') || h.includes('miqdor') || h.includes('qoldiq') || h.includes('qty') || h.includes('count') || h.includes('stock') || h.includes('кол') || h.includes('остаток')) colMap.quantity = cIdx;
+                else if (h.includes('tavsif') || h.includes('quvvat') || h.includes('spec') || h.includes('xarakter') || h.includes('описание')) colMap.specs = cIdx;
+                else if (h.includes('rasm') || h.includes('image') || h.includes('foto') || h.includes('url')) colMap.image = cIdx;
+            });
+            break;
+        }
+    }
+
+    // Default column fallback index if header not explicitly recognized
+    if (headerIndex === -1) {
+        headerIndex = -1;
+        colMap = { name: 0, brand: 1, category: 2, model_code: 3, daily_price: 4, deposit_amount: 5, quantity: 6, specs: 7, image: 8 };
+    }
+
+    // 2. Parse data rows
+    const startRow = headerIndex + 1;
+    for (let r = startRow; r < matrix.length; r++) {
+        const row = matrix[r];
+        if (!row || !Array.isArray(row) || row.every(cell => String(cell || '').trim() === '')) continue;
+
+        const name = String(row[colMap.name !== undefined ? colMap.name : 0] || '').trim();
+        if (!name) continue; // Skip empty rows
+
+        const brand = colMap.brand !== undefined ? String(row[colMap.brand] || '').trim() : (name.split(' ')[0] || 'Universal');
+        const category = colMap.category !== undefined ? String(row[colMap.category] || '').trim() : '';
+        const model_code = colMap.model_code !== undefined ? String(row[colMap.model_code] || '').trim() : '';
+        const daily_price = colMap.daily_price !== undefined ? parseFloat(String(row[colMap.daily_price] || '0').replace(/[^0-9.]/g, '')) || 50000 : 50000;
+        const deposit_amount = colMap.deposit_amount !== undefined ? parseFloat(String(row[colMap.deposit_amount] || '0').replace(/[^0-9.]/g, '')) || (daily_price * 5) : (daily_price * 5);
+        const quantity = colMap.quantity !== undefined ? parseInt(String(row[colMap.quantity] || '1').replace(/[^0-9]/g, '')) || 1 : 1;
+        const specs = colMap.specs !== undefined ? String(row[colMap.specs] || '').trim() : '';
+        const image = colMap.image !== undefined ? String(row[colMap.image] || '').trim() : '';
+
+        addNormalizedImportItem({
+            name,
+            brand: brand || 'Standart',
+            category,
+            model_code: model_code || name.replace(/\s+/g, '-').toUpperCase().slice(0, 10),
+            daily_price,
+            deposit_amount,
+            quantity: Math.max(1, quantity),
+            specs,
+            image,
+            fileName
+        });
+    }
+}
+
+// Parse Delimited Text (CSV, TSV, Semicolon)
+function parseDelimitedText(text, fileName = "Pasted") {
+    if (!text || !text.trim()) return;
+    const lines = text.trim().split(/\r\n|\n|\r/);
+    if (lines.length === 0) return;
+
+    // Detect delimiter
+    const firstLine = lines[0];
+    let delimiter = '\t';
+    if (firstLine.includes('\t')) delimiter = '\t';
+    else if (firstLine.includes(';')) delimiter = ';';
+    else if (firstLine.includes(',')) delimiter = ',';
+    else if (firstLine.includes('|')) delimiter = '|';
+
+    const matrix = lines.map(line => {
+        return line.split(delimiter).map(cell => cell.trim().replace(/^["']|["']$/g, ''));
+    });
+
+    parseMatrixRows(matrix, fileName);
+}
+
+// Add normalized item to state
+function addNormalizedImportItem(item) {
+    const defaultImg = 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=400&q=80';
+    bulkImportItems.push({
+        id: 'imp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        name: item.name || '',
+        brand: item.brand || 'Standart',
+        category: item.category || '',
+        model_code: item.model_code || '',
+        daily_price: Number(item.daily_price) || 50000,
+        deposit_amount: Number(item.deposit_amount) || 200000,
+        quantity: parseInt(item.quantity) || 1,
+        specs: item.specs || '',
+        image: item.image || defaultImg,
+        fileName: item.fileName || 'Fayl'
+    });
+}
+
+// Parse Text from Textarea
+function handleParsePastedText() {
+    const area = document.getElementById('import-paste-textarea');
+    if (!area || !area.value.trim()) {
+        alert("Iltimos, avval matn yoki jadval ma'lumotlarini kiriting!");
+        return;
+    }
+    const initialCount = bulkImportItems.length;
+    parseDelimitedText(area.value, "Nusxalangan matn");
+    const addedCount = bulkImportItems.length - initialCount;
+
+    area.value = '';
+    togglePasteArea();
+    renderImportPreviewTable();
+
+    if (typeof showNotification === 'function') {
+        showNotification(`${addedCount} ta tovar muvaffaqiyatli tahlil qilindi!`, "success");
+    }
+}
+
+// Render Preview Table & Update Stats
+function renderImportPreviewTable() {
+    const tbody = document.getElementById('import-preview-tbody');
+    const badge = document.getElementById('import-preview-badge');
+    const statModels = document.getElementById('import-stat-models');
+    const statUnits = document.getElementById('import-stat-units');
+    const saveBtn = document.getElementById('btn-save-bulk-import');
+    const saveLabel = document.getElementById('btn-save-bulk-import-label');
+
+    const totalModels = bulkImportItems.length;
+    const totalUnits = bulkImportItems.reduce((sum, it) => sum + (parseInt(it.quantity) || 1), 0);
+
+    if (badge) badge.innerText = `${totalModels} ta tovar`;
+    if (statModels) statModels.innerText = `${totalModels} ta`;
+    if (statUnits) statUnits.innerText = `${totalUnits} dona`;
+
+    if (saveBtn) {
+        saveBtn.disabled = totalModels === 0;
+        if (saveLabel) {
+            saveLabel.innerText = totalModels > 0 
+                ? `📥 Bazaga Saqlash (${totalModels} ta tovar, ${totalUnits} dona)`
+                : `📥 Bazaga Saqlash (0 ta tovar)`;
+        }
+    }
+
+    if (!tbody) return;
+
+    if (totalModels === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" class="py-12 text-center text-slate-500">
+                    <i data-lucide="file-up" class="w-10 h-10 mx-auto mb-2 text-slate-600"></i>
+                    <p class="text-xs font-semibold">Hozircha hech qanday fayl tanlanmagan</p>
+                    <p class="text-[11px] text-slate-600 mt-0.5">Yuqoridagi maydonga Excel/CSV fayl yuklang yoki papkani tanlang</p>
+                </td>
+            </tr>
+        `;
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+        return;
+    }
+
+    const search = (bulkImportSearchQuery || '').toLowerCase();
+    const filtered = bulkImportItems.filter((it, idx) => {
+        return !search || 
+               it.name.toLowerCase().includes(search) || 
+               it.brand.toLowerCase().includes(search) || 
+               it.model_code.toLowerCase().includes(search) || 
+               it.category.toLowerCase().includes(search);
+    });
+
+    tbody.innerHTML = '';
+    filtered.forEach((it, idx) => {
+        const isValid = it.name.trim().length > 0;
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-800/40 transition group";
+
+        tr.innerHTML = `
+            <td class="py-2 px-3 font-mono text-[11px] text-slate-500">${idx + 1}</td>
+            <td class="py-2 px-3">
+                <input type="text" value="${it.name.replace(/"/g, '&quot;')}" onchange="updateImportItemField('${it.id}', 'name', this.value)" class="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs text-white font-semibold focus:border-indigo-500 focus:outline-none" placeholder="Tovar nomi *">
+            </td>
+            <td class="py-2 px-3">
+                <input type="text" value="${it.brand.replace(/"/g, '&quot;')}" onchange="updateImportItemField('${it.id}', 'brand', this.value)" class="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs text-slate-300 focus:border-indigo-500 focus:outline-none" placeholder="Brend">
+            </td>
+            <td class="py-2 px-3">
+                <input type="text" value="${it.category.replace(/"/g, '&quot;')}" onchange="updateImportItemField('${it.id}', 'category', this.value)" class="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs text-indigo-300 focus:border-indigo-500 focus:outline-none" placeholder="Kategoriya">
+            </td>
+            <td class="py-2 px-3">
+                <input type="text" value="${it.model_code.replace(/"/g, '&quot;')}" onchange="updateImportItemField('${it.id}', 'model_code', this.value)" class="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs font-mono text-slate-300 focus:border-indigo-500 focus:outline-none" placeholder="Artikul">
+            </td>
+            <td class="py-2 px-3">
+                <input type="number" value="${it.daily_price}" onchange="updateImportItemField('${it.id}', 'daily_price', this.value)" class="w-24 bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs font-bold text-emerald-400 focus:border-indigo-500 focus:outline-none">
+            </td>
+            <td class="py-2 px-3">
+                <input type="number" value="${it.deposit_amount}" onchange="updateImportItemField('${it.id}', 'deposit_amount', this.value)" class="w-24 bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs text-amber-300 focus:border-indigo-500 focus:outline-none">
+            </td>
+            <td class="py-2 px-3 text-center">
+                <input type="number" min="1" value="${it.quantity}" onchange="updateImportItemField('${it.id}', 'quantity', this.value)" class="w-16 bg-slate-900 border border-slate-700/80 rounded-lg px-2 py-1 text-xs font-bold text-center text-white focus:border-indigo-500 focus:outline-none">
+            </td>
+            <td class="py-2 px-3">
+                <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${isValid ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                    ${isValid ? 'Tayyor' : 'Nomi bo\'sh'}
+                </span>
+            </td>
+            <td class="py-2 px-3 text-right">
+                <button type="button" onclick="removeImportItem('${it.id}')" class="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-950/30 transition">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+}
+
+function filterImportPreviewTable() {
+    const input = document.getElementById('import-preview-search');
+    bulkImportSearchQuery = input ? input.value : '';
+    renderImportPreviewTable();
+}
+
+function updateImportItemField(id, field, value) {
+    const item = bulkImportItems.find(it => it.id === id);
+    if (!item) return;
+    if (field === 'daily_price' || field === 'deposit_amount') {
+        item[field] = parseFloat(value) || 0;
+    } else if (field === 'quantity') {
+        item[field] = Math.max(1, parseInt(value) || 1);
+    } else {
+        item[field] = value;
+    }
+    // Update summary labels
+    const totalUnits = bulkImportItems.reduce((sum, it) => sum + (parseInt(it.quantity) || 1), 0);
+    const statUnits = document.getElementById('import-stat-units');
+    if (statUnits) statUnits.innerText = `${totalUnits} dona`;
+    const saveLabel = document.getElementById('btn-save-bulk-import-label');
+    if (saveLabel) saveLabel.innerText = `📥 Bazaga Saqlash (${bulkImportItems.length} ta tovar, ${totalUnits} dona)`;
+}
+
+function removeImportItem(id) {
+    bulkImportItems = bulkImportItems.filter(it => it.id !== id);
+    renderImportPreviewTable();
+}
+
+function clearImportList() {
+    if (bulkImportItems.length === 0) return;
+    if (confirm("Yuklangan barcha tovarlar ro'yxatini tozalashni xohlaysizmi?")) {
+        bulkImportItems = [];
+        renderImportPreviewTable();
+    }
+}
+
+// Download Sample Templates (.xlsx / .csv)
+function downloadProductImportTemplate(format = 'excel') {
+    const sampleData = [
+        ["Tovar Nomi", "Brend", "Kategoriya", "Model Kodi / Artikul", "Kunlik Ijara Narxi (so'm)", "Zalog Depozit (so'm)", "Ombordagi Soni (dona)", "Quvvat / Tavsif", "Rasm URL"],
+        ["Bosch GBH 2-26 DRE", "Bosch", "Perforatorlar", "GBH-2-26-DRE", 80000, 500000, 4, "800W, 2.7J, SDS-Plus", "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=400&q=80"],
+        ["Makita HR2470", "Makita", "Perforatorlar", "HR-2470", 75000, 450000, 3, "780W, 2.4J, SDS-Plus", ""],
+        ["DeWalt DWE4257", "DeWalt", "Bolgarkalar (UGL)", "DWE-4257", 65000, 400000, 5, "1500W, 125mm, tezlik regulyatori", ""],
+        ["Hilti TE 70-ATC", "Hilti", "Og'ir Perforatorlar", "TE-70-ATC", 220000, 1500000, 2, "1800W, 11.5J, SDS-Max", ""],
+        ["Stihl MS 180", "Stihl", "Benzopilalar", "MS-180", 90000, 600000, 3, "1.5 kVt, 35 sm shina", ""],
+        ["Resanta SAI 220", "Resanta", "Payvandlash apparati", "SAI-220", 70000, 500000, 4, "220A, Invertor, 220V", ""],
+        ["Karcher K5 Compact", "Karcher", "Moykalar", "K5-COMP", 110000, 800000, 2, "145 bar, 500 l/soat", ""]
+    ];
+
+    if (format === 'excel' && typeof XLSX !== 'undefined') {
+        const ws = XLSX.utils.aoa_to_sheet(sampleData);
+        // Column widths
+        ws['!cols'] = [
+            { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 22 },
+            { wch: 25 }, { wch: 20 }, { wch: 22 }, { wch: 30 }, { wch: 35 }
+        ];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Tovarlar");
+        XLSX.writeFile(wb, "wms_namuna_tovarlar_shablon.xlsx");
+    } else {
+        // CSV with UTF-8 BOM
+        const csvContent = "\uFEFF" + sampleData.map(row => {
+            return row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',');
+        }).join("\r\n");
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "wms_namuna_tovarlar_shablon.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+// Save all imported items into Database
+async function handleSaveBulkImport() {
+    if (bulkImportItems.length === 0) {
+        alert("Import qilish uchun tovarlar ro'yxati bo'sh!");
+        return;
+    }
+
+    const defaultCatId = parseInt(document.getElementById('import-default-category')?.value) || (DB.categories[0]?.id || 1);
+    const defaultLocId = parseInt(document.getElementById('import-default-location')?.value) || (DB.warehouse_locations[0]?.id || 1);
+    const autoCreateUnits = document.getElementById('import-create-units-checkbox')?.checked ?? true;
+
+    let nextModelId = DB.product_models.length > 0 ? Math.max(...DB.product_models.map(m => m.id)) + 1 : 1;
+    let nextItemId = DB.product_items.length > 0 ? Math.max(...DB.product_items.map(i => i.id)) + 1 : 1;
+    const now = new Date().toISOString().split('T')[0];
+
+    let importedModelsCount = 0;
+    let createdUnitsCount = 0;
+
+    bulkImportItems.forEach(item => {
+        if (!item.name || !item.name.trim()) return;
+
+        // Category resolution
+        let categoryId = defaultCatId;
+        if (item.category && item.category.trim()) {
+            const existingCat = DB.categories.find(c => c.name.toLowerCase() === item.category.trim().toLowerCase());
+            if (existingCat) {
+                categoryId = existingCat.id;
+            } else {
+                // Auto-create category
+                const newCatId = DB.categories.length > 0 ? Math.max(...DB.categories.map(c => c.id)) + 1 : 1;
+                const newCat = {
+                    id: newCatId,
+                    name: item.category.trim(),
+                    icon: "wrench",
+                    color: "blue"
+                };
+                DB.categories.push(newCat);
+                categoryId = newCatId;
+            }
+        }
+
+        const modelId = nextModelId++;
+        const modelCode = item.model_code || `ART-${modelId}`;
+        const dailyPrice = Number(item.daily_price) || 50000;
+        const depositAmount = Number(item.deposit_amount) || (dailyPrice * 5);
+
+        const newModel = {
+            id: modelId,
+            category_id: categoryId,
+            name: item.name.trim(),
+            brand: item.brand.trim() || 'Standart',
+            model_code: modelCode,
+            image: item.image || 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=400&q=80',
+            specifications: {
+                power: item.specs || 'Standart',
+                impact: '',
+                chuck: '',
+                weight: '',
+                fuel: '220V Tarmoq',
+                extra: ''
+            },
+            hourly_price: Math.round(dailyPrice * 0.2),
+            daily_price: dailyPrice,
+            discount_3_days: Math.round(dailyPrice * 0.9),
+            discount_7_days: Math.round(dailyPrice * 0.8),
+            late_fee_per_hour: Math.round(dailyPrice * 0.25),
+            deposit_amount: depositAmount,
+            replacement_cost: depositAmount * 2.5,
+            kit_items: ["Keys/Chemodan", "Pasport/Yo'riqnoma"],
+            consumables: [],
+            created_at: now,
+            updated_at: now
+        };
+
+        DB.product_models.push(newModel);
+        importedModelsCount++;
+
+        // Auto create units in warehouse
+        if (autoCreateUnits) {
+            const qty = Math.max(1, parseInt(item.quantity) || 1);
+            for (let q = 1; q <= qty; q++) {
+                const itemId = nextItemId++;
+                const seq = String(q).padStart(3, '0');
+                const serialNum = `${modelCode}-${seq}`;
+                const barcode = `BAR-${modelId}-${seq}`;
+
+                DB.product_items.push({
+                    id: itemId,
+                    product_model_id: modelId,
+                    serial_number: serialNum,
+                    barcode: barcode,
+                    warehouse_location_id: defaultLocId,
+                    status: 'omborda_bosh',
+                    condition: 'ideal',
+                    total_rental_count: 0,
+                    total_revenue: 0,
+                    created_at: now
+                });
+                createdUnitsCount++;
+            }
+        }
+    });
+
+    // Save DB to localStorage & SQLite Server
+    if (typeof saveDB === 'function') {
+        saveDB();
+    }
+
+    // Reset imported items
+    bulkImportItems = [];
+    closeModal('modal-bulk-import-products');
+
+    // Re-render catalog view
+    if (typeof renderCatalogCards === 'function') {
+        renderCatalogCards();
+    }
+    if (typeof renderCategoryPills === 'function') {
+        renderCategoryPills();
+    }
+
+    const successMsg = `🎉 ${importedModelsCount} ta tovar modeli va ${createdUnitsCount} dona omborga muvaffaqiyatli import qilindi!`;
+    if (typeof showNotification === 'function') {
+        showNotification(successMsg, "success");
+    } else {
+        alert(successMsg);
+    }
+}

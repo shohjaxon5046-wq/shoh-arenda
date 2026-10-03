@@ -63,6 +63,8 @@
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <!-- QRCode.js for 2D Codes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- SheetJS (xlsx) for Excel / CSV Bulk Import & Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <!-- Google Fonts: Inter & Plus Jakarta Sans & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1102,8 +1104,9 @@
                             <h2 class="text-xl font-extrabold text-white flex items-center gap-2"><i data-lucide="wrench" class="w-5 h-5 text-emerald-400"></i> Asboblar Katalogi va Tovar Kartochkasi</h2>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="openModalPriceLogs()" class="px-3 py-2 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5"><i data-lucide="history" class="w-4 h-4 text-blue-400"></i> Narxlar Tarixi</button>
-                            <button onclick="openModalCreateProductModel()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-lg shadow-emerald-500/20"><i data-lucide="plus-circle" class="w-4 h-4 inline mr-1"></i> Yangi Tovar</button>
+                            <button onclick="openModalPriceLogs()" class="px-3 py-2 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5"><i data-lucide="history" class="w-4 h-4 text-blue-400"></i> <span>Narxlar Tarixi</span></button>
+                            <button onclick="openModalBulkImportProducts()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-lg shadow-indigo-500/20 flex items-center gap-1.5 transition"><i data-lucide="folder-up" class="w-4 h-4"></i> <span>Papkadan / Fayldan Import</span></button>
+                            <button onclick="openModalCreateProductModel()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 transition"><i data-lucide="plus-circle" class="w-4 h-4"></i> <span>Yangi Tovar (Qo'lda)</span></button>
                         </div>
                     </div>
                     <div class="flex flex-col lg:flex-row justify-between gap-3">
@@ -2296,6 +2299,19 @@
                     <button onclick="closeModal('modal-product-card')" class="p-2 rounded-lg text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
             </div>
+
+            <!-- Switch to Bulk Import Banner -->
+            <div class="px-6 py-2.5 bg-indigo-950/40 border-b border-indigo-900/40 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div class="flex items-center gap-2 text-xs text-indigo-300">
+                    <i data-lucide="layers" class="w-4 h-4 text-indigo-400 shrink-0"></i>
+                    <span>Bir nechta tovarni birdaniga qo'shmoqchimisiz?</span>
+                </div>
+                <button type="button" onclick="closeModal('modal-product-card'); openModalBulkImportProducts();" class="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-500/20 transition">
+                    <i data-lucide="folder-up" class="w-3.5 h-3.5"></i>
+                    <span>📁 Papkadan / Fayldan Ommaviy Import</span>
+                </button>
+            </div>
+
             <div class="px-6 border-b border-slate-800 bg-slate-900 flex items-center gap-2 overflow-x-auto shrink-0">
                 <button onclick="switchProductCardTab('p-tab-general')" id="p-btn-general" class="pt-3 pb-2.5 px-3 text-xs font-bold border-b-2 border-emerald-500 text-emerald-400 flex items-center gap-2">1. Umumiy Ma'lumot</button>
                 <button onclick="switchProductCardTab('p-tab-prices')" id="p-btn-prices" class="pt-3 pb-2.5 px-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-white flex items-center gap-2">2. Narxlar & Zalog (Admin)</button>
@@ -2447,6 +2463,228 @@
                     </thead>
                     <tbody id="price-logs-table-body" class="divide-y divide-slate-800 text-slate-300"></tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: BULK PRODUCT & FOLDER IMPORT (EXCEL / CSV / JSON / FOLDER) -->
+    <div id="modal-bulk-import-products" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/85 p-3 sm:p-5 backdrop-blur-md">
+        <div class="w-full max-w-5xl max-h-[94vh] flex flex-col rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="h-16 px-6 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                        <i data-lucide="folder-up" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-white leading-tight flex items-center gap-2">
+                            <span>Papkadan / Fayldan Ommaviy Tovar Yuklash (Import)</span>
+                            <span class="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px] font-mono font-bold">Excel • CSV • Papka</span>
+                        </h3>
+                        <p class="text-xs text-slate-400">Kompyuter yoki telefondan tovarlar ro'yxatini tezkor bazaga yuklash</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeModal('modal-bulk-import-products'); openModalCreateProductModel();" class="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5 transition">
+                        <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
+                        <span>Qo'lda bittadan kiritish</span>
+                    </button>
+                    <button type="button" onclick="closeModal('modal-bulk-import-products')" class="p-2 rounded-lg text-slate-400 hover:text-white transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-5">
+                <!-- 1. Upload Actions & Template Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <!-- Drop Zone / File & Folder Chooser -->
+                    <div class="lg:col-span-2 rounded-2xl border-2 border-dashed border-indigo-500/40 bg-indigo-950/10 hover:bg-indigo-950/20 p-6 flex flex-col items-center justify-center text-center transition cursor-pointer relative" id="bulk-import-dropzone" ondragover="handleImportDragOver(event)" ondragleave="handleImportDragLeave(event)" ondrop="handleImportDrop(event)">
+                        <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center mb-3">
+                            <i data-lucide="upload-cloud" class="w-7 h-7"></i>
+                        </div>
+                        <h4 class="text-sm font-bold text-white mb-1">Fayl yoki butun Papkani shu yerga tashlang</h4>
+                        <p class="text-xs text-slate-400 mb-4 max-w-md">Excel (.xlsx, .xls), CSV (.csv), JSON fayllar yoki fayllar joylashgan to'liq papka</p>
+                        
+                        <div class="flex flex-wrap items-center justify-center gap-3">
+                            <!-- File Input Trigger -->
+                            <label class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white shadow-lg shadow-indigo-500/20 cursor-pointer flex items-center gap-2 transition">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                                <span>Fayl tanlash (.xlsx, .csv)</span>
+                                <input type="file" id="product-import-file-input" accept=".xlsx,.xls,.csv,.json" multiple onchange="handleProductFilesSelect(event)" class="hidden">
+                            </label>
+                            <!-- Folder Input Trigger -->
+                            <label class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-indigo-300 hover:text-white cursor-pointer flex items-center gap-2 transition">
+                                <i data-lucide="folder" class="w-4 h-4 text-amber-400"></i>
+                                <span>Papkani tanlash (Folder)</span>
+                                <input type="file" id="product-import-folder-input" webkitdirectory directory multiple onchange="handleProductFolderSelect(event)" class="hidden">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Template & Quick Helpers Card -->
+                    <div class="rounded-2xl border border-slate-800 bg-slate-950 p-5 flex flex-col justify-between space-y-3">
+                        <div>
+                            <div class="flex items-center gap-2 text-xs font-bold text-white mb-2">
+                                <i data-lucide="file-down" class="w-4 h-4 text-emerald-400"></i>
+                                <span>Namuna Shablonini Olish</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 leading-relaxed mb-3">
+                                Tovarlarni to'g'ri ustunlar bilan tayyorlash uchun namunaviy shablon faylini yuklab oling:
+                            </p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button type="button" onclick="downloadProductImportTemplate('excel')" class="px-3 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+                                    <i data-lucide="table" class="w-3.5 h-3.5"></i>
+                                    <span>Excel (.xlsx)</span>
+                                </button>
+                                <button type="button" onclick="downloadProductImportTemplate('csv')" class="px-3 py-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+                                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                                    <span>CSV (.csv)</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-800/80">
+                            <button type="button" onclick="togglePasteArea()" class="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center justify-center gap-2 transition">
+                                <i data-lucide="clipboard-paste" class="w-3.5 h-3.5 text-indigo-400"></i>
+                                <span id="btn-toggle-paste-label">📋 Matndan / Exceldan nusxa qo'yish</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Direct Paste Area (Collapsible) -->
+                <div id="import-paste-section" class="hidden rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                            <i data-lucide="clipboard-type" class="w-4 h-4 text-indigo-400"></i>
+                            <span>Excel jadvalidan yoki matndan to'g'ridan-to'g'ri nusxa (Ctrl+V) qilib tashlang:</span>
+                        </label>
+                        <span class="text-[11px] text-slate-500">Ustunlar: Nomi | Brend | Kategoriya | Kod | Kunlik Narx | Zalog | Soni</span>
+                    </div>
+                    <textarea id="import-paste-textarea" rows="4" placeholder="Masalan:&#10;Bosch GBH 2-26	Bosch	Perforatorlar	GBH-2-26	80000	500000	3&#10;Makita HR2470	Makita	Perforatorlar	HR-2470	75000	450000	2" class="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-xs text-white font-mono focus:border-indigo-500 focus:outline-none"></textarea>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="handleParsePastedText()" class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition">
+                            Matnni tahlil qilish (Qo'shish)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Configuration & Summary Stats Bar -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div class="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+                            <i data-lucide="layers" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400">Aniqlangan Modellar</span>
+                            <h4 id="import-stat-models" class="text-base font-extrabold text-white">0 ta</h4>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                            <i data-lucide="package-check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <span class="text-[11px] text-slate-400">Jami Dona Zaxirasi</span>
+                            <h4 id="import-stat-units" class="text-base font-extrabold text-emerald-400">0 dona</h4>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+                            <i data-lucide="tag" class="w-5 h-5"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <label class="text-[11px] text-slate-400 block mb-0.5">Asosiy Kategoriya</label>
+                            <select id="import-default-category" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-xs text-white focus:outline-none">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+                            <i data-lucide="map-pin" class="w-5 h-5"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <label class="text-[11px] text-slate-400 block mb-0.5">Ombor Joylashuvi</label>
+                            <select id="import-default-location" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-1 px-2 text-xs text-white focus:outline-none">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Interactive Live Preview Table -->
+                <div class="space-y-2">
+                    <div class="flex flex-wrap justify-between items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+                                <i data-lucide="table-2" class="w-4 h-4 text-emerald-400"></i>
+                                <span>Yuklanadigan Tovarlar Jadvali</span>
+                            </h4>
+                            <span id="import-preview-badge" class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-mono">0 ta qator</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="import-preview-search" oninput="filterImportPreviewTable()" placeholder="Jadvaldan izlash..." class="rounded-xl border border-slate-700 bg-slate-800 py-1 px-2.5 text-xs text-white focus:outline-none">
+                            <button type="button" onclick="clearImportList()" class="px-2.5 py-1 rounded-lg border border-slate-700 hover:bg-rose-900/30 hover:border-rose-700/50 text-slate-400 hover:text-rose-300 text-xs transition flex items-center gap-1">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                <span>Tozalash</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden">
+                        <div class="max-h-72 overflow-y-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-900 text-slate-400 border-b border-slate-800 text-[10px] uppercase font-semibold sticky top-0 z-10">
+                                    <tr>
+                                        <th class="py-2.5 px-3 w-10">№</th>
+                                        <th class="py-2.5 px-3">Tovar Nomi *</th>
+                                        <th class="py-2.5 px-3">Brend *</th>
+                                        <th class="py-2.5 px-3">Kategoriya</th>
+                                        <th class="py-2.5 px-3">Artikul / Kod</th>
+                                        <th class="py-2.5 px-3">Kunlik Narx (so'm)</th>
+                                        <th class="py-2.5 px-3">Zalog (so'm)</th>
+                                        <th class="py-2.5 px-3 text-center">Soni (Dona)</th>
+                                        <th class="py-2.5 px-3">Holat</th>
+                                        <th class="py-2.5 px-3 text-right w-12">Amal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="import-preview-tbody" class="divide-y divide-slate-800 text-slate-300">
+                                    <tr>
+                                        <td colspan="10" class="py-12 text-center text-slate-500">
+                                            <i data-lucide="file-up" class="w-10 h-10 mx-auto mb-2 text-slate-600"></i>
+                                            <p class="text-xs font-semibold">Hozircha hech qanday fayl tanlanmagan</p>
+                                            <p class="text-[11px] text-slate-600 mt-0.5">Yuqoridagi maydonga Excel/CSV fayl yuklang yoki papkani tanlang</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Options Checkbox -->
+                <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/40">
+                    <input type="checkbox" id="import-create-units-checkbox" checked class="w-4 h-4 rounded text-indigo-600 bg-slate-800 border-slate-700 focus:ring-indigo-500">
+                    <label for="import-create-units-checkbox" class="text-xs text-slate-300 cursor-pointer">
+                        <b class="text-white">Ombordagi mavjud zaxira donalarini avtomatik yaratish:</b> Har bir tovar uchun ko'rsatilgan soni bo'yicha seriya raqamli donalar generatsiya qilinadi va omborga joylashtiriladi.
+                    </label>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="h-16 px-6 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between shrink-0">
+                <button type="button" onclick="closeModal('modal-bulk-import-products')" class="px-4 py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-xs font-semibold text-slate-300 transition">
+                    Bekor qilish
+                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btn-save-bulk-import" onclick="handleSaveBulkImport()" disabled class="px-6 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-white shadow-lg shadow-indigo-500/20 flex items-center gap-2 transition">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                        <span id="btn-save-bulk-import-label">📥 Bazaga Saqlash (0 ta tovar)</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
