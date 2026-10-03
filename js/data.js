@@ -33,14 +33,7 @@ const DEFAULT_DB = {
 
     // SECTION 4: SERVICE PARTNERS & BROKERAGE (Tashqi Hamkorlar va Tarixi 0)
     service_partners: [],
-    partner_price_list: [
-        { id: 1, partner_id: 1, service_type_detail: "Avtokran 25t (XCMG)", unit: "soat", cost_price: 300000, selling_price: 360000, margin_amount: 60000 },
-        { id: 2, partner_id: 1, service_type_detail: "Avtokran 50t (Zoomlion)", unit: "soat", cost_price: 550000, selling_price: 680000, margin_amount: 130000 },
-        { id: 3, partner_id: 2, service_type_detail: "Musor olib ketish (Gazel 2t)", unit: "reys", cost_price: 350000, selling_price: 450000, margin_amount: 100000 },
-        { id: 4, partner_id: 2, service_type_detail: "Musor olib ketish (ZIL 6t)", unit: "reys", cost_price: 650000, selling_price: 800000, margin_amount: 150000 },
-        { id: 5, partner_id: 3, service_type_detail: "Gruzchik xizmati (1 kishi)", unit: "soat", cost_price: 50000, selling_price: 75000, margin_amount: 25000 },
-        { id: 6, partner_id: 3, service_type_detail: "Etajga ko'tarish xizmati", unit: "etaj", cost_price: 20000, selling_price: 30000, margin_amount: 10000 }
-    ],
+    partner_price_list: [],
     service_orders: [],
     partner_payouts: [],
 
@@ -237,6 +230,14 @@ function loadDB() {
     if (!DB.order_payments) DB.order_payments = JSON.parse(JSON.stringify(DEFAULT_DB.order_payments || []));
     if (!DB.service_partners) DB.service_partners = JSON.parse(JSON.stringify(DEFAULT_DB.service_partners || []));
     if (!DB.partner_price_list) DB.partner_price_list = JSON.parse(JSON.stringify(DEFAULT_DB.partner_price_list || []));
+    
+    // Purge dummy/orphan partner prices if there are no matching partners
+    if (Array.isArray(DB.partner_price_list)) {
+        DB.partner_price_list = DB.partner_price_list.filter(item => {
+            return (DB.service_partners || []).some(p => p.id === item.partner_id);
+        });
+    }
+
     if (!DB.service_orders) DB.service_orders = JSON.parse(JSON.stringify(DEFAULT_DB.service_orders || []));
     if (!DB.partner_payouts) DB.partner_payouts = JSON.parse(JSON.stringify(DEFAULT_DB.partner_payouts || []));
     if (!DB.cash_registers) DB.cash_registers = JSON.parse(JSON.stringify(DEFAULT_DB.cash_registers || []));

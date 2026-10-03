@@ -55,25 +55,28 @@ function renderPartnersDirectory() {
 
     const filtered = (DB.service_partners || []).filter(p => {
         const matchCat = !partnerCategoryFilter || p.service_category === partnerCategoryFilter;
-        const matchSearch = p.company_name.toLowerCase().includes(search) || 
-                            p.contact_person.toLowerCase().includes(search) ||
-                            p.phone_primary.includes(search);
+        const matchSearch = (p.company_name || '').toLowerCase().includes(search) || 
+                            (p.contact_person || '').toLowerCase().includes(search) ||
+                            (p.phone_primary || '').includes(search);
         return matchCat && matchSearch;
     });
 
-    const categoryIcons = {
-        kran: 'truck',
-        musor_olib_ketish: 'trash-2',
-        gruzchik: 'users-2'
-    };
     const categoryLabels = {
         kran: 'Avtokranlar',
         musor_olib_ketish: 'Chiqindi (Musor) Tashish',
-        gruzchik: 'Yuk Tashuvchilar Brigadasi'
+        gruzchik: 'Yuk Tashuvchilar Brigadasi',
+        boshqa: 'Maxsus Xizmat'
     };
 
     if (filtered.length === 0) {
-        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">Hech qanday hamkor topilmadi</div>`;
+        grid.innerHTML = `
+            <div class="col-span-full py-16 text-center text-slate-500">
+                <i data-lucide="truck" class="w-12 h-12 mx-auto mb-2 text-slate-600"></i>
+                <p class="text-sm font-semibold text-slate-400">Hech qanday hamkor mavjud emas</p>
+                <p class="text-xs text-slate-600 mt-1">Yangi hamkor va uning kranlarini noldan qo'shish uchun yuqoridagi <b class="text-amber-400 font-bold">"+ Yangi Hamkor"</b> tugmasini bosing</p>
+            </div>
+        `;
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
         return;
     }
 
@@ -87,13 +90,13 @@ function renderPartnersDirectory() {
                 <div class="flex items-start justify-between gap-2 mb-2">
                     <div>
                         <span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] mb-1.5">
-                            ${categoryLabels[p.service_category] || p.service_category}
+                            ${categoryLabels[p.service_category] || p.service_category || 'Xizmat'}
                         </span>
                         <h3 class="text-sm font-bold text-white leading-tight">${p.company_name}</h3>
-                        <p class="text-xs text-slate-300">${p.contact_person}</p>
+                        <p class="text-xs text-slate-300">${p.contact_person || 'Mas\'ul ko\'rsatilmagan'}</p>
                     </div>
                     <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-amber-400 text-xs font-bold">
-                         ${p.rating}
+                         ${p.rating || 5.0}
                     </div>
                 </div>
 
@@ -104,20 +107,24 @@ function renderPartnersDirectory() {
                     </div>
                     <div class="flex items-center gap-2">
                         <i data-lucide="map-pin" class="w-3.5 h-3.5 text-red-400"></i>
-                        <span class="truncate">${p.address}</span>
+                        <span class="truncate">${p.address || 'Manzil ko\'rsatilmagan'}</span>
                     </div>
                 </div>
 
                 <!-- Price List mini items -->
                 <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 mb-3 space-y-1.5">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Xizmatlar va Narxlar:</p>
-                    ${services.slice(0, 2).map(s => `
+                    <div class="flex justify-between items-center">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Kranlar va Xizmatlar (${services.length} ta):</p>
+                        <button onclick="openModalAddPartner(${p.id})" class="text-[10px] text-amber-400 hover:text-amber-300 font-bold">+ Tahrirlash</button>
+                    </div>
+                    ${services.length === 0 ? '<p class="text-[11px] text-slate-600 italic">Kranlar hali kiritilmagan</p>' : ''}
+                    ${services.slice(0, 3).map(s => `
                         <div class="flex justify-between text-[11px]">
                             <span class="text-slate-300 truncate max-w-[150px]">${s.service_type_detail}</span>
-                            <span class="font-bold text-emerald-400">${s.selling_price.toLocaleString()} so'm/${s.unit}</span>
+                            <span class="font-bold text-emerald-400">${(s.selling_price || 0).toLocaleString()} so'm/${s.unit}</span>
                         </div>
                     `).join('')}
-                    ${services.length > 2 ? `<p class="text-[10px] text-blue-400 font-semibold">+ yana ${services.length - 2} ta xizmat turi</p>` : ''}
+                    ${services.length > 3 ? `<p class="text-[10px] text-blue-400 font-semibold">+ yana ${services.length - 3} ta xizmat turi</p>` : ''}
                 </div>
             </div>
 
@@ -125,14 +132,19 @@ function renderPartnersDirectory() {
                 <div class="text-xs">
                     <span class="text-slate-400">Qarzimiz:</span>
                     <span class="font-bold ${p.balance < 0 ? 'text-red-400' : 'text-slate-300'} ml-1">
-                        ${Math.abs(p.balance).toLocaleString()} so'm
+                        ${Math.abs(p.balance || 0).toLocaleString()} so'm
                     </span>
                 </div>
                 <div class="flex items-center gap-1.5">
-                    ${typeof adminActionButtonsHtml === 'function' ? adminActionButtonsHtml(`editPartner(${p.id})`, `deletePartner(${p.id})`) : ''}
+                    <button onclick="openModalAddPartner(${p.id})" class="p-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold" title="Tahrirlash">
+                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button onclick="deletePartner(${p.id})" class="p-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-rose-950/40 hover:border-rose-700/50 text-slate-400 hover:text-rose-400 text-xs font-semibold" title="O'chirish">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
                     <button onclick="openModalCreateServiceOrder(${p.id})" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold text-slate-950 transition flex items-center gap-1">
                         <i data-lucide="send" class="w-3.5 h-3.5"></i>
-                        <span>Buyurtma Berish</span>
+                        <span>Buyurtma</span>
                     </button>
                 </div>
             </div>
@@ -140,7 +152,7 @@ function renderPartnersDirectory() {
         grid.appendChild(card);
     });
 
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
 }
 
 function filterPartnerCategory(cat) {
@@ -148,53 +160,275 @@ function filterPartnerCategory(cat) {
     renderPartnersDirectory();
 }
 
-function openModalAddPartner() {
+// -------------------------------------------------------------------------
+// MODAL: ADD & EDIT PARTNER WITH DYNAMIC CRANES / RATES
+// -------------------------------------------------------------------------
+let currentPartnerServiceRowIndex = 0;
+
+function openModalAddPartner(partnerId = null) {
     try {
+        const title = document.getElementById('modal-partner-title');
+        const idEl = document.getElementById('p-id');
         const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-        setVal('p-company-name', '');
-        setVal('p-contact-person', '');
-        setVal('p-phone1', '+998 ');
-        setVal('p-phone2', '');
-        setVal('p-address', 'Toshkent sh., ');
-        setVal('p-rating', '5.0');
+        const container = document.getElementById('partner-services-container');
+        if (container) container.innerHTML = '';
+        currentPartnerServiceRowIndex = 0;
+
+        if (partnerId) {
+            const partner = (DB.service_partners || []).find(p => p.id === parseInt(partnerId));
+            if (!partner) return;
+
+            if (title) title.innerText = `Hamkorni Tahrirlash: ${partner.company_name}`;
+            if (idEl) idEl.value = partner.id;
+
+            setVal('p-company-name', partner.company_name || '');
+            setVal('p-contact-person', partner.contact_person || '');
+            setVal('p-category', partner.service_category || 'kran');
+            setVal('p-phone1', partner.phone_primary || '+998 ');
+            setVal('p-phone2', partner.phone_secondary || '');
+            setVal('p-address', partner.address || 'Toshkent sh., ');
+            setVal('p-initial-balance', partner.balance || 0);
+
+            // Load existing services/cranes
+            const existingServices = (DB.partner_price_list || []).filter(pl => pl.partner_id === partner.id);
+            if (existingServices.length > 0) {
+                existingServices.forEach(s => addPartnerServiceRow(s));
+            } else {
+                addPartnerServiceRow(); // 1 empty row
+            }
+        } else {
+            if (title) title.innerText = "Yangi Hamkor Qo'shish";
+            if (idEl) idEl.value = '';
+
+            setVal('p-company-name', '');
+            setVal('p-contact-person', '');
+            setVal('p-category', 'kran');
+            setVal('p-phone1', '+998 ');
+            setVal('p-phone2', '');
+            setVal('p-address', 'Toshkent sh., ');
+            setVal('p-initial-balance', 0);
+
+            // Start with 1 empty crane/service row ready to fill
+            addPartnerServiceRow();
+        }
 
         openModal('modal-add-partner');
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
     } catch (err) {
         console.error("openModalAddPartner error:", err);
     }
 }
 
-function handleSavePartner(e) {
-    e.preventDefault();
-    const company = document.getElementById('p-company-name').value.trim();
-    const contact = document.getElementById('p-contact-person').value.trim();
-    const phone1 = document.getElementById('p-phone1').value.trim();
-    const phone2 = document.getElementById('p-phone2').value.trim();
-    const category = document.getElementById('p-category').value;
-    const address = document.getElementById('p-address').value.trim();
-    const rating = parseFloat(document.getElementById('p-rating').value) || 5;
+function onPartnerCategoryChange(cat) {
+    // If empty rows exist, update placeholder hint
+    const container = document.getElementById('partner-services-container');
+    if (!container) return;
+    const placeholders = {
+        kran: "Kran rusumi (masalan: KamAZ 25t / Zoomlion 50t / XCMG 16t)...",
+        musor_olib_ketish: "Mashina turi (masalan: Gazel 2t / ZIL 6t / KamAZ 15t)...",
+        gruzchik: "Xizmat turi (masalan: 1 kishi soatbay / Etajga ko'tarish)...",
+        boshqa: "Xizmat / Texnika nomi..."
+    };
+    const inputs = container.querySelectorAll('.partner-service-name-input');
+    inputs.forEach(inp => {
+        if (!inp.value) inp.placeholder = placeholders[cat] || "Xizmat / Texnika nomi...";
+    });
+}
 
-    const newPartner = {
-        id: Date.now(),
-        company_name: company,
-        contact_person: contact,
-        phone_primary: phone1,
-        phone_secondary: phone2,
-        service_category: category,
-        address: address,
-        rating: rating,
-        balance: 0,
-        status: "faol"
+function addPartnerServiceRow(preset = null) {
+    const container = document.getElementById('partner-services-container');
+    if (!container) return;
+
+    const rowId = `ps-row-${++currentPartnerServiceRowIndex}`;
+    const nameVal = preset ? preset.service_type_detail : '';
+    const unitVal = preset ? preset.unit : 'soat';
+    const costVal = preset ? (preset.cost_price || '') : '';
+    const sellingVal = preset ? (preset.selling_price || '') : '';
+
+    const cat = document.getElementById('p-category')?.value || 'kran';
+    const placeholders = {
+        kran: "Kran rusumi (masalan: KamAZ 25t / Zoomlion 50t)...",
+        musor_olib_ketish: "Mashina turi (masalan: Gazel 2t / ZIL 6t)...",
+        gruzchik: "Xizmat turi (masalan: 1 kishi soatbay / Etajga ko'tarish)...",
+        boshqa: "Xizmat / Texnika nomi..."
     };
 
+    const row = document.createElement('div');
+    row.id = rowId;
+    row.className = "p-3 rounded-xl border border-slate-800 bg-slate-950 flex flex-col sm:flex-row items-start sm:items-center gap-2.5 transition hover:border-slate-700";
+
+    row.innerHTML = `
+        <div class="flex-1 w-full sm:w-auto">
+            <label class="block text-[10px] font-semibold text-slate-400 mb-0.5 sm:hidden">Kran / Xizmat Nomi</label>
+            <input type="text" value="${nameVal.replace(/"/g, '&quot;')}" placeholder="${placeholders[cat] || 'Kran rusumi...'}" class="partner-service-name-input w-full bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-2.5 text-xs text-white font-semibold focus:outline-none focus:border-amber-500">
+        </div>
+        <div class="w-full sm:w-28">
+            <label class="block text-[10px] font-semibold text-slate-400 mb-0.5 sm:hidden">Birligi</label>
+            <select class="partner-service-unit-input w-full bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500">
+                <option value="soat" ${unitVal === 'soat' ? 'selected' : ''}>Soat</option>
+                <option value="smena" ${unitVal === 'smena' ? 'selected' : ''}>Smena (8s)</option>
+                <option value="reys" ${unitVal === 'reys' ? 'selected' : ''}>Reys</option>
+                <option value="kun" ${unitVal === 'kun' ? 'selected' : ''}>Kun</option>
+                <option value="etaj" ${unitVal === 'etaj' ? 'selected' : ''}>Etaj</option>
+                <option value="dona" ${unitVal === 'dona' ? 'selected' : ''}>Dona</option>
+                <option value="km" ${unitVal === 'km' ? 'selected' : ''}>Km</option>
+            </select>
+        </div>
+        <div class="w-full sm:w-32">
+            <label class="block text-[10px] font-semibold text-slate-400 mb-0.5 sm:hidden">Tannarx (Hamkorga)</label>
+            <input type="number" value="${costVal}" placeholder="Tannarx (so'm)" oninput="calculateRowMargin(this)" class="partner-service-cost-input w-full bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-2.5 text-xs font-mono text-slate-300 placeholder-slate-500 focus:outline-none focus:border-amber-500">
+        </div>
+        <div class="w-full sm:w-32">
+            <label class="block text-[10px] font-semibold text-slate-400 mb-0.5 sm:hidden">Mijoz Narxi</label>
+            <input type="number" value="${sellingVal}" placeholder="Mijoz narxi" oninput="calculateRowMargin(this)" class="partner-service-selling-input w-full bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-2.5 text-xs font-bold font-mono text-emerald-400 placeholder-slate-500 focus:outline-none focus:border-amber-500">
+        </div>
+        <div class="w-full sm:w-28 text-right sm:text-center text-[11px] font-mono">
+            <span class="partner-service-margin-badge text-slate-400 font-semibold text-[10px]">0 so'm</span>
+        </div>
+        <button type="button" onclick="removePartnerServiceRow('${rowId}')" class="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition shrink-0" title="O'chirish">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+    `;
+
+    container.appendChild(row);
+
+    // Initial calculate margin for preset
+    const costInp = row.querySelector('.partner-service-cost-input');
+    if (costInp) calculateRowMargin(costInp);
+
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+}
+
+function calculateRowMargin(el) {
+    const row = el.closest('[id^="ps-row-"]');
+    if (!row) return;
+
+    const costInp = row.querySelector('.partner-service-cost-input');
+    const sellingInp = row.querySelector('.partner-service-selling-input');
+    const badge = row.querySelector('.partner-service-margin-badge');
+
+    const cost = parseFloat(costInp?.value) || 0;
+    const selling = parseFloat(sellingInp?.value) || 0;
+    const margin = selling - cost;
+
+    if (badge) {
+        if (cost > 0 || selling > 0) {
+            const pct = cost > 0 ? Math.round((margin / cost) * 100) : 0;
+            badge.innerText = `+${margin.toLocaleString()} so'm (${pct}%)`;
+            badge.className = margin >= 0 ? "partner-service-margin-badge text-emerald-400 font-bold text-[10px]" : "partner-service-margin-badge text-rose-400 font-bold text-[10px]";
+        } else {
+            badge.innerText = "0 so'm";
+            badge.className = "partner-service-margin-badge text-slate-500 text-[10px]";
+        }
+    }
+}
+
+function removePartnerServiceRow(rowId) {
+    const row = document.getElementById(rowId);
+    if (row) row.remove();
+}
+
+function handleSavePartner(e) {
+    e.preventDefault();
+    const idVal = document.getElementById('p-id').value;
+    const isEdit = Boolean(idVal);
+
+    const company = document.getElementById('p-company-name').value.trim();
+    const contact = document.getElementById('p-contact-person').value.trim();
+    const category = document.getElementById('p-category').value;
+    const phone1 = document.getElementById('p-phone1').value.trim();
+    const phone2 = document.getElementById('p-phone2').value.trim();
+    const address = document.getElementById('p-address').value.trim();
+    const initialBalance = parseFloat(document.getElementById('p-initial-balance').value) || 0;
+
+    if (!company) {
+        alert("Iltimos, kompaniya yoki haydovchi nomini kiriting!");
+        return;
+    }
+
     if (!DB.service_partners) DB.service_partners = [];
-    DB.service_partners.push(newPartner);
+    if (!DB.partner_price_list) DB.partner_price_list = [];
+
+    let partnerId = isEdit ? parseInt(idVal) : (DB.service_partners.length > 0 ? Math.max(...DB.service_partners.map(p => p.id)) + 1 : 1);
+
+    if (isEdit) {
+        const partner = DB.service_partners.find(p => p.id === partnerId);
+        if (partner) {
+            partner.company_name = company;
+            partner.contact_person = contact;
+            partner.service_category = category;
+            partner.phone_primary = phone1;
+            partner.phone_secondary = phone2;
+            partner.address = address;
+            partner.balance = initialBalance;
+        }
+    } else {
+        const newPartner = {
+            id: partnerId,
+            company_name: company,
+            contact_person: contact,
+            phone_primary: phone1,
+            phone_secondary: phone2,
+            service_category: category,
+            address: address,
+            rating: 5.0,
+            balance: initialBalance,
+            status: "faol"
+        };
+        DB.service_partners.push(newPartner);
+    }
+
+    // Process all dynamic crane / service rows
+    const container = document.getElementById('partner-services-container');
+    const rows = container ? container.querySelectorAll('[id^="ps-row-"]') : [];
+
+    // Remove existing price items for this partner to rebuild cleanly
+    DB.partner_price_list = DB.partner_price_list.filter(item => item.partner_id !== partnerId);
+
+    let nextPriceId = DB.partner_price_list.length > 0 ? Math.max(...DB.partner_price_list.map(p => p.id)) + 1 : 1;
+    let savedCranesCount = 0;
+
+    rows.forEach(row => {
+        const nameInp = row.querySelector('.partner-service-name-input');
+        const unitInp = row.querySelector('.partner-service-unit-input');
+        const costInp = row.querySelector('.partner-service-cost-input');
+        const sellingInp = row.querySelector('.partner-service-selling-input');
+
+        const name = nameInp ? nameInp.value.trim() : '';
+        const unit = unitInp ? unitInp.value : 'soat';
+        const cost = parseFloat(costInp?.value) || 0;
+        const selling = parseFloat(sellingInp?.value) || cost;
+        const margin = selling - cost;
+
+        if (name) {
+            DB.partner_price_list.push({
+                id: nextPriceId++,
+                partner_id: partnerId,
+                service_type_detail: name,
+                unit: unit,
+                cost_price: cost,
+                selling_price: selling,
+                margin_amount: margin
+            });
+            savedCranesCount++;
+        }
+    });
+
     saveDB();
     closeModal('modal-add-partner');
     renderPartnersDirectory();
-    showNotification(`Yangi hamkor "${company}" qo'shildi!`, "success");
-}
+    renderPartnerPricesTable();
 
+    const msg = isEdit 
+        ? `Hamkor "${company}" ma'lumotlari va ${savedCranesCount} ta kran/xizmati yangilandi!`
+        : `Yangi hamkor "${company}" va ${savedCranesCount} ta kran/xizmati qo'shildi!`;
+
+    if (typeof showNotification === 'function') {
+        showNotification(msg, "success");
+    } else {
+        alert(msg);
+    }
+}
 
 // -------------------------------------------------------------------------
 // 2. PRICING & MARGIN CALCULATOR (ADMIN ONLY)
@@ -204,29 +438,46 @@ function renderPartnerPricesTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    (DB.partner_price_list || []).forEach(item => {
+    const priceList = DB.partner_price_list || [];
+
+    if (priceList.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="py-12 text-center text-slate-500">
+                    <i data-lucide="badge-percent" class="w-10 h-10 mx-auto mb-2 text-slate-600"></i>
+                    <p class="text-xs font-semibold text-slate-400">Hozircha hech qanday kran yoki xizmat narxi kiritilmagan</p>
+                    <p class="text-[11px] text-slate-600 mt-0.5">Yangi hamkor qo'shilganda uning kranlari va narxlari bu yerda chiqadi</p>
+                </td>
+            </tr>
+        `;
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+        return;
+    }
+
+    priceList.forEach(item => {
         const partner = (DB.service_partners || []).find(p => p.id === item.partner_id);
         const marginPct = item.cost_price > 0 ? Math.round((item.margin_amount / item.cost_price) * 100) : 0;
 
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-800/40";
+        tr.className = "hover:bg-slate-800/40 transition";
         tr.innerHTML = `
-            <td class="py-2.5 px-3 font-semibold text-white">${partner ? partner.company_name : 'Noma\'lum'}</td>
-            <td class="py-2.5 px-3 text-slate-200">${item.service_type_detail}</td>
+            <td class="py-2.5 px-3 font-semibold text-white">${partner ? partner.company_name : 'Noma\'lum Hamkor'}</td>
+            <td class="py-2.5 px-3 text-slate-200 font-medium">${item.service_type_detail}</td>
             <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300 font-mono">${item.unit}</span></td>
-            <td class="py-2.5 px-3 font-mono text-slate-400">${item.cost_price.toLocaleString()} so'm</td>
-            <td class="py-2.5 px-3 font-mono font-bold text-white">${item.selling_price.toLocaleString()} so'm</td>
+            <td class="py-2.5 px-3 font-mono text-slate-400">${(item.cost_price || 0).toLocaleString()} so'm</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-white">${(item.selling_price || 0).toLocaleString()} so'm</td>
             <td class="py-2.5 px-3 font-mono font-bold text-emerald-400">
-                +${item.margin_amount.toLocaleString()} so'm
+                +${(item.margin_amount || 0).toLocaleString()} so'm
                 <span class="text-[10px] text-emerald-500 font-normal ml-1">(${marginPct}%)</span>
             </td>
             <td class="py-2.5 px-3 text-right">
-                <button onclick="editPartnerPrice(${item.id})" class="text-xs text-blue-400 hover:text-white">Tahrirlash</button>
+                <button onclick="editPartnerPrice(${item.id})" class="text-xs text-blue-400 hover:text-white font-semibold">Tahrirlash</button>
             </td>
         `;
         tbody.appendChild(tr);
     });
-    lucide.createIcons();
+
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
 }
 
 function openModalAddPartnerPrice() {

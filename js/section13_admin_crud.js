@@ -474,6 +474,10 @@ window.deleteProductModel = deleteProductModel;
 // =========================================================================
 function editPartner(partnerId) {
     if (!requireAdmin()) return;
+    if (typeof openModalAddPartner === 'function') {
+        openModalAddPartner(partnerId);
+        return;
+    }
     const p = (DB.service_partners || []).find(x => x.id === partnerId);
     if (!p) return showNotification("Hamkor topilmadi!", "error");
     openAdminEditModal(`Hamkorni tahrirlash — ${p.company_name}`, [

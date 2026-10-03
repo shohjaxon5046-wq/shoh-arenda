@@ -2945,33 +2945,109 @@
     <!-- SECTION 4: TASHQI HAMKORLAR & DISPECHERLIK -->
     <!-- ========================================== -->
 
-    <!-- MODAL: ADD PARTNER -->
-    <div id="modal-add-partner" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-        <div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
-            <div class="flex justify-between items-center pb-4 border-b border-slate-800">
-                <h3 class="text-base font-bold text-white flex items-center gap-2"><i data-lucide="handshake" class="w-5 h-5 text-amber-400"></i> Yangi Hamkor Qo'shish</h3>
-                <button onclick="closeModal('modal-add-partner')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+    <!-- MODAL: ADD / EDIT PARTNER & HIS CRANES / SERVICES -->
+    <div id="modal-add-partner" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/85 p-3 sm:p-5 backdrop-blur-md">
+        <div class="w-full max-w-3xl max-h-[94vh] flex flex-col rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="h-16 px-6 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                        <i data-lucide="truck" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 id="modal-partner-title" class="text-base font-bold text-white leading-tight">Yangi Hamkor Qo'shish</h3>
+                        <p class="text-xs text-slate-400">Hamkor ma'lumotlari va uning kranlari / texnikalari / xizmat narxlarini noldan kiritish</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeModal('modal-add-partner')" class="p-2 rounded-lg text-slate-400 hover:text-white transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
             </div>
-            <form onsubmit="handleSavePartner(event)" class="mt-4 space-y-3">
-                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Kompaniya yoki Brigada Nomi *</label><input type="text" id="p-company-name" required placeholder="Masalan: Kran Servis MChJ" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
-                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Mas'ul Shaxs (Aloqachi) *</label><input type="text" id="p-contact-person" required placeholder="Masalan: Sardor Rustamov" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 mb-1">Xizmat Yo'nalishi *</label>
-                    <select id="p-category" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none">
-                        <option value="kran">Avtokran xizmati</option>
-                        <option value="musor_olib_ketish">Qurilish chiqindilarini (musor) olib ketish</option>
-                        <option value="gruzchik">Yuk tashuvchilar (gruzchik)</option>
-                    </select>
+
+            <!-- Modal Form -->
+            <form id="form-add-partner" onsubmit="handleSavePartner(event)" class="flex-1 overflow-y-auto p-6 space-y-5">
+                <input type="hidden" id="p-id">
+
+                <!-- 1. Basic Partner Info -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <i data-lucide="user-check" class="w-4 h-4"></i>
+                        <span>1. Hamkor / Kompaniya Ma'lumotlari</span>
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Kompaniya yoki Haydovchi F.I.O *</label>
+                            <input type="text" id="p-company-name" required placeholder="Masalan: Sardor Kran / Aliyev Rustam" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none focus:border-amber-500 font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Mas'ul Shaxs (Aloqachi)</label>
+                            <input type="text" id="p-contact-person" placeholder="Masalan: Sardor Rustamov" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Asosiy Yo'nalish *</label>
+                            <select id="p-category" onchange="if(typeof onPartnerCategoryChange==='function') onPartnerCategoryChange(this.value)" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none focus:border-amber-500">
+                                <option value="kran">Avtokran xizmati</option>
+                                <option value="musor_olib_ketish">Qurilish chiqindilari (musor)</option>
+                                <option value="gruzchik">Yuk tashuvchilar (gruzchik)</option>
+                                <option value="boshqa">Boshqa maxsus texnika</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Asosiy Telefon *</label>
+                            <input type="text" id="p-phone1" required placeholder="+998 90 123-45-67" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white font-mono focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Qo'shimcha Telefon</label>
+                            <input type="text" id="p-phone2" placeholder="+998 99 765-43-21" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white font-mono focus:outline-none focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Joylashuv / Hudud *</label>
+                            <input type="text" id="p-address" required placeholder="Masalan: Toshkent sh., Sergeli tumani, Qo'yliq bozori yaqinida" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Boshlang'ich Balans (so'm)</label>
+                            <input type="number" id="p-initial-balance" value="0" placeholder="0" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white font-mono focus:outline-none focus:border-amber-500">
+                        </div>
+                    </div>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="block text-xs font-semibold text-slate-400 mb-1">Asosiy Telefon *</label><input type="text" id="p-phone1" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
-                    <div><label class="block text-xs font-semibold text-slate-400 mb-1">Qo'shimcha tel</label><input type="text" id="p-phone2" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
+
+                <!-- 2. Dynamic Cranes & Services List (noldan kiritish) -->
+                <div class="pt-4 border-t border-slate-800 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                                <i data-lucide="wrench" class="w-4 h-4"></i>
+                                <span>2. Kranlar / Texnikalar va Narxlar (Noldan kiritish)</span>
+                            </h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Ushbu hamkorga tegishli kran rusumlari, o'lchov birligi va kelishilgan narxlarini yozing</p>
+                        </div>
+                        <button type="button" onclick="addPartnerServiceRow()" class="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>+ Yangi Kran / Xizmat qo'shish</span>
+                        </button>
+                    </div>
+
+                    <!-- Dynamic Rows Container -->
+                    <div id="partner-services-container" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                        <!-- Populated dynamically -->
+                    </div>
                 </div>
-                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Joylashuv / Hudud *</label><input type="text" id="p-address" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
-                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Reyting (1 - 5)</label><input type="number" step="0.1" min="1" max="5" id="p-rating" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
-                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
-                    <button type="button" onclick="closeModal('modal-add-partner')" class="px-4 py-2 rounded-xl border border-slate-700 text-xs text-slate-300">Bekor qilish</button>
-                    <button type="submit" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-bold text-slate-950">Saqlash</button>
+
+                <!-- Modal Footer -->
+                <div class="pt-4 border-t border-slate-800 flex justify-between items-center">
+                    <button type="button" onclick="closeModal('modal-add-partner')" class="px-4 py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-xs font-semibold text-slate-300 transition">
+                        Bekor qilish
+                    </button>
+                    <button type="submit" class="px-6 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-bold text-slate-950 shadow-lg shadow-amber-500/20 flex items-center gap-1.5 transition">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        <span>Hamkorni Saqlash</span>
+                    </button>
                 </div>
             </form>
         </div>
