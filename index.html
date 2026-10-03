@@ -609,7 +609,7 @@
             <!-- User Session -->
             <div class="p-4 border-t border-slate-800 bg-slate-950/40">
                 <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition p-1 rounded-xl" onclick="openSelfProfileModal()" title="Profil va parolni boshqarish">
                         <div id="user-avatar" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-sm">A</div>
                         <div>
                             <p id="user-name" class="text-xs font-bold text-white truncate w-28">Akrom Aliyev</p>
@@ -1939,6 +1939,62 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL: USER SELF PROFILE & PASSWORD MANAGEMENT (MANAGER / ADMIN) -->
+    <div id="modal-user-self-profile" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
+        <div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden">
+            <div class="h-16 px-6 border-b border-slate-800 bg-slate-950/60 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div id="self-profile-avatar" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-sm">U</div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Shaxsiy Profil & Sozlamalar</h3>
+                        <p class="text-[11px] text-slate-400">Ma'lumotlar va parolni boshqarish</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-user-self-profile')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="saveSelfProfile(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">To'liq F.I.O</label>
+                    <input type="text" id="self-profile-fullname" required class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 px-3 text-xs text-white focus:border-blue-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Login (Username)</label>
+                        <input type="text" id="self-profile-username" readonly class="w-full rounded-xl border border-slate-800 bg-slate-950/50 py-2.5 px-3 text-xs text-slate-400 font-mono focus:outline-none cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Telefon Raqami</label>
+                        <input type="text" id="self-profile-phone" placeholder="+998 90 123-45-67" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 px-3 text-xs text-white focus:border-blue-500 focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-xs font-semibold text-slate-400">Tizimdagi Rol</label>
+                        <span class="text-[10px] text-amber-400 font-medium">🔒 Faqat Bosh Admin o'zgartiradi</span>
+                    </div>
+                    <input type="text" id="self-profile-role-display" readonly class="w-full rounded-xl border border-slate-800 bg-slate-950/50 py-2 px-3 text-xs text-blue-400 font-semibold focus:outline-none cursor-not-allowed">
+                </div>
+                <div class="pt-3 border-t border-slate-800/80 space-y-3">
+                    <p class="text-xs font-bold text-white flex items-center gap-1.5"><i data-lucide="key" class="w-3.5 h-3.5 text-amber-400"></i> Parolni o'zgartirish (Ixtiyoriy)</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Yangi Parol</label>
+                            <input type="password" id="self-profile-password" placeholder="Yangi parol..." class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-xs text-white focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Parolni Tasdiqlash</label>
+                            <input type="password" id="self-profile-password-confirm" placeholder="Qayta kiriting..." class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-xs text-white focus:border-blue-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-2 flex items-center justify-end gap-2.5">
+                    <button type="button" onclick="closeModal('modal-user-self-profile')" class="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition">Bekor qilish</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white shadow-lg shadow-blue-600/30 transition">Saqlash</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -3919,10 +3975,21 @@
             try { if (typeof renderDashboard === 'function') renderDashboard(); } catch (e) { console.warn(e); }
             try { if (typeof renderAISettingsForm === 'function') renderAISettingsForm(); } catch (e) { console.warn(e); }
 
+            // Apply role permissions to sidebar & views
+            try {
+                if (typeof applyRolePermissions === 'function') applyRolePermissions();
+            } catch (e) {
+                console.warn(e);
+            }
+
             // 5. Activate default section and render icons
             try {
                 if (typeof switchSection === 'function') {
-                    switchSection('section-dashboard');
+                    const isAdmin = currentUser && (
+                        String(currentUser.role_id || currentUser.role || '').toLowerCase() === 'admin' ||
+                        String(currentUser.username || '').toLowerCase() === 'admin'
+                    );
+                    switchSection(isAdmin ? 'section-dashboard' : 'section-orders');
                 }
             } catch (e) {
                 console.warn(e);

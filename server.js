@@ -401,6 +401,9 @@ function recordPartnerLiveEvent(event) {
 // SERVER-SIDE STATEFUL CONVERSATION SESSIONS (MULTI-TURN MEMORY)
 // =========================================================================
 const serverAISessions = new Map();
+// Stateful wizard sessions for Telegram Seller order creation
+const sellerWizardSessions = new Map();
+
 
 function getServerSession(sessionId = 'default') {
     if (!serverAISessions.has(sessionId)) {
@@ -1060,13 +1063,393 @@ const server = http.createServer((req, res) => {
                 const botToken = getBotToken(db);
                 const partners = db.service_partners || [];
 
-                // 1. Handle Inline Button Callback Queries (Accept, Reject, Finish)
+                // 1. Handle Inline Button Callback Queries
                 if (update.callback_query) {
                     const cb = update.callback_query;
                     const cbData = cb.data || '';
                     const chatId = cb.message?.chat?.id;
                     const partner = partners.find(p => p.telegram_chat_id == chatId);
+                    const employee = (db.users || []).find(u => u.telegram_chat_id == chatId);
 
+                    // =========================================================
+                    // A. SELLER INTERACTIVE ORDER WIZARD CALLBACKS (wz_*)
+                    // =========================================================
+                    if (cbData.startsWith('wz_')) {
+                        const sellerMenu = [
+                            [{ text: "➕ Yangi Zakaz urish" }],
+                            [{ text: "📋 Buyurtmalar holati" }, { text: "📦 Ombor qoldig'i" }]
+                        ];
+
+                        if (cbData === 'wz_cancel') {
+                            sellerWizardSessions.delete(chatId);
+                            const cancelMsg = "❌ Buyurtma jarayoni bekor qilindi.";
+                            if (botToken && chatId) {
+                                await sendTelegramBotMessage(botToken, chatId, cancelMsg, null, sellerMenu);
+                            }
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, callback_handled: true, reply: cancelMsg }));
+                            return;
+                        }
+
+                        // 1. Service Type: Tools (Asboblar ijarasi)
+                        if (cbData === 'wz_srv_tools') {
+                            const models = db.product_models || [];
+                            const items = db.product_items || db.tools || [];
+                            const availableModels = models.filter(m => {
+                                const freeCount = items.filter(i => (i.model_id === m.id || i.product_model_id === m.id) && (i.status === 'omborda_bosh' || i.status === 'bosh')).length;
+                                return freeCount > 0;
+                            });
+
+                            if (availableModels.length === 0 && models.length === 0) {
+                                const emptyMsg = "📦 <b>Omborda hozirda bo'sh asbob mavjud emas (0 ta).</b>\n\nYangi asboblarni qo'shish uchun sayt orqali Kirim qiling.";
+                                if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, emptyMsg, null, sellerMenu);
+                                res.writeHead(200, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ ok: true, reply: emptyMsg }));
+                                return;
+                            }
+
+                            sellerWizardSessions.set(chatId, {
+                                step: 'tool_select',
+                                service_type: 'tools',
+                                service_name: 'Asboblar ijarasi'
+                            });
+
+                            const toolList = availableModels.length > 0 ? availableModels : models.slice(0, 8);
+                            const toolButtons = toolList.map(m => ([{
+                                text: `🔨 ${m.brand || ''} ${m.model_name || m.name} (${(m.daily_rental_price || m.daily_price || 0).toLocaleString()} so'm/kun)`,
+                                callback_data: `wz_tl_${m.id}`
+                            }]));
+                            toolButtons.push([{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]);
+
+                            const promptMsg = "🔨 <b>Ijaraga beriladigan asbobni tanlang:</b>";
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, promptMsg, toolButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: promptMsg }));
+                            return;
+                        }
+
+                        // 2. Select Tool Model
+                        if (cbData.startsWith('wz_tl_') && !cbData.startsWith('wz_tl_day_')) {
+                            const toolId = parseInt(cbData.replace('wz_tl_', '')) || cbData.replace('wz_tl_', '');
+                            const model = (db.product_models || []).find(m => m.id == toolId) || (db.tools || []).find(t => t.id == toolId);
+                            const toolName = model ? `${model.brand || ''} ${model.model_name || model.name}`.trim() : `Asbob #${toolId}`;
+                            const dailyPrice = model ? (model.daily_rental_price || model.daily_price || 100000) : 100000;
+
+                            const session = sellerWizardSessions.get(chatId) || {};
+                            sellerWizardSessions.set(chatId, {
+                                ...session,
+                                step: 'tool_days',
+                                tool_id: toolId,
+                                tool_name: toolName,
+                                tool_price: dailyPrice
+                            });
+
+                            const daysButtons = [
+                                [{ text: "⏱️ 1 kun", callback_data: "wz_tl_day_1" }, { text: "⏱️ 2 kun", callback_data: "wz_tl_day_2" }],
+                                [{ text: "⏱️ 3 kun", callback_data: "wz_tl_day_3" }, { text: "⏱️ 1 hafta (7 kun)", callback_data: "wz_tl_day_7" }],
+                                [{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]
+                            ];
+
+                            const daysMsg = `🔨 Tanlandi: <b>${toolName}</b>\n💵 Kunlik narx: <b>${dailyPrice.toLocaleString()} so'm</b>\n\n📅 <b>Ijara muddatini tanlang:</b>`;
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, daysMsg, daysButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: daysMsg }));
+                            return;
+                        }
+
+                        // 3. Select Tool Rental Days
+                        if (cbData.startsWith('wz_tl_day_')) {
+                            const days = parseInt(cbData.replace('wz_tl_day_', '')) || 1;
+                            const session = sellerWizardSessions.get(chatId) || {};
+                            const totalAmount = (session.tool_price || 100000) * days;
+
+                            sellerWizardSessions.set(chatId, {
+                                ...session,
+                                step: 'ask_address_phone',
+                                days: days,
+                                total_amount: totalAmount
+                            });
+
+                            const askMsg = `✅ Asbob: <b>${session.tool_name}</b> (${days} kun)\n💵 Jami summa: <b>${totalAmount.toLocaleString()} so'm</b>\n\n📍 <b>Oxirgi qadam: Ish joyi manzili va 📱 Mijoz telefon raqamini bitta xabarda yozib yuboring:</b>\n\n(Masalan: <i>Chilonzor 9-mavze 12-uy, +998901234567</i>)\n\n<i>Bekor qilish uchun /cancel deb yozing.</i>`;
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, askMsg);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: askMsg }));
+                            return;
+                        }
+
+                        // 4. Service Type: Crane (Avtokran)
+                        if (cbData === 'wz_srv_crane') {
+                            sellerWizardSessions.set(chatId, {
+                                step: 'crane_tonnage',
+                                service_type: 'crane',
+                                service_name: 'Avtokran xizmati'
+                            });
+
+                            const tonButtons = [
+                                [{ text: "🏗️ 16 tonna", callback_data: "wz_cr_ton_16" }, { text: "🏗️ 25 tonna", callback_data: "wz_cr_ton_25" }],
+                                [{ text: "🏗️ 50 tonna", callback_data: "wz_cr_ton_50" }],
+                                [{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]
+                            ];
+
+                            const craneMsg = "🏗️ <b>Avtokran tonnajini tanlang:</b>";
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, craneMsg, tonButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: craneMsg }));
+                            return;
+                        }
+
+                        // 5. Crane Tonnage Selected
+                        if (cbData.startsWith('wz_cr_ton_')) {
+                            const tonnage = cbData.replace('wz_cr_ton_', '');
+                            const session = sellerWizardSessions.get(chatId) || {};
+                            sellerWizardSessions.set(chatId, {
+                                ...session,
+                                step: 'crane_hours',
+                                tonnage: tonnage
+                            });
+
+                            const hourButtons = [
+                                [{ text: "⏱️ 2 soat", callback_data: "wz_cr_hr_2" }, { text: "⏱️ 3 soat", callback_data: "wz_cr_hr_3" }],
+                                [{ text: "⏱️ 4 soat", callback_data: "wz_cr_hr_4" }, { text: "⏱️ 1 smena (8 soat)", callback_data: "wz_cr_hr_8" }],
+                                [{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]
+                            ];
+
+                            const hrMsg = `🏗️ Kran tonnaji: <b>${tonnage}t</b>\n\n⏱️ <b>Kran ishlash muddatini (soat) tanlang:</b>`;
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, hrMsg, hourButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: hrMsg }));
+                            return;
+                        }
+
+                        // 6. Crane Hours Selected -> Choose Partner
+                        if (cbData.startsWith('wz_cr_hr_')) {
+                            const hours = parseInt(cbData.replace('wz_cr_hr_', '')) || 2;
+                            const session = sellerWizardSessions.get(chatId) || {};
+                            const ton = parseInt(session.tonnage) || 16;
+
+                            let basePrice = hours === 2 ? 800000 : (hours === 3 ? 1100000 : (hours === 4 ? 1400000 : 2500000));
+                            if (ton === 25) basePrice = Math.round(basePrice * 1.3);
+                            if (ton === 50) basePrice = Math.round(basePrice * 2.0);
+                            const payout = Math.round(basePrice * 0.8);
+
+                            sellerWizardSessions.set(chatId, {
+                                ...session,
+                                step: 'choose_partner',
+                                hours: hours,
+                                total_amount: basePrice,
+                                partner_payout: payout
+                            });
+
+                            const cranePartners = (db.service_partners || []).filter(p => {
+                                const cat = String(p.service_category || '').toLowerCase();
+                                return cat.includes('kran') || cat.includes('crane');
+                            });
+                            const availablePartners = cranePartners.length > 0 ? cranePartners : (db.service_partners || []).slice(0, 5);
+
+                            const partnerButtons = availablePartners.map(p => ([{
+                                text: `🏗️ ${p.company_name} (${p.status === 'bosh' || p.is_available ? '🟢 Bo\'sh' : '🟡 Band'})`,
+                                callback_data: `wz_prt_${p.id}`
+                            }]));
+                            partnerButtons.push([{ text: "🤖 Avtomatik biriktirish", callback_data: "wz_prt_auto" }]);
+                            partnerButtons.push([{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]);
+
+                            const prtMsg = `🏗️ <b>Avtokran (${session.tonnage}t, ${hours} soat)</b>\n💵 Jami: <b>${basePrice.toLocaleString()} so'm</b> (Hamkor haqi: ${payout.toLocaleString()} so'm)\n\n👤 <b>Biriktiriladigan hamkorni tanlang:</b>`;
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, prtMsg, partnerButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: prtMsg }));
+                            return;
+                        }
+
+                        // 7. Service Type: Trash (Musor)
+                        if (cbData === 'wz_srv_trash') {
+                            sellerWizardSessions.set(chatId, {
+                                step: 'trash_volume',
+                                service_type: 'trash',
+                                service_name: 'Musor olib ketish'
+                            });
+
+                            const volButtons = [
+                                [{ text: "🚛 Gazel (1.5 tonna)", callback_data: "wz_ms_vol_gazel" }],
+                                [{ text: "🚛 ZIL (5 tonna)", callback_data: "wz_ms_vol_zil" }],
+                                [{ text: "📦 Qoplarda (Kichik hajm)", callback_data: "wz_ms_vol_qop" }],
+                                [{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]
+                            ];
+
+                            const trashMsg = "🚛 <b>Chiqindi (Musor) tashish hajmini tanlang:</b>";
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, trashMsg, volButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: trashMsg }));
+                            return;
+                        }
+
+                        // 8. Trash Volume Selected -> Choose Partner
+                        if (cbData.startsWith('wz_ms_vol_')) {
+                            const volKey = cbData.replace('wz_ms_vol_', '');
+                            let volName = 'Gazel (1.5t)', price = 350000, payout = 280000;
+                            if (volKey === 'zil') { volName = 'ZIL (5t)'; price = 600000; payout = 480000; }
+                            if (volKey === 'qop') { volName = 'Qoplarda'; price = 200000; payout = 160000; }
+
+                            const session = sellerWizardSessions.get(chatId) || {};
+                            sellerWizardSessions.set(chatId, {
+                                ...session,
+                                step: 'choose_partner',
+                                volume: volName,
+                                total_amount: price,
+                                partner_payout: payout
+                            });
+
+                            const trashPartners = (db.service_partners || []).filter(p => {
+                                const cat = String(p.service_category || '').toLowerCase();
+                                return cat.includes('musor') || cat.includes('chiqindi') || cat.includes('tashish');
+                            });
+                            const availablePartners = trashPartners.length > 0 ? trashPartners : (db.service_partners || []).slice(0, 5);
+
+                            const partnerButtons = availablePartners.map(p => ([{
+                                text: `🚛 ${p.company_name} (${p.status === 'bosh' || p.is_available ? '🟢 Bo\'sh' : '🟡 Band'})`,
+                                callback_data: `wz_prt_${p.id}`
+                            }]));
+                            partnerButtons.push([{ text: "🤖 Avtomatik biriktirish", callback_data: "wz_prt_auto" }]);
+                            partnerButtons.push([{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]);
+
+                            const prtMsg = `🚛 <b>Musor olib ketish (${volName})</b>\n💵 Jami: <b>${price.toLocaleString()} so'm</b> (Hamkor haqi: ${payout.toLocaleString()} so'm)\n\n👤 <b>Biriktiriladigan haydovchini tanlang:</b>`;
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, prtMsg, partnerButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: prtMsg }));
+                            return;
+                        }
+
+                        // 9. Service Type: Loader (Gruzchik)
+                        if (cbData === 'wz_srv_loader') {
+                            sellerWizardSessions.set(chatId, {
+                                step: 'loader_workers',
+                                service_type: 'loader',
+                                service_name: 'Gruzchik xizmati'
+                            });
+
+                            const wkButtons = [
+                                [{ text: "👤 1 kishi", callback_data: "wz_gr_wk_1" }, { text: "👥 2 kishi", callback_data: "wz_gr_wk_2" }],
+                                [{ text: "👥 3 kishi", callback_data: "wz_gr_wk_3" }, { text: "👥 4+ kishi", callback_data: "wz_gr_wk_4" }],
+                                [{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]
+                            ];
+
+                            const grMsg = "👷 <b>Gruzchiklar (ishchilar) sonini tanlang:</b>";
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, grMsg, wkButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: grMsg }));
+                            return;
+                        }
+
+                        // 10. Loader Workers Selected
+                        if (cbData.startsWith('wz_gr_wk_')) {
+                            const wk = parseInt(cbData.replace('wz_gr_wk_', '')) || 2;
+                            const session = sellerWizardSessions.get(chatId) || {};
+                            sellerWizardSessions.set(chatId, {
+                                ...session,
+                                step: 'loader_floor',
+                                workers: wk
+                            });
+
+                            const flButtons = [
+                                [{ text: "1-qavat (yer)", callback_data: "wz_gr_fl_1" }, { text: "2-qavat", callback_data: "wz_gr_fl_2" }],
+                                [{ text: "3-qavat", callback_data: "wz_gr_fl_3" }, { text: "4+ qavat", callback_data: "wz_gr_fl_4" }],
+                                [{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]
+                            ];
+
+                            const flMsg = `👷 Ishchilar: <b>${wk} kishi</b>\n\n🏢 <b>Yuk ko'tariladigan qavatni (etaj) tanlang:</b>`;
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, flMsg, flButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: flMsg }));
+                            return;
+                        }
+
+                        // 11. Loader Floor Selected
+                        if (cbData.startsWith('wz_gr_fl_')) {
+                            const fl = parseInt(cbData.replace('wz_gr_fl_', '')) || 1;
+                            const session = sellerWizardSessions.get(chatId) || {};
+                            sellerWizardSessions.set(chatId, {
+                                ...session,
+                                step: 'loader_elevator',
+                                floor: fl
+                            });
+
+                            const elButtons = [
+                                [{ text: "✅ Ha, yuk lifti bor", callback_data: "wz_gr_el_yes" }],
+                                [{ text: "❌ Yo'q, zina orqali", callback_data: "wz_gr_el_no" }],
+                                [{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]
+                            ];
+
+                            const elMsg = `🏢 Qavat: <b>${fl}-etaj</b>\n\n🛗 <b>Yuk lifti mavjudmi?</b>`;
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, elMsg, elButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: elMsg }));
+                            return;
+                        }
+
+                        // 12. Loader Elevator Selected -> Choose Partner
+                        if (cbData.startsWith('wz_gr_el_')) {
+                            const hasElevator = cbData === 'wz_gr_el_yes';
+                            const session = sellerWizardSessions.get(chatId) || {};
+                            const wk = session.workers || 2;
+                            const fl = session.floor || 1;
+                            const price = (wk * 150000) + (hasElevator ? 0 : (fl - 1) * 30000 * wk);
+                            const payout = Math.round(price * 0.8);
+
+                            sellerWizardSessions.set(chatId, {
+                                ...session,
+                                step: 'choose_partner',
+                                has_elevator: hasElevator,
+                                total_amount: price,
+                                partner_payout: payout
+                            });
+
+                            const loaderPartners = (db.service_partners || []).filter(p => {
+                                const cat = String(p.service_category || '').toLowerCase();
+                                return cat.includes('gruzchik') || cat.includes('ishchi') || cat.includes('usta');
+                            });
+                            const availablePartners = loaderPartners.length > 0 ? loaderPartners : (db.service_partners || []).slice(0, 5);
+
+                            const partnerButtons = availablePartners.map(p => ([{
+                                text: `👷 ${p.company_name} (${p.status === 'bosh' || p.is_available ? '🟢 Bo\'sh' : '🟡 Band'})`,
+                                callback_data: `wz_prt_${p.id}`
+                            }]));
+                            partnerButtons.push([{ text: "🤖 Avtomatik biriktirish", callback_data: "wz_prt_auto" }]);
+                            partnerButtons.push([{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]);
+
+                            const prtMsg = `👷 <b>Gruzchik (${wk} kishi, ${fl}-qavat, ${hasElevator ? 'lift bor' : 'lift yo\'q'})</b>\n💵 Jami: <b>${price.toLocaleString()} so'm</b> (Hamkor haqi: ${payout.toLocaleString()} so'm)\n\n👤 <b>Biriktiriladigan hamkorni tanlang:</b>`;
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, prtMsg, partnerButtons);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: prtMsg }));
+                            return;
+                        }
+
+                        // 13. Partner Selected -> Prompt for Address & Phone
+                        if (cbData.startsWith('wz_prt_')) {
+                            let partId = null, partName = 'Avtomatik tayinlash';
+                            if (cbData !== 'wz_prt_auto') {
+                                partId = parseInt(cbData.replace('wz_prt_', '')) || cbData.replace('wz_prt_', '');
+                                const foundPart = (db.service_partners || []).find(p => p.id == partId);
+                                if (foundPart) partName = foundPart.company_name;
+                            }
+
+                            const session = sellerWizardSessions.get(chatId) || {};
+                            sellerWizardSessions.set(chatId, {
+                                ...session,
+                                step: 'ask_address_phone',
+                                partner_id: partId,
+                                partner_name: partName
+                            });
+
+                            const askMsg = `✅ Biriktirildi: <b>${partName}</b>\n💵 Jami summa: <b>${(session.total_amount || 0).toLocaleString()} so'm</b>\n\n📍 <b>Oxirgi qadam: Ish joyi manzili va 📱 Mijoz telefon raqamini bitta xabarda yozib yuboring:</b>\n\n(Masalan: <i>Chilonzor 9-mavze 12-uy, +998901234567</i>)\n\n<i>Bekor qilish uchun /cancel deb yozing.</i>`;
+                            if (botToken && chatId) await sendTelegramBotMessage(botToken, chatId, askMsg);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: askMsg }));
+                            return;
+                        }
+                    }
+
+                    // =========================================================
+                    // B. PARTNER LIVE TASK CALLBACKS (accept_, reject_, finish_)
+                    // =========================================================
                     if (cbData.startsWith('accept_')) {
                         const orderId = parseInt(cbData.replace('accept_', '')) || cbData.replace('accept_', '');
                         const sOrder = (db.service_orders || []).find(o => o.id == orderId || o.order_number == orderId);
@@ -1182,7 +1565,7 @@ const server = http.createServer((req, res) => {
                 let partner = partners.find(p => p.telegram_chat_id == chatId);
 
                 const sellerMenu = [
-                    [{ text: "➕ Yangi Zakaz urish (POS)", web_app: { url: "https://shoh-arenda.onrender.com" } }],
+                    [{ text: "➕ Yangi Zakaz urish" }],
                     [{ text: "📋 Buyurtmalar holati" }, { text: "📦 Ombor qoldig'i" }]
                 ];
 
@@ -1310,21 +1693,212 @@ Faqat pastdagi <b>[📱 O'z raqamimni yuborish]</b> tugmasini bosing.`;
                 // A. AUTHENTICATED SELLER (SOTUVCHI / MENEJER) ACTIONS
                 // =========================================================================
                 if (employee) {
-                    // ACTION: ➕ Yangi Zakaz urish (POS)
-                    if (text.includes("Yangi Zakaz") || text.includes("POS") || text === '/pos') {
-                        const posMsg = 
-`🛍 <b>WMS ARENDA — TEZKOR POS SOTUV & ZAKAZ</b>
+                    // Check if seller is in an active order wizard flow
+                    if (sellerWizardSessions.has(chatId)) {
+                        const session = sellerWizardSessions.get(chatId);
 
-Telegram ichida tezkor zakaz urish uchun pastdagi tugmani bosing:`;
+                        if (text === '/cancel' || text.toLowerCase() === 'bekor') {
+                            sellerWizardSessions.delete(chatId);
+                            const cancelMsg = "❌ Buyurtma jarayoni bekor qilindi.";
+                            if (botToken) await sendTelegramBotMessage(botToken, chatId, cancelMsg, null, sellerMenu);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, reply: cancelMsg }));
+                            return;
+                        }
 
-                        const posInline = [
-                            [{ text: "🚀 POS Oynasini Ochish (Web App)", web_app: { url: "https://shoh-arenda.onrender.com" } }],
-                            [{ text: "🌐 Brauzerda ochish", url: "https://shoh-arenda.onrender.com" }]
+                        if (session.step === 'ask_address_phone') {
+                            const phoneMatch = text.match(/(?:\+?998[\s\-]?\d{2}[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}|\b9\d{8}\b|\b\d{9,12}\b)/);
+                            const customerPhone = phoneMatch ? phoneMatch[0] : '+998 90 000 00 00';
+                            let address = text.replace(customerPhone, '').replace(/,\s*$/, '').trim();
+                            if (!address || address.length < 2) address = "Toshkent shahri (Ko'rsatilgan manzil)";
+
+                            if (session.service_type === 'tools') {
+                                // Rental Order
+                                const ordId = Date.now();
+                                const orderNum = `ORD-${String(ordId).slice(-4)}`;
+                                const newOrder = {
+                                    id: ordId,
+                                    order_number: orderNum,
+                                    order_type: 'rental',
+                                    customer_name: "Telegram Mijoz",
+                                    customer_phone: customerPhone,
+                                    delivery_address: address,
+                                    status: 'faol_ijarada',
+                                    order_status: 'faol',
+                                    order_date: new Date().toISOString().substring(0, 10),
+                                    start_date: new Date().toISOString().substring(0, 10),
+                                    days: session.days || 1,
+                                    items: [{
+                                        model_id: session.tool_id,
+                                        name: session.tool_name || 'Asbob',
+                                        daily_price: session.tool_price || 0,
+                                        days: session.days || 1,
+                                        amount: session.total_amount || 0
+                                    }],
+                                    final_amount: session.total_amount || 0,
+                                    created_by: employee.full_name || 'Sotuvchi',
+                                    created_at: new Date().toISOString()
+                                };
+                                db.orders = db.orders || [];
+                                db.orders.unshift(newOrder);
+
+                                const items = db.product_items || db.tools || [];
+                                const toolItem = items.find(i => (i.model_id == session.tool_id || i.product_model_id == session.tool_id) && (i.status === 'omborda_bosh' || i.status === 'bosh'));
+                                if (toolItem) {
+                                    toolItem.status = 'ijarada';
+                                    toolItem.current_order_id = ordId;
+                                }
+
+                                dbEngine.syncEntireDB(db);
+
+                                const confirmSeller = 
+`✅ <b>IJARA BUYURTMASI MUVAFFAQIYATLI RASMIYLASHTIRILDI!</b>
+
+🔢 Buyurtma: <b>#${orderNum}</b>
+🔨 Asbob: <b>${session.tool_name}</b>
+⏱️ Muddat: <b>${session.days} kun</b>
+📍 Ish joyi: <b>${address}</b>
+📱 Mijoz telefoni: <b>${customerPhone}</b>
+💵 Jami ijara haqi: <b>${(session.total_amount || 0).toLocaleString()} so'm</b>
+
+📦 <i>Ombordagi holat "Ijarada"ga o'tkazildi.</i>`;
+
+                                if (botToken) await sendTelegramBotMessage(botToken, chatId, confirmSeller, null, sellerMenu);
+                                sellerWizardSessions.delete(chatId);
+                                res.writeHead(200, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ ok: true, order_created: true }));
+                                return;
+
+                            } else {
+                                // Service Order (Crane, Trash, Loader)
+                                const srvId = Date.now();
+                                const orderNum = `SRV-${String(srvId).slice(-4)}`;
+                                
+                                let assignedPartner = null;
+                                if (session.partner_id) {
+                                    assignedPartner = (db.service_partners || []).find(p => p.id == session.partner_id);
+                                }
+                                if (!assignedPartner) {
+                                    const matchCat = session.service_type === 'crane' ? 'kran' : (session.service_type === 'trash' ? 'musor' : 'gruzchik');
+                                    assignedPartner = (db.service_partners || []).find(p => String(p.service_category || '').toLowerCase().includes(matchCat) && (p.status === 'bosh' || p.is_available)) || (db.service_partners || [])[0];
+                                }
+
+                                const srvDetails = session.service_type === 'crane' ? `${session.tonnage}t kran, ${session.hours} soat` :
+                                                  (session.service_type === 'trash' ? `Chiqindi: ${session.volume}` :
+                                                  `Gruzchik: ${session.workers} kishi, ${session.floor}-qavat, ${session.has_elevator ? 'lift bor' : 'lift yo\'q'}`);
+
+                                const srvOrder = {
+                                    id: srvId,
+                                    order_number: orderNum,
+                                    service_category: session.service_name || 'Xizmat',
+                                    service_details: srvDetails,
+                                    customer_name: "Telegram Mijoz",
+                                    customer_phone: customerPhone,
+                                    job_site_address: address,
+                                    scheduled_datetime: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                                    total_customer_price: session.total_amount || 0,
+                                    partner_payout_amount: session.partner_payout || 0,
+                                    assigned_partner_id: assignedPartner ? assignedPartner.id : null,
+                                    order_status: 'hamkorga_uzatildi',
+                                    status: 'hamkorga_uzatildi',
+                                    created_by: employee.full_name || 'Sotuvchi',
+                                    created_at: new Date().toISOString()
+                                };
+                                db.service_orders = db.service_orders || [];
+                                db.service_orders.unshift(srvOrder);
+
+                                const ordRecord = {
+                                    id: srvId,
+                                    order_number: orderNum,
+                                    order_type: 'service',
+                                    customer_name: "Telegram Mijoz",
+                                    customer_phone: customerPhone,
+                                    delivery_address: address,
+                                    service_category: srvOrder.service_category,
+                                    service_details: srvDetails,
+                                    final_amount: session.total_amount || 0,
+                                    partner_payout: session.partner_payout || 0,
+                                    assigned_partner_name: assignedPartner ? assignedPartner.company_name : 'Hamkor',
+                                    status: 'faol',
+                                    order_status: 'faol',
+                                    order_date: new Date().toISOString().substring(0, 10),
+                                    created_at: new Date().toISOString()
+                                };
+                                db.orders = db.orders || [];
+                                db.orders.unshift(ordRecord);
+
+                                dbEngine.syncEntireDB(db);
+
+                                recordPartnerLiveEvent({
+                                    type: 'dispatch',
+                                    order_id: srvId,
+                                    order_number: orderNum,
+                                    status: 'hamkorga_uzatildi',
+                                    partner_id: assignedPartner ? assignedPartner.id : null,
+                                    partner_name: assignedPartner ? assignedPartner.company_name : 'Hamkor',
+                                    message: `📤 Sotuvchi (#${orderNum}) ${srvOrder.service_category} buyurtmasini yaratdi!`
+                                });
+
+                                const confirmSeller = 
+`✅ <b>BUYURTMA MUVAFFAQIYATLI RASMIYLASHTIRILDI!</b>
+
+🔢 Buyurtma: <b>#${orderNum}</b>
+🛠 Xizmat: <b>${srvOrder.service_category}</b> (${srvDetails})
+📍 Ish joyi: <b>${address}</b>
+📱 Mijoz telefoni: <b>${customerPhone}</b>
+💵 Jami summa: <b>${(session.total_amount || 0).toLocaleString()} so'm</b>
+👤 Hamkor: <b>${assignedPartner ? assignedPartner.company_name : 'Biriktirilmoqda'}</b>
+
+${assignedPartner && assignedPartner.telegram_chat_id ? '🔔 <i>Hamkorning Telegramiga qabul qilish tugmalari bilan xabar yuborildi!</i>' : 'ℹ️ <i>Buyurtma tizimga saqlandi.</i>'}`;
+
+                                if (botToken) await sendTelegramBotMessage(botToken, chatId, confirmSeller, null, sellerMenu);
+
+                                if (assignedPartner && assignedPartner.telegram_chat_id && botToken) {
+                                    const partnerAlert = 
+`🔔 <b>SIZGA YANGI BUYURTMA BIRIKTIRILDI!</b>
+
+🔢 Buyurtma: <b>#${orderNum}</b>
+🛠 Xizmat: <b>${srvOrder.service_category}</b> (${srvDetails})
+📍 Ish joyi: <b>${address}</b>
+📱 Mijoz telefoni: <b>${customerPhone}</b>
+🕒 Vaqt: <b>Bugun</b>
+💵 Sizga to'lanadigan haq: <b>${(session.partner_payout || 0).toLocaleString()} so'm</b>
+
+Buyurtmani qabul qilasizmi?`;
+
+                                    const partnerInline = [
+                                        [
+                                            { text: "✅ Qabul qilaman", callback_data: `accept_${srvId}` },
+                                            { text: "❌ Rad etaman", callback_data: `reject_${srvId}` }
+                                        ]
+                                    ];
+                                    await sendTelegramBotMessage(botToken, assignedPartner.telegram_chat_id, partnerAlert, partnerInline);
+                                }
+
+                                sellerWizardSessions.delete(chatId);
+                                res.writeHead(200, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ ok: true, order_created: true }));
+                                return;
+                            }
+                        }
+                    }
+
+                    // ACTION: ➕ Yangi Zakaz urish (Start Native Step-by-Step Wizard)
+                    if (text.includes("Yangi Zakaz") || text.includes("POS") || text === '/pos' || text === '/zakaz' || text === '/order') {
+                        sellerWizardSessions.set(chatId, {
+                            step: 'choose_service'
+                        });
+
+                        const startMsg = `🛍 <b>YANGI BUYURTMA RASMIYLASHTIRISH</b>\n\nQaysi xizmat yoki asbob bo'yicha buyurtma rasmiylashtiramiz?`;
+                        const startInline = [
+                            [{ text: "🔨 Asboblar ijarasi", callback_data: "wz_srv_tools" }, { text: "🏗️ Avtokran xizmati", callback_data: "wz_srv_crane" }],
+                            [{ text: "🚛 Musor olib ketish", callback_data: "wz_srv_trash" }, { text: "👷 Gruzchik xizmati", callback_data: "wz_srv_loader" }],
+                            [{ text: "❌ Bekor qilish", callback_data: "wz_cancel" }]
                         ];
 
-                        if (botToken) await sendTelegramBotMessage(botToken, chatId, posMsg, posInline, sellerMenu);
+                        if (botToken) await sendTelegramBotMessage(botToken, chatId, startMsg, startInline, sellerMenu);
                         res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ ok: true, reply: posMsg }));
+                        res.end(JSON.stringify({ ok: true, reply: startMsg }));
                         return;
                     }
 
@@ -1348,7 +1922,7 @@ Telegram ichida tezkor zakaz urish uchun pastdagi tugmani bosing:`;
                         let msg = `📋 <b>BUYURTMALAR VA IJARALAR HOLATI</b>\nSana: <b>${today}</b>\n\n`;
 
                         if (allOrders.length === 0 && allServiceOrders.length === 0) {
-                            msg += `Hozircha birorta ham buyurtma rasmiylashtirilmagan (0 ta).\n\nYangi zakaz ochish uchun [➕ Yangi Zakaz urish (POS)] tugmasini bosing.`;
+                            msg += `Hozircha birorta ham buyurtma rasmiylashtirilmagan (0 ta).\n\nYangi zakaz ochish uchun [➕ Yangi Zakaz urish] tugmasini bosing.`;
                         } else {
                             msg += `📦 <b>Asboblar ijarasi:</b>\n`;
                             msg += `• Faol ijarada: <b>${activeOrders.length} ta</b>\n`;

@@ -90,18 +90,91 @@ function normalizeSectionId(rawId) {
     return `section-${clean}`;
 }
 
+function isCurrentAdmin() {
+    try {
+        if (typeof currentUser === 'undefined' || !currentUser) return false;
+        const role = String(currentUser.role_id || currentUser.role || '').toLowerCase();
+        return role === 'admin' || role === 'superadmin' || currentUser.username === 'admin';
+    } catch (e) {
+        return false;
+    }
+}
+window.isCurrentAdmin = isCurrentAdmin;
+
+function applyRolePermissions() {
+    const isAdmin = isCurrentAdmin();
+    
+    // Admin-only sidebar navigation IDs
+    const adminOnlyNav = [
+        'btn-section-dashboard',
+        'btn-section-kirim',
+        'btn-section-staff',
+        'btn-section-partners',
+        'btn-section-suppliers',
+        'btn-section-crm',
+        'btn-section-finance',
+        'btn-section-ai'
+    ];
+    
+    adminOnlyNav.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            const container = btn.closest('div') || btn;
+            if (isAdmin) {
+                btn.classList.remove('hidden');
+                btn.style.setProperty('display', 'flex', 'important');
+                if (container && container !== btn && container.parentElement?.tagName === 'NAV') {
+                    container.classList.remove('hidden');
+                    container.style.setProperty('display', 'block', 'important');
+                }
+            } else {
+                btn.classList.add('hidden');
+                btn.style.setProperty('display', 'none', 'important');
+                if (container && container !== btn && container.parentElement?.tagName === 'NAV') {
+                    container.classList.add('hidden');
+                    container.style.setProperty('display', 'none', 'important');
+                }
+            }
+        }
+    });
+
+    // Hide Kirim quick tile in sidebar for Manager
+    const quickKirim = document.querySelector("button[onclick*='section-kirim']");
+    if (quickKirim) {
+        if (isAdmin) {
+            quickKirim.classList.remove('hidden');
+            quickKirim.style.removeProperty('display');
+        } else {
+            quickKirim.classList.add('hidden');
+            quickKirim.style.setProperty('display', 'none', 'important');
+        }
+    }
+}
+window.applyRolePermissions = applyRolePermissions;
+
 function switchSection(secId) {
-    if (!secId) secId = 'section-dashboard';
+    if (!secId) secId = isCurrentAdmin() ? 'section-dashboard' : 'section-orders';
     const clean = String(secId).toLowerCase().trim();
+
+    // Enforce role guard: non-admin can only access orders & catalog
+    const isAdmin = isCurrentAdmin();
 
     // Check if it refers to a subtab inside Kirim Zanjiri
     if (clean.startsWith('tab-') || ['po', 'receipt', 'placement', 'returns', 'warehouse-map'].includes(clean)) {
-        secId = 'section-kirim';
-        if (typeof switchTab === 'function') {
-            switchTab(clean);
+        if (!isAdmin) {
+            secId = 'section-orders';
+        } else {
+            secId = 'section-kirim';
+            if (typeof switchTab === 'function') {
+                switchTab(clean);
+            }
         }
     } else {
         secId = normalizeSectionId(secId);
+    }
+
+    if (!isAdmin && secId !== 'section-orders' && secId !== 'section-catalog') {
+        secId = 'section-orders';
     }
 
     currentSection = secId;
@@ -325,9 +398,86 @@ function copyText(str) {
     });
 }
 
+function openSelfProfileModal() {
+    if (!currentUser) return;
+    const modal = document.getElementById('modal-user-self-profile');
+    if (!modal) return;
+    
+    const avatarEl = document.getElementById('self-profile-avatar');
+    const nameEl = document.getElementById('self-profile-fullname');
+    const userEl = document.getElementById('self-profile-username');
+    const phoneEl = document.getElementById('self-profile-phone');
+    const roleEl = document.getElementById('self-profile-role-display');
+    const passEl = document.getElementById('self-profile-password');
+    const passConfEl = document.getElementById('self-profile-password-confirm');
+    
+    const fName = currentUser.full_name || currentUser.username || 'Foydalanuvchi';
+    if (avatarEl) avatarEl.innerText = fName.charAt(0).toUpperCase();
+    if (nameEl) nameEl.value = fName;
+    if (userEl) userEl.value = currentUser.username || '';
+    if (phoneEl) phoneEl.value = currentUser.phone || '';
+    
+    const roleLabels = {
+        admin: "👑 Bosh Admin (To'liq Boshqaruv)",
+        manager: "💼 Menejer / Sotuvchi (Buyurtmalar & Katalog)",
+        cashier: "💵 Kassir",
+        warehouseman: "📦 Skladchi"
+    };
+    if (roleEl) roleEl.value = roleLabels[currentUser.role_id] || currentUser.role_id || 'Foydalanuvchi';
+    if (passEl) passEl.value = '';
+    if (passConfEl) passConfEl.value = '';
+    
+    openModal('modal-user-self-profile');
+}
+
+function saveSelfProfile(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!currentUser) return;
+    
+    const fullName = (document.getElementById('self-profile-fullname')?.value || '').trim();
+    const phone = (document.getElementById('self-profile-phone')?.value || '').trim();
+    const newPass = (document.getElementById('self-profile-password')?.value || '').trim();
+    const confirmPass = (document.getElementById('self-profile-password-confirm')?.value || '').trim();
+    
+    if (newPass && newPass !== confirmPass) {
+        alert("Kiritilgan yangi parollar bir-biriga mos kelmadi!");
+        return;
+    }
+    
+    // Update in DB.users
+    const userInDb = (DB.users || []).find(u => u.id === currentUser.id || u.username === currentUser.username);
+    if (userInDb) {
+        if (fullName) userInDb.full_name = fullName;
+        if (phone) userInDb.phone = phone;
+        if (newPass) userInDb.password = newPass;
+    }
+    
+    if (fullName) currentUser.full_name = fullName;
+    if (phone) currentUser.phone = phone;
+    if (newPass) currentUser.password = newPass;
+    
+    try {
+        localStorage.setItem('WMS_USER_SESSION', JSON.stringify(currentUser));
+        if (typeof saveDB === 'function') saveDB();
+    } catch(err) {}
+    
+    const userNameEl = document.getElementById('user-name');
+    const userAvatarEl = document.getElementById('user-avatar');
+    if (userNameEl) userNameEl.innerText = currentUser.full_name;
+    if (userAvatarEl) userAvatarEl.innerText = currentUser.full_name.charAt(0).toUpperCase();
+    
+    closeModal('modal-user-self-profile');
+    showNotification("Profil ma'lumotlari muvaffaqiyatli saqlandi!", "success");
+}
+
+window.openSelfProfileModal = openSelfProfileModal;
+window.saveSelfProfile = saveSelfProfile;
+
 // App Initialization
 window.addEventListener('DOMContentLoaded', () => {
     loadDB();
     checkSession();
+    applyRolePermissions();
     lucide.createIcons();
 });
+
