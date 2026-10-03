@@ -325,6 +325,22 @@ function loadDB() {
 function syncDbProperties(targetDb) {
     if (!targetDb) return;
 
+    // Defensive array guarantees
+    targetDb.suppliers = Array.isArray(targetDb.suppliers) ? targetDb.suppliers : [];
+    targetDb.customers = Array.isArray(targetDb.customers) ? targetDb.customers : [];
+    targetDb.orders = Array.isArray(targetDb.orders) ? targetDb.orders : [];
+    targetDb.product_models = Array.isArray(targetDb.product_models) ? targetDb.product_models : [];
+    targetDb.product_items = Array.isArray(targetDb.product_items) ? targetDb.product_items : [];
+    targetDb.service_partners = Array.isArray(targetDb.service_partners) ? targetDb.service_partners : [];
+    targetDb.partner_price_list = Array.isArray(targetDb.partner_price_list) ? targetDb.partner_price_list : [];
+    targetDb.service_orders = Array.isArray(targetDb.service_orders) ? targetDb.service_orders : [];
+    targetDb.supplier_orders = Array.isArray(targetDb.supplier_orders) ? targetDb.supplier_orders : [];
+    targetDb.inbound_receipts = Array.isArray(targetDb.inbound_receipts) ? targetDb.inbound_receipts : [];
+    targetDb.supplier_returns = Array.isArray(targetDb.supplier_returns) ? targetDb.supplier_returns : [];
+    targetDb.cash_registers = Array.isArray(targetDb.cash_registers) ? targetDb.cash_registers : [];
+    targetDb.expenses = Array.isArray(targetDb.expenses) ? targetDb.expenses : [];
+    targetDb.financial_transactions = Array.isArray(targetDb.financial_transactions) ? targetDb.financial_transactions : [];
+
     // 1. DB.tools (asboblar: seriya raqami, zalog, kunlik narx, holati: 'bosh'/'ijarada', polkasi)
     try {
         Object.defineProperty(targetDb, 'tools', {
@@ -374,7 +390,10 @@ function syncDbProperties(targetDb) {
                     }
                 });
                 return {
-                    cash_registers: targetDb.cash_registers,
+                    balance: totalBal,
+                    deposit_safe: holdingDeposit,
+                    transactions: targetDb.financial_transactions || [],
+                    cash_registers: targetDb.cash_registers || [],
                     current_total: totalBal,
                     kassa_tushumi: rentalRevenue,
                     saqlanayotgan_zaloglar: holdingDeposit,

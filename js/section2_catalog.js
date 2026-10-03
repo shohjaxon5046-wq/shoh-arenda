@@ -171,100 +171,126 @@ function switchProductCardTab(tabId) {
 }
 
 function openModalCreateProductModel() {
-    currentEditingModel = null;
-    currentKitItems = ["Keys/Chemodan", "Qo'shimcha tutqich", "Pasport/Yo'riqnoma"];
-    currentConsumables = [];
+    try {
+        currentEditingModel = null;
+        currentKitItems = ["Keys/Chemodan", "Qo'shimcha tutqich", "Pasport/Yo'riqnoma"];
+        currentConsumables = [];
 
-    document.getElementById('mp-title').innerText = "Yangi Tovar Qo'shish";
-    document.getElementById('mp-subtitle').innerText = "Yangi uskuna modeli, texnik ko'rsatkichlari va narxlari";
-    document.getElementById('mp-id').value = '';
+        const title = document.getElementById('mp-title');
+        if (title) title.innerText = "Yangi Tovar Qo'shish";
+        const subtitle = document.getElementById('mp-subtitle');
+        if (subtitle) subtitle.innerText = "Yangi uskuna modeli, texnik ko'rsatkichlari va narxlari";
+        const idEl = document.getElementById('mp-id');
+        if (idEl) idEl.value = '';
 
-    document.getElementById('mp-name').value = '';
-    document.getElementById('mp-brand').value = '';
-    document.getElementById('mp-model-code').value = '';
-    document.getElementById('mp-image-url').value = 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=400&q=80';
-    document.getElementById('mp-image-preview').src = 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=400&q=80';
+        const nameEl = document.getElementById('mp-name');
+        if (nameEl) nameEl.value = '';
+        const brandEl = document.getElementById('mp-brand');
+        if (brandEl) brandEl.value = '';
+        const codeEl = document.getElementById('mp-model-code');
+        if (codeEl) codeEl.value = '';
+        const imgUrlEl = document.getElementById('mp-image-url');
+        if (imgUrlEl) imgUrlEl.value = 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=400&q=80';
+        const imgPrevEl = document.getElementById('mp-image-preview');
+        if (imgPrevEl) imgPrevEl.src = 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=400&q=80';
 
-    const catSel = document.getElementById('mp-category-select');
-    catSel.innerHTML = DB.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        const catSel = document.getElementById('mp-category-select');
+        if (catSel) {
+            catSel.innerHTML = (DB.categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        }
 
-    document.getElementById('mp-spec-power').value = '800 W';
-    document.getElementById('mp-spec-impact').value = '2.5 J';
-    document.getElementById('mp-spec-chuck').value = 'SDS-Plus';
-    document.getElementById('mp-spec-weight').value = '2.8 kg';
-    document.getElementById('mp-spec-fuel').value = '220V Tarmoq';
-    document.getElementById('mp-spec-extra').value = '';
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('mp-spec-power', '800 W');
+        setVal('mp-spec-impact', '2.5 J');
+        setVal('mp-spec-chuck', 'SDS-Plus');
+        setVal('mp-spec-weight', '2.8 kg');
+        setVal('mp-spec-fuel', '220V Tarmoq');
+        setVal('mp-spec-extra', '');
 
-    document.getElementById('mp-daily-price').value = 80000;
-    document.getElementById('mp-hourly-price').value = 15000;
-    document.getElementById('mp-deposit-amount').value = 500000;
-    document.getElementById('mp-discount-3days').value = 70000;
-    document.getElementById('mp-discount-7days').value = 60000;
-    document.getElementById('mp-late-fee').value = 20000;
-    document.getElementById('mp-replacement-cost').value = 1800000;
+        setVal('mp-daily-price', 80000);
+        setVal('mp-hourly-price', 15000);
+        setVal('mp-deposit-amount', 500000);
+        setVal('mp-discount-3days', 70000);
+        setVal('mp-discount-7days', 60000);
+        setVal('mp-late-fee', 20000);
+        setVal('mp-replacement-cost', 1800000);
 
-    applyPricePermissions();
-    renderKitItemsTags();
-    renderConsumablesTags();
-    renderModelUnitsTable([]);
-    renderModelMaintenanceTable([]);
+        applyPricePermissions();
+        renderKitItemsTags();
+        renderConsumablesTags();
+        renderModelUnitsTable([]);
+        renderModelMaintenanceTable([]);
 
-    switchProductCardTab('p-tab-general');
-    openModal('modal-product-card');
+        switchProductCardTab('p-tab-general');
+        openModal('modal-product-card');
+    } catch (err) {
+        console.error("openModalCreateProductModel error:", err);
+    }
 }
 
 function openProductCardModal(modelId) {
-    const model = DB.product_models.find(m => m.id === modelId);
-    if (!model) return;
+    try {
+        const model = (DB.product_models || []).find(m => m.id === modelId);
+        if (!model) return;
 
-    currentEditingModel = model;
-    currentKitItems = [...(model.kit_items || [])];
-    currentConsumables = [...(model.consumables || [])];
+        currentEditingModel = model;
+        currentKitItems = [...(model.kit_items || [])];
+        currentConsumables = [...(model.consumables || [])];
 
-    document.getElementById('mp-title').innerText = `${model.name} (${model.brand})`;
-    document.getElementById('mp-subtitle').innerText = `Model kodi: ${model.model_code || 'Yo\'q'}`;
-    document.getElementById('mp-id').value = model.id;
+        const title = document.getElementById('mp-title');
+        if (title) title.innerText = `${model.name} (${model.brand})`;
+        const subtitle = document.getElementById('mp-subtitle');
+        if (subtitle) subtitle.innerText = `Model kodi: ${model.model_code || 'Yo\'q'}`;
+        const idEl = document.getElementById('mp-id');
+        if (idEl) idEl.value = model.id;
 
-    document.getElementById('mp-name').value = model.name;
-    document.getElementById('mp-brand').value = model.brand;
-    document.getElementById('mp-model-code').value = model.model_code || '';
-    document.getElementById('mp-image-url').value = model.image || '';
-    document.getElementById('mp-image-preview').src = model.image || 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=400&q=80';
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('mp-name', model.name || '');
+        setVal('mp-brand', model.brand || '');
+        setVal('mp-model-code', model.model_code || '');
+        setVal('mp-image-url', model.image || '');
+        const imgPrev = document.getElementById('mp-image-preview');
+        if (imgPrev) imgPrev.src = model.image || 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=400&q=80';
 
-    const catSel = document.getElementById('mp-category-select');
-    catSel.innerHTML = DB.categories.map(c => `<option value="${c.id}" ${c.id === model.category_id ? 'selected' : ''}>${c.name}</option>`).join('');
+        const catSel = document.getElementById('mp-category-select');
+        if (catSel) {
+            catSel.innerHTML = (DB.categories || []).map(c => `<option value="${c.id}" ${c.id === model.category_id ? 'selected' : ''}>${c.name}</option>`).join('');
+        }
 
-    const sp = model.specifications || {};
-    document.getElementById('mp-spec-power').value = sp.power || '';
-    document.getElementById('mp-spec-impact').value = sp.impact || '';
-    document.getElementById('mp-spec-chuck').value = sp.chuck || '';
-    document.getElementById('mp-spec-weight').value = sp.weight || '';
-    document.getElementById('mp-spec-fuel').value = sp.fuel || '';
-    document.getElementById('mp-spec-extra').value = sp.extra || '';
+        const sp = model.specifications || {};
+        setVal('mp-spec-power', sp.power || '');
+        setVal('mp-spec-impact', sp.impact || '');
+        setVal('mp-spec-chuck', sp.chuck || '');
+        setVal('mp-spec-weight', sp.weight || '');
+        setVal('mp-spec-fuel', sp.fuel || '');
+        setVal('mp-spec-extra', sp.extra || '');
 
-    document.getElementById('mp-daily-price').value = model.daily_price || 0;
-    document.getElementById('mp-hourly-price').value = model.hourly_price || 0;
-    document.getElementById('mp-deposit-amount').value = model.deposit_amount || 0;
-    document.getElementById('mp-discount-3days').value = model.discount_3_days || 0;
-    document.getElementById('mp-discount-7days').value = model.discount_7_days || 0;
-    document.getElementById('mp-late-fee').value = model.late_fee_per_hour || 0;
-    document.getElementById('mp-replacement-cost').value = model.replacement_cost || 0;
+        setVal('mp-daily-price', model.daily_price || 0);
+        setVal('mp-hourly-price', model.hourly_price || 0);
+        setVal('mp-deposit-amount', model.deposit_amount || 0);
+        setVal('mp-discount-3days', model.discount_3_days || 0);
+        setVal('mp-discount-7days', model.discount_7_days || 0);
+        setVal('mp-late-fee', model.late_fee_per_hour || 0);
+        setVal('mp-replacement-cost', model.replacement_cost || 0);
 
-    applyPricePermissions();
-    renderKitItemsTags();
-    renderConsumablesTags();
+        applyPricePermissions();
+        renderKitItemsTags();
+        renderConsumablesTags();
 
-    const units = DB.product_items.filter(i => i.product_model_id === model.id);
-    renderModelUnitsTable(units);
+        const units = (DB.product_items || []).filter(i => i.product_model_id === model.id);
+        renderModelUnitsTable(units);
 
-    const mLogs = DB.maintenance_logs.filter(m => {
-        const item = DB.product_items.find(it => it.id === m.product_item_id);
-        return item && item.product_model_id === model.id;
-    });
-    renderModelMaintenanceTable(mLogs);
+        const mLogs = (DB.maintenance_logs || []).filter(m => {
+            const item = (DB.product_items || []).find(it => it.id === m.product_item_id);
+            return item && item.product_model_id === model.id;
+        });
+        renderModelMaintenanceTable(mLogs);
 
-    switchProductCardTab('p-tab-general');
-    openModal('modal-product-card');
+        switchProductCardTab('p-tab-general');
+        openModal('modal-product-card');
+    } catch (err) {
+        console.error("openProductCardModal error:", err);
+    }
 }
 
 function applyPricePermissions() {
@@ -559,45 +585,63 @@ function handleSaveProductModel(e) {
 }
 
 function openModalPriceLogs() {
-    const tbody = document.getElementById('price-logs-table-body');
-    if (!tbody) return;
-    tbody.innerHTML = '';
+    try {
+        const tbody = document.getElementById('price-logs-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
 
-    if (DB.price_change_logs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500">Narxlar o'zgarishi tarixi bo'sh</td></tr>`;
-    } else {
-        DB.price_change_logs.forEach(log => {
-            const model = DB.product_models.find(m => m.id === log.product_model_id);
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-800/40";
-            tr.innerHTML = `
-                <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px]">${log.change_date}</td>
-                <td class="py-2.5 px-3 font-semibold text-white">${model ? model.name : 'Model'}</td>
-                <td class="py-2.5 px-3 text-blue-400 font-medium">${log.changed_by_user}</td>
-                <td class="py-2.5 px-3 line-through text-slate-400">${log.old_price}</td>
-                <td class="py-2.5 px-3 font-bold text-emerald-400">${log.new_price}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+        const logs = DB.price_change_logs || [];
+        if (logs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500">Narxlar o'zgarishi tarixi bo'sh</td></tr>`;
+        } else {
+            logs.forEach(log => {
+                const model = (DB.product_models || []).find(m => m.id === log.product_model_id);
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40";
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px]">${log.change_date}</td>
+                    <td class="py-2.5 px-3 font-semibold text-white">${model ? model.name : 'Model'}</td>
+                    <td class="py-2.5 px-3 text-blue-400 font-medium">${log.changed_by_user}</td>
+                    <td class="py-2.5 px-3 line-through text-slate-400">${log.old_price}</td>
+                    <td class="py-2.5 px-3 font-bold text-emerald-400">${log.new_price}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        openModal('modal-price-logs');
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    } catch (err) {
+        console.error("openModalPriceLogs error:", err);
     }
-
-    openModal('modal-price-logs');
-    lucide.createIcons();
 }
 
 function openModalAddMaintenance() {
-    const select = document.getElementById('m-unit-select');
-    select.innerHTML = DB.product_items.map(it => {
-        const model = DB.product_models.find(m => m.id === it.product_model_id);
-        return `<option value="${it.id}">SN: ${it.serial_number} — ${model ? model.name : ''}</option>`;
-    }).join('');
+    try {
+        const select = document.getElementById('m-unit-select');
+        const items = DB.product_items || [];
+        if (select) {
+            select.innerHTML = items.length > 0 
+                ? items.map(it => {
+                    const model = (DB.product_models || []).find(m => m.id === it.product_model_id);
+                    return `<option value="${it.id}">SN: ${it.serial_number} — ${model ? model.name : ''}</option>`;
+                }).join('')
+                : '<option value="">-- Ombor asboblari mavjud emas --</option>';
+        }
 
-    document.getElementById('m-date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('m-cost').value = '45000';
-    document.getElementById('m-description').value = '';
-    document.getElementById('m-performed-by').value = currentUser ? currentUser.full_name : 'Usta';
+        const dateEl = document.getElementById('m-date');
+        if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+        const costEl = document.getElementById('m-cost');
+        if (costEl) costEl.value = '45000';
+        const descEl = document.getElementById('m-description');
+        if (descEl) descEl.value = '';
+        const perfEl = document.getElementById('m-performed-by');
+        if (perfEl) perfEl.value = currentUser ? currentUser.full_name : 'Usta';
 
-    openModal('modal-add-maintenance');
+        openModal('modal-add-maintenance');
+    } catch (err) {
+        console.error("openModalAddMaintenance error:", err);
+    }
 }
 
 function handleSaveMaintenanceLog(e) {

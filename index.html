@@ -2199,7 +2199,13 @@
             </div>
             <form onsubmit="handleCreatePO(event)" class="mt-4 space-y-4">
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-xs font-semibold text-slate-400 mb-1">Yetkazib beruvchi</label><select id="po-supplier-select" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2.5 px-3 text-xs text-white"></select></div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Yetkazib beruvchi</label>
+                        <select id="po-supplier-select" onchange="if(typeof onPoSupplierChange==='function') onPoSupplierChange()" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2.5 px-3 text-xs text-white focus:outline-none"></select>
+                        <div id="po-quick-supplier-container" class="mt-2 hidden">
+                            <input type="text" id="po-quick-supplier-name" placeholder="Yetkazib beruvchi nomi (masalan: 'Bosch Tashkent')" class="w-full rounded-xl border border-blue-500/50 bg-slate-800 py-2 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                    </div>
                     <div><label class="block text-xs font-semibold text-slate-400 mb-1">Sana</label><input type="date" id="po-order-date" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white"></div>
                 </div>
                 <div>

@@ -65,15 +65,22 @@ function toggleUserStatus(userId) {
 }
 
 function openModalAddStaff() {
-    document.getElementById('staff-fullname').value = '';
-    document.getElementById('staff-phone').value = '+998 ';
-    document.getElementById('staff-username').value = '';
-    document.getElementById('staff-password').value = '';
-    
-    const roleSelect = document.getElementById('staff-role-select');
-    roleSelect.innerHTML = DB.roles.map(r => `<option value="${r.id}">${r.name} - ${r.description}</option>`).join('');
+    try {
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('staff-fullname', '');
+        setVal('staff-phone', '+998 ');
+        setVal('staff-username', '');
+        setVal('staff-password', '');
+        
+        const roleSelect = document.getElementById('staff-role-select');
+        if (roleSelect) {
+            roleSelect.innerHTML = (DB.roles || []).map(r => `<option value="${r.id}">${r.name} - ${r.description}</option>`).join('');
+        }
 
-    openModal('modal-add-staff');
+        openModal('modal-add-staff');
+    } catch (err) {
+        console.error("openModalAddStaff error:", err);
+    }
 }
 
 function handleSaveStaff(e) {
@@ -271,17 +278,27 @@ function openSupplierDetailModal(supplierId) {
 }
 
 function openModalSupplierPayout(supplierId) {
-    const s = DB.suppliers.find(sup => sup.id === supplierId);
-    if (!s) return;
+    try {
+        const s = (DB.suppliers || []).find(sup => sup.id === supplierId);
+        if (!s) return;
 
-    document.getElementById('payout-supplier-id').value = s.id;
-    document.getElementById('payout-supplier-name').innerText = s.company_name;
-    document.getElementById('payout-current-balance').innerText = `${s.balance.toLocaleString()} so'm`;
-    document.getElementById('payout-amount').value = Math.abs(s.balance);
-    document.getElementById('payout-date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('payout-comment').value = "Navbatdagi qarz to'lovi";
+        const idEl = document.getElementById('payout-supplier-id');
+        if (idEl) idEl.value = s.id;
+        const nameEl = document.getElementById('payout-supplier-name');
+        if (nameEl) nameEl.innerText = s.company_name || '';
+        const balEl = document.getElementById('payout-current-balance');
+        if (balEl) balEl.innerText = `${(s.balance || 0).toLocaleString()} so'm`;
+        const amtEl = document.getElementById('payout-amount');
+        if (amtEl) amtEl.value = Math.abs(s.balance || 0);
+        const dateEl = document.getElementById('payout-date');
+        if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+        const comEl = document.getElementById('payout-comment');
+        if (comEl) comEl.value = "Navbatdagi qarz to'lovi";
 
-    openModal('modal-supplier-payout');
+        openModal('modal-supplier-payout');
+    } catch (err) {
+        console.error("openModalSupplierPayout error:", err);
+    }
 }
 
 function handleSaveSupplierPayout(e) {
@@ -527,14 +544,19 @@ function promptBlacklistCustomer() {
 }
 
 function openModalAddCustomer() {
-    document.getElementById('crm-fullname').value = '';
-    document.getElementById('crm-company').value = '';
-    document.getElementById('crm-phone1').value = '+998 ';
-    document.getElementById('crm-phone2').value = '';
-    document.getElementById('crm-passport').value = '';
-    document.getElementById('crm-notes').value = '';
+    try {
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('crm-fullname', '');
+        setVal('crm-company', '');
+        setVal('crm-phone1', '+998 ');
+        setVal('crm-phone2', '');
+        setVal('crm-passport', '');
+        setVal('crm-notes', '');
 
-    openModal('modal-add-customer');
+        openModal('modal-add-customer');
+    } catch (err) {
+        console.error("openModalAddCustomer error:", err);
+    }
 }
 
 function handleSaveCustomer(e) {

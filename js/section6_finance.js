@@ -117,19 +117,31 @@ function renderFinanceTransactionsTable() {
 }
 
 function openModalCashOperation(type = 'kirim') {
-    document.getElementById('co-type').value = type;
-    document.getElementById('co-title').innerText = type === 'kirim' ? "Kassaga Pul Kirim Qilish" : "Kassadan Pul Chiqarish / Inkassatsiya";
-    document.getElementById('co-btn-submit').innerText = type === 'kirim' ? "Kirimni Tasdiqlash" : "Chiqimni Tasdiqlash";
-    document.getElementById('co-btn-submit').className = type === 'kirim' ? "px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white" : "px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-bold text-white";
+    try {
+        const typeEl = document.getElementById('co-type');
+        if (typeEl) typeEl.value = type;
+        const titleEl = document.getElementById('co-title');
+        if (titleEl) titleEl.innerText = type === 'kirim' ? "Kassaga Pul Kirim Qilish" : "Kassadan Pul Chiqarish / Inkassatsiya";
+        const btnSubmit = document.getElementById('co-btn-submit');
+        if (btnSubmit) {
+            btnSubmit.innerText = type === 'kirim' ? "Kirimni Tasdiqlash" : "Chiqimni Tasdiqlash";
+            btnSubmit.className = type === 'kirim' ? "px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white" : "px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-bold text-white";
+        }
 
-    const select = document.getElementById('co-register-select');
-    select.innerHTML = (DB.cash_registers || []).map(r => `<option value="${r.id}">${r.name} (${r.current_balance.toLocaleString()} so'm)</option>`).join('');
+        const select = document.getElementById('co-register-select');
+        if (select) {
+            select.innerHTML = (DB.cash_registers || []).map(r => `<option value="${r.id}">${r.name} (${(r.current_balance || 0).toLocaleString()} so'm)</option>`).join('');
+        }
 
-    document.getElementById('co-amount').value = '';
-    document.getElementById('co-comment').value = '';
-    document.getElementById('co-date').value = new Date().toISOString().split('T')[0];
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('co-amount', '');
+        setVal('co-comment', '');
+        setVal('co-date', new Date().toISOString().split('T')[0]);
 
-    openModal('modal-cash-operation');
+        openModal('modal-cash-operation');
+    } catch (err) {
+        console.error("openModalCashOperation error:", err);
+    }
 }
 
 function handleSaveCashOperation(e) {
@@ -219,18 +231,27 @@ function renderExpensesTable() {
 }
 
 function openModalAddExpense() {
-    const catSelect = document.getElementById('exp-category-select');
-    catSelect.innerHTML = (DB.expense_categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    try {
+        const catSelect = document.getElementById('exp-category-select');
+        if (catSelect) {
+            catSelect.innerHTML = (DB.expense_categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        }
 
-    const regSelect = document.getElementById('exp-register-select');
-    regSelect.innerHTML = (DB.cash_registers || []).map(r => `<option value="${r.id}">${r.name} (${r.current_balance.toLocaleString()} so'm)</option>`).join('');
+        const regSelect = document.getElementById('exp-register-select');
+        if (regSelect) {
+            regSelect.innerHTML = (DB.cash_registers || []).map(r => `<option value="${r.id}">${r.name} (${(r.current_balance || 0).toLocaleString()} so'm)</option>`).join('');
+        }
 
-    document.getElementById('exp-amount').value = '';
-    document.getElementById('exp-description').value = '';
-    document.getElementById('exp-recipient').value = '';
-    document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('exp-amount', '');
+        setVal('exp-description', '');
+        setVal('exp-recipient', '');
+        setVal('exp-date', new Date().toISOString().split('T')[0]);
 
-    openModal('modal-add-expense');
+        openModal('modal-add-expense');
+    } catch (err) {
+        console.error("openModalAddExpense error:", err);
+    }
 }
 
 function handleSaveExpense(e) {

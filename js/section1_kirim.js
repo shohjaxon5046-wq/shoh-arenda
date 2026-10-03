@@ -165,43 +165,98 @@ function renderPOTable() {
     lucide.createIcons();
 }
 
+function onPoSupplierChange() {
+    try {
+        const select = document.getElementById('po-supplier-select');
+        const quickContainer = document.getElementById('po-quick-supplier-container');
+        if (!select || !quickContainer) return;
+        if (select.value === 'new') {
+            quickContainer.classList.remove('hidden');
+            const inp = document.getElementById('po-quick-supplier-name');
+            if (inp) inp.focus();
+        } else {
+            quickContainer.classList.add('hidden');
+        }
+    } catch (e) {
+        console.warn("onPoSupplierChange error:", e);
+    }
+}
+window.onPoSupplierChange = onPoSupplierChange;
+
 function openModalCreatePO() {
-    const select = document.getElementById('po-supplier-select');
-    select.innerHTML = DB.suppliers.map(s => `<option value="${s.id}">${s.company_name} (Balans: ${s.balance.toLocaleString()} so'm)</option>`).join('');
-    document.getElementById('po-order-date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('po-items-container').innerHTML = '';
-    addPOLineItem();
-    calculatePOTotal();
-    openModal('modal-create-po');
+    try {
+        const select = document.getElementById('po-supplier-select');
+        const quickContainer = document.getElementById('po-quick-supplier-container');
+        const quickInput = document.getElementById('po-quick-supplier-name');
+        if (quickInput) quickInput.value = '';
+
+        const sups = DB.suppliers || [];
+        if (select) {
+            if (sups.length === 0) {
+                select.innerHTML = '<option value="new">+ Yangi yetkazib beruvchi kiritish</option>';
+                if (quickContainer) quickContainer.classList.remove('hidden');
+            } else {
+                select.innerHTML = sups.map(s => `<option value="${s.id}">${s.company_name} (Balans: ${(s.balance || 0).toLocaleString()} so'm)</option>`).join('') +
+                    '<option value="new">+ Yangi yetkazib beruvchi kiritish...</option>';
+                if (quickContainer) quickContainer.classList.add('hidden');
+            }
+        }
+
+        const dateEl = document.getElementById('po-order-date');
+        if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+
+        const itemsContainer = document.getElementById('po-items-container');
+        if (itemsContainer) itemsContainer.innerHTML = '';
+
+        addPOLineItem();
+        calculatePOTotal();
+        openModal('modal-create-po');
+    } catch (err) {
+        console.error("openModalCreatePO error:", err);
+    }
 }
 
 function addPOLineItem() {
-    const container = document.getElementById('po-items-container');
-    const rowId = Date.now();
-    const div = document.createElement('div');
-    div.className = "flex items-center gap-2 p-2 rounded-xl bg-slate-800/80 border border-slate-700 po-row";
-    div.id = `po-row-${rowId}`;
-    
-    const modelOptions = DB.product_models.map(m => `<option value="${m.id}" data-price="${m.expected_price || 1000000}">${m.name} (${m.brand}) - ${(m.expected_price || 1000000).toLocaleString()} so'm</option>`).join('');
+    try {
+        const container = document.getElementById('po-items-container');
+        if (!container) return;
+        const rowId = Date.now() + Math.floor(Math.random() * 1000);
+        const div = document.createElement('div');
+        div.className = "flex items-center gap-2 p-2 rounded-xl bg-slate-800/80 border border-slate-700 po-row";
+        div.id = `po-row-${rowId}`;
+        
+        const models = DB.product_models || [];
+        const modelOptions = models.length > 0
+            ? models.map(m => `<option value="${m.id}" data-price="${m.expected_price || 1000000}">${m.name} (${m.brand}) - ${(m.expected_price || 1000000).toLocaleString()} so'm</option>`).join('')
+            : `<option value="0" data-price="0">-- Katalogda tovar yo'q (Katalogda tovar yarating) --</option>`;
 
-    div.innerHTML = `
-        <select class="po-item-model flex-1 rounded-lg border border-slate-600 bg-slate-900 py-1.5 px-2 text-xs text-white focus:outline-none" onchange="calculatePOTotal()">
-            ${modelOptions}
-        </select>
-        <input type="number" min="1" value="1" placeholder="Soni" class="po-item-qty w-20 rounded-lg border border-slate-600 bg-slate-900 py-1.5 px-2 text-xs text-white focus:outline-none text-center" oninput="calculatePOTotal()">
-        <input type="number" step="10000" placeholder="Kutilayotgan narxi" class="po-item-price w-32 rounded-lg border border-slate-600 bg-slate-900 py-1.5 px-2 text-xs text-white focus:outline-none" oninput="calculatePOTotal()">
-        <button type="button" onclick="removePOLineItem('${rowId}')" class="p-1.5 text-slate-400 hover:text-red-400 transition">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-        </button>
-    `;
-    container.appendChild(div);
-    
-    const selectEl = div.querySelector('.po-item-model');
-    const priceEl = div.querySelector('.po-item-price');
-    priceEl.value = selectEl.selectedOptions[0].getAttribute('data-price');
-    
-    calculatePOTotal();
-    lucide.createIcons();
+        div.innerHTML = `
+            <select class="po-item-model flex-1 rounded-lg border border-slate-600 bg-slate-900 py-1.5 px-2 text-xs text-white focus:outline-none" onchange="calculatePOTotal()">
+                ${modelOptions}
+            </select>
+            <input type="number" min="1" value="1" placeholder="Soni" class="po-item-qty w-20 rounded-lg border border-slate-600 bg-slate-900 py-1.5 px-2 text-xs text-white focus:outline-none text-center" oninput="calculatePOTotal()">
+            <input type="number" step="10000" placeholder="Kutilayotgan narxi" class="po-item-price w-32 rounded-lg border border-slate-600 bg-slate-900 py-1.5 px-2 text-xs text-white focus:outline-none" oninput="calculatePOTotal()">
+            <button type="button" onclick="removePOLineItem('${rowId}')" class="p-1.5 text-slate-400 hover:text-red-400 transition">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+        `;
+        container.appendChild(div);
+        
+        const selectEl = div.querySelector('.po-item-model');
+        const priceEl = div.querySelector('.po-item-price');
+        if (priceEl) {
+            if (selectEl && selectEl.selectedOptions && selectEl.selectedOptions[0]) {
+                priceEl.value = selectEl.selectedOptions[0].getAttribute('data-price') || '0';
+            } else {
+                priceEl.value = '0';
+            }
+        }
+        
+        calculatePOTotal();
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    } catch (err) {
+        console.error("addPOLineItem error:", err);
+    }
 }
 
 function removePOLineItem(rowId) {
@@ -216,8 +271,10 @@ function calculatePOTotal() {
     let total = 0;
     const rows = document.querySelectorAll('.po-row');
     rows.forEach(r => {
-        const qty = parseInt(r.querySelector('.po-item-qty').value) || 0;
-        const price = parseFloat(r.querySelector('.po-item-price').value) || 0;
+        const qtyEl = r.querySelector('.po-item-qty');
+        const priceEl = r.querySelector('.po-item-price');
+        const qty = qtyEl ? (parseInt(qtyEl.value) || 0) : 0;
+        const price = priceEl ? (parseFloat(priceEl.value) || 0) : 0;
         total += (qty * price);
     });
     const prev = document.getElementById('po-total-preview');
@@ -227,40 +284,78 @@ function calculatePOTotal() {
 
 function handleCreatePO(e) {
     e.preventDefault();
-    const supplierId = parseInt(document.getElementById('po-supplier-select').value);
-    const orderDate = document.getElementById('po-order-date').value;
-    const rows = document.querySelectorAll('.po-row');
+    try {
+        const supSelect = document.getElementById('po-supplier-select');
+        let supplierVal = supSelect ? supSelect.value : '';
+        const orderDate = document.getElementById('po-order-date')?.value || new Date().toISOString().split('T')[0];
+        const rows = document.querySelectorAll('.po-row');
 
-    if (rows.length === 0) {
-        alert("Kamida bitta uskuna qo'shilishi shart!");
-        return;
+        if (rows.length === 0) {
+            alert("Kamida bitta uskuna qo'shilishi shart!");
+            return;
+        }
+
+        let supplierId = null;
+        if (!supplierVal || supplierVal === 'new') {
+            const quickName = (document.getElementById('po-quick-supplier-name')?.value || '').trim();
+            if (!quickName) {
+                alert("Iltimos, yetkazib beruvchi nomini yozing!");
+                return;
+            }
+            const newSup = {
+                id: Date.now(),
+                company_name: quickName,
+                contact_person: "Mas'ul shaxs",
+                phone: "+998 90 000-00-00",
+                balance: 0,
+                created_at: new Date().toISOString().split('T')[0]
+            };
+            if (!DB.suppliers) DB.suppliers = [];
+            DB.suppliers.push(newSup);
+            supplierId = newSup.id;
+        } else {
+            supplierId = parseInt(supplierVal);
+        }
+
+        const items = [];
+        let total = 0;
+        let hasInvalidModel = false;
+        rows.forEach(r => {
+            const modelEl = r.querySelector('.po-item-model');
+            const modelId = modelEl ? parseInt(modelEl.value) : 0;
+            if (!modelId || modelId === 0) {
+                hasInvalidModel = true;
+            }
+            const qty = parseInt(r.querySelector('.po-item-qty')?.value) || 1;
+            const price = parseFloat(r.querySelector('.po-item-price')?.value) || 0;
+            items.push({ product_model_id: modelId, quantity: qty, expected_price: price });
+            total += (qty * price);
+        });
+
+        if (hasInvalidModel || items.length === 0) {
+            alert("Katalogda tovar modeli tanlanmagan! Avval 2-bo'lim (Katalog)da yangi tovar yarating.");
+            return;
+        }
+
+        if (!DB.supplier_orders) DB.supplier_orders = [];
+        const newId = `PO-2026-${String(DB.supplier_orders.length + 1).padStart(3, '0')}`;
+        const newOrder = {
+            id: newId,
+            supplier_id: supplierId,
+            order_date: orderDate,
+            status: "tasdiqlangan",
+            total_amount: total,
+            items: items
+        };
+
+        DB.supplier_orders.unshift(newOrder);
+        saveDB();
+        closeModal('modal-create-po');
+        renderPOTable();
+        showNotification(`Buyurtma muvaffaqiyatli saqlandi! (${newId})`, "success");
+    } catch (err) {
+        console.error("handleCreatePO error:", err);
     }
-
-    const items = [];
-    let total = 0;
-    rows.forEach(r => {
-        const modelId = parseInt(r.querySelector('.po-item-model').value);
-        const qty = parseInt(r.querySelector('.po-item-qty').value) || 1;
-        const price = parseFloat(r.querySelector('.po-item-price').value) || 0;
-        items.push({ product_model_id: modelId, quantity: qty, expected_price: price });
-        total += (qty * price);
-    });
-
-    const newId = `PO-2026-${String(DB.supplier_orders.length + 1).padStart(3, '0')}`;
-    const newOrder = {
-        id: newId,
-        supplier_id: supplierId,
-        order_date: orderDate,
-        status: "tasdiqlangan",
-        total_amount: total,
-        items: items
-    };
-
-    DB.supplier_orders.unshift(newOrder);
-    saveDB();
-    closeModal('modal-create-po');
-    renderPOTable();
-    showNotification(`Buyurtma muvaffaqiyatli saqlandi! (${newId})`, "success");
 }
 
 function convertToInbound(poId) {
@@ -321,44 +416,59 @@ function renderReceiptsTable() {
 }
 
 function openModalCreateInbound(presetPoId = null) {
-    const orderSelect = document.getElementById('inbound-order-select');
-    orderSelect.innerHTML = '<option value="">-- Alohida kirim (PO-siz) --</option>' + 
-        DB.supplier_orders.filter(o => o.status !== 'yakunlandi').map(o => {
-            const sup = DB.suppliers.find(s => s.id === o.supplier_id);
-            return `<option value="${o.id}">${o.id} - ${sup ? sup.company_name : ''}</option>`;
-        }).join('');
+    try {
+        const orderSelect = document.getElementById('inbound-order-select');
+        const orders = (DB.supplier_orders || []).filter(o => o.status !== 'yakunlandi');
+        if (orderSelect) {
+            orderSelect.innerHTML = '<option value="">-- Alohida kirim (PO-siz) --</option>' + 
+                orders.map(o => {
+                    const sup = (DB.suppliers || []).find(s => s.id === o.supplier_id);
+                    return `<option value="${o.id}">${o.id} - ${sup ? sup.company_name : ''}</option>`;
+                }).join('');
+        }
 
-    document.getElementById('inbound-date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('inbound-invoice-number').value = `NAK-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+        const dateEl = document.getElementById('inbound-date');
+        if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
 
-    if (presetPoId) {
-        orderSelect.value = presetPoId;
-        onSelectPOForInbound(presetPoId);
-    } else {
-        onSelectPOForInbound(orderSelect.value);
+        const invEl = document.getElementById('inbound-invoice-number');
+        if (invEl) invEl.value = `NAK-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        if (presetPoId && orderSelect) {
+            orderSelect.value = presetPoId;
+            onSelectPOForInbound(presetPoId);
+        } else if (orderSelect) {
+            onSelectPOForInbound(orderSelect.value);
+        }
+
+        openModal('modal-create-inbound');
+    } catch (err) {
+        console.error("openModalCreateInbound error:", err);
     }
-
-    openModal('modal-create-inbound');
 }
 
 function onSelectPOForInbound(poId) {
-    const factBody = document.getElementById('inbound-fact-body');
-    factBody.innerHTML = '';
+    try {
+        const factBody = document.getElementById('inbound-fact-body');
+        if (!factBody) return;
+        factBody.innerHTML = '';
 
-    const order = DB.supplier_orders.find(o => o.id === poId);
-    if (!order) {
-        DB.product_models.slice(0, 2).forEach(m => {
-            appendFactRow(m.id, m.name, 1, 1);
+        const order = (DB.supplier_orders || []).find(o => o.id === poId);
+        if (!order) {
+            (DB.product_models || []).slice(0, 2).forEach(m => {
+                appendFactRow(m.id, m.name, 1, 1);
+            });
+            return;
+        }
+
+        (order.items || []).forEach(it => {
+            const model = (DB.product_models || []).find(m => m.id === it.product_model_id);
+            appendFactRow(it.product_model_id, model ? model.name : 'Model', it.quantity, it.quantity);
         });
-        return;
+
+        lucide.createIcons();
+    } catch (err) {
+        console.error("onSelectPOForInbound error:", err);
     }
-
-    order.items.forEach(it => {
-        const model = DB.product_models.find(m => m.id === it.product_model_id);
-        appendFactRow(it.product_model_id, model ? model.name : 'Model', it.quantity, it.quantity);
-    });
-
-    lucide.createIcons();
 }
 
 function appendFactRow(modelId, modelName, expectedQty, initialReceived) {
@@ -604,32 +714,38 @@ function togglePlacementMode(mode) {
 window.togglePlacementMode = togglePlacementMode;
 
 function openModalAddDirectItem(presetModelId = null) {
-    const catSelect = document.getElementById('place-new-category');
-    if (catSelect) {
-        catSelect.innerHTML = (DB.categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    }
+    try {
+        const catSelect = document.getElementById('place-new-category');
+        if (catSelect) {
+            catSelect.innerHTML = (DB.categories || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        }
 
-    const modelSelect = document.getElementById('place-model-select');
-    const hasModels = (DB.product_models || []).length > 0;
-    if (modelSelect) {
-        modelSelect.innerHTML = (DB.product_models || []).map(m => `<option value="${m.id}">${m.name} (${m.brand}) - ${(m.daily_price || 0).toLocaleString()} so'm/kun</option>`).join('');
-        if (presetModelId) modelSelect.value = presetModelId;
-    }
+        const modelSelect = document.getElementById('place-model-select');
+        const hasModels = (DB.product_models || []).length > 0;
+        if (modelSelect) {
+            modelSelect.innerHTML = hasModels 
+                ? (DB.product_models || []).map(m => `<option value="${m.id}">${m.name} (${m.brand}) - ${(m.daily_price || 0).toLocaleString()} so'm/kun</option>`).join('')
+                : '<option value="">-- Katalogda tovar yo\'q --</option>';
+            if (presetModelId) modelSelect.value = presetModelId;
+        }
 
-    if (!hasModels || !presetModelId) {
-        togglePlacementMode(hasModels && presetModelId ? 'existing' : 'new');
-    } else {
-        togglePlacementMode('existing');
-    }
+        if (!hasModels || !presetModelId) {
+            togglePlacementMode(hasModels && presetModelId ? 'existing' : 'new');
+        } else {
+            togglePlacementMode('existing');
+        }
 
-    const locSelect = document.getElementById('place-location-select');
-    if (locSelect) {
-        locSelect.innerHTML = (DB.warehouse_locations || []).map(l => `<option value="${l.id}">${l.zone || l.sector} -> ${l.shelf} (${l.bin || l.code})</option>`).join('');
-    }
+        const locSelect = document.getElementById('place-location-select');
+        if (locSelect) {
+            locSelect.innerHTML = (DB.warehouse_locations || []).map(l => `<option value="${l.id}">${l.zone || l.sector} -> ${l.shelf} (${l.bin || l.code})</option>`).join('');
+        }
 
-    generateAutoSerial();
-    generateNewBarcode();
-    openModal('modal-placement');
+        generateAutoSerial();
+        generateNewBarcode();
+        openModal('modal-placement');
+    } catch (err) {
+        console.error("openModalAddDirectItem error:", err);
+    }
 }
 
 function onModelChangePlacement(modelId) {
@@ -860,20 +976,37 @@ function renderReturnsTable() {
 }
 
 function openModalCreateReturn() {
-    const supSelect = document.getElementById('return-supplier-select');
-    supSelect.innerHTML = DB.suppliers.map(s => `<option value="${s.id}">${s.company_name}</option>`).join('');
+    try {
+        const supSelect = document.getElementById('return-supplier-select');
+        const sups = DB.suppliers || [];
+        if (supSelect) {
+            supSelect.innerHTML = sups.length > 0 
+                ? sups.map(s => `<option value="${s.id}">${s.company_name}</option>`).join('')
+                : '<option value="">-- Yetkazib beruvchi yo\'q --</option>';
+        }
 
-    const itemSelect = document.getElementById('return-item-select');
-    const availableItems = DB.product_items.filter(i => i.status !== 'vozvrat_qilingan');
+        const itemSelect = document.getElementById('return-item-select');
+        const availableItems = (DB.product_items || []).filter(i => i.status !== 'vozvrat_qilingan');
 
-    itemSelect.innerHTML = availableItems.map(it => {
-        const model = DB.product_models.find(m => m.id === it.product_model_id);
-        return `<option value="${it.id}">SN: ${it.serial_number} — ${model ? model.name : ''} (Holati: ${it.status})</option>`;
-    }).join('');
+        if (itemSelect) {
+            itemSelect.innerHTML = availableItems.length > 0 
+                ? availableItems.map(it => {
+                    const model = (DB.product_models || []).find(m => m.id === it.product_model_id);
+                    return `<option value="${it.id}">SN: ${it.serial_number} — ${model ? model.name : ''} (Holati: ${it.status})</option>`;
+                }).join('')
+                : '<option value="">-- Omborda asbob yo\'q --</option>';
+        }
 
-    document.getElementById('return-date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('return-amount').value = "1200000";
-    openModal('modal-create-return');
+        const dateEl = document.getElementById('return-date');
+        if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+
+        const amountEl = document.getElementById('return-amount');
+        if (amountEl) amountEl.value = "1200000";
+
+        openModal('modal-create-return');
+    } catch (err) {
+        console.error("openModalCreateReturn error:", err);
+    }
 }
 
 function handleCreateReturn(e) {

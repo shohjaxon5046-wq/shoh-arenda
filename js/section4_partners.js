@@ -146,14 +146,19 @@ function filterPartnerCategory(cat) {
 }
 
 function openModalAddPartner() {
-    document.getElementById('p-company-name').value = '';
-    document.getElementById('p-contact-person').value = '';
-    document.getElementById('p-phone1').value = '+998 ';
-    document.getElementById('p-phone2').value = '';
-    document.getElementById('p-address').value = 'Toshkent sh., ';
-    document.getElementById('p-rating').value = '5.0';
+    try {
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('p-company-name', '');
+        setVal('p-contact-person', '');
+        setVal('p-phone1', '+998 ');
+        setVal('p-phone2', '');
+        setVal('p-address', 'Toshkent sh., ');
+        setVal('p-rating', '5.0');
 
-    openModal('modal-add-partner');
+        openModal('modal-add-partner');
+    } catch (err) {
+        console.error("openModalAddPartner error:", err);
+    }
 }
 
 function handleSavePartner(e) {
@@ -222,16 +227,26 @@ function renderPartnerPricesTable() {
 }
 
 function openModalAddPartnerPrice() {
-    const select = document.getElementById('pp-partner-select');
-    select.innerHTML = (DB.service_partners || []).map(p => `<option value="${p.id}">${p.company_name} (${p.service_category})</option>`).join('');
+    try {
+        const select = document.getElementById('pp-partner-select');
+        const partners = DB.service_partners || [];
+        if (select) {
+            select.innerHTML = partners.length > 0
+                ? partners.map(p => `<option value="${p.id}">${p.company_name} (${p.service_category})</option>`).join('')
+                : '<option value="">-- Hamkorlar ro\'yxati bo\'sh --</option>';
+        }
 
-    document.getElementById('pp-id').value = '';
-    document.getElementById('pp-service-name').value = '';
-    document.getElementById('pp-cost-price').value = '300000';
-    document.getElementById('pp-markup-pct').value = '20';
-    calculatePriceMargin();
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('pp-id', '');
+        setVal('pp-service-name', '');
+        setVal('pp-cost-price', '300000');
+        setVal('pp-markup-pct', '20');
+        calculatePriceMargin();
 
-    openModal('modal-add-partner-price');
+        openModal('modal-add-partner-price');
+    } catch (err) {
+        console.error("openModalAddPartnerPrice error:", err);
+    }
 }
 
 function calculatePriceMargin() {
@@ -429,29 +444,44 @@ function dispatchOrderToPartner(orderId) {
 }
 
 function openModalCreateServiceOrder(presetPartnerId = null) {
-    const custSelect = document.getElementById('so-customer-select');
-    custSelect.innerHTML = (DB.customers || []).map(c => `
-        <option value="${c.id}">${c.full_name} (${c.phone_primary}) ${c.status === 'qora_royxat' ? ' QORA RO\'YXAT!' : ''}</option>
-    `).join('');
+    try {
+        const custSelect = document.getElementById('so-customer-select');
+        const customers = DB.customers || [];
+        if (custSelect) {
+            custSelect.innerHTML = customers.length > 0 
+                ? customers.map(c => `
+                    <option value="${c.id}">${c.full_name} (${c.phone_primary}) ${c.status === 'qora_royxat' ? ' QORA RO\'YXAT!' : ''}</option>
+                `).join('')
+                : '<option value="">-- Mijozlar yo\'q (Avval CRMda mijoz qo\'shing) --</option>';
+        }
 
-    const partnerSelect = document.getElementById('so-partner-select');
-    partnerSelect.innerHTML = (DB.service_partners || []).map(p => `
-        <option value="${p.id}" ${presetPartnerId && presetPartnerId === p.id ? 'selected' : ''}>
-            ${p.company_name} - ${p.service_category} ( ${p.rating})
-        </option>
-    `).join('');
+        const partnerSelect = document.getElementById('so-partner-select');
+        const partners = DB.service_partners || [];
+        if (partnerSelect) {
+            partnerSelect.innerHTML = partners.length > 0 
+                ? partners.map(p => `
+                    <option value="${p.id}" ${presetPartnerId && presetPartnerId === p.id ? 'selected' : ''}>
+                        ${p.company_name} - ${p.service_category} ( ${p.rating})
+                    </option>
+                `).join('')
+                : '<option value="">-- Hamkorlar mavjud emas --</option>';
+        }
 
-    document.getElementById('so-date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('so-time').value = "10:00";
-    document.getElementById('so-address').value = "Toshkent sh., ";
-    document.getElementById('so-details').value = "";
-    document.getElementById('so-customer-price').value = "450000";
-    document.getElementById('so-partner-payout').value = "350000";
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('so-date', new Date().toISOString().split('T')[0]);
+        setVal('so-time', "10:00");
+        setVal('so-address', "Toshkent sh., ");
+        setVal('so-details', "");
+        setVal('so-customer-price', "450000");
+        setVal('so-partner-payout', "350000");
 
-    calculateOrderNetProfit();
-    openModal('modal-create-service-order');
-    if (typeof onDispatchServiceCategoryChange === 'function') {
-        onDispatchServiceCategoryChange();
+        calculateOrderNetProfit();
+        openModal('modal-create-service-order');
+        if (typeof onDispatchServiceCategoryChange === 'function') {
+            onDispatchServiceCategoryChange();
+        }
+    } catch (err) {
+        console.error("openModalCreateServiceOrder error:", err);
     }
 }
 

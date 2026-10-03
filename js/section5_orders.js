@@ -327,24 +327,45 @@ function openModalPosOrder() {
 window.openModalPosOrder = openModalPosOrder;
 
 function populateAvailablePosTools() {
-    const select = document.getElementById('pos-tool-unit-select');
-    if (!select) return;
+    try {
+        const select = document.getElementById('pos-tool-unit-select');
+        const alertBox = document.getElementById('pos-tool-location-alert');
+        if (!select) return;
 
-    // Filter units strictly where status === 'omborda_bosh'
-    const availableUnits = (DB.product_items || []).filter(u => u.status === 'omborda_bosh');
+        // Filter units strictly where status === 'omborda_bosh'
+        const availableUnits = (DB.product_items || []).filter(u => u.status === 'omborda_bosh');
 
-    select.innerHTML = '<option value="">-- Bo\'sh turgan asbobni tanlang --</option>' +
-        availableUnits.map(u => {
-            const model = (DB.product_models || []).find(m => m.id === u.product_model_id);
-            const modelName = model ? model.name : 'Asbob';
-            const price = model ? model.daily_price : 0;
-            const locCode = typeof getLocationCode === 'function' ? getLocationCode(u.warehouse_location_id) : 'A-01-01';
-            return `<option value="${u.id}">${modelName} | SN: ${u.serial_number} [ ${locCode}] (${price.toLocaleString()} so'm/kun)</option>`;
-        }).join('');
+        if (availableUnits.length === 0) {
+            select.innerHTML = '<option value="" disabled selected>⚠️ Omborda hozircha asbob yo\'q, avval Kirim qiling</option>';
+            if (alertBox) {
+                alertBox.className = "p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs flex items-center gap-2 text-amber-300 mt-2";
+                alertBox.innerHTML = '<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 shrink-0"></i><span>Omborda hozircha asbob yo\'q, avval Kirim qiling</span>';
+                alertBox.classList.remove('hidden');
+                alertBox.style.setProperty('display', 'flex', 'important');
+            }
+        } else {
+            select.innerHTML = '<option value="">-- Bo\'sh turgan asbobni tanlang --</option>' +
+                availableUnits.map(u => {
+                    const model = (DB.product_models || []).find(m => m.id === u.product_model_id);
+                    const modelName = model ? model.name : 'Asbob';
+                    const price = model ? model.daily_price : 0;
+                    const locCode = typeof getLocationCode === 'function' ? getLocationCode(u.warehouse_location_id) : 'A-01-01';
+                    return `<option value="${u.id}">${modelName} | SN: ${u.serial_number} [ ${locCode}] (${price.toLocaleString()} so'm/kun)</option>`;
+                }).join('');
+            if (alertBox) {
+                alertBox.classList.add('hidden');
+                alertBox.style.setProperty('display', 'none', 'important');
+                alertBox.innerHTML = '';
+            }
+        }
 
-    select.onchange = function() {
-        if (typeof onPosToolSelectChange === 'function') onPosToolSelectChange();
-    };
+        select.onchange = function() {
+            if (typeof onPosToolSelectChange === 'function') onPosToolSelectChange();
+        };
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    } catch (err) {
+        console.error("populateAvailablePosTools error:", err);
+    }
 }
 
 function onPosToolSelectChange() {
@@ -532,11 +553,17 @@ function quickCreateCustomerFromPOS(queryName) {
 // Add Tool to POS Cart
 function addToolToPosCart() {
     const select = document.getElementById('pos-tool-unit-select');
+    if (!select) return;
     const unitId = parseInt(select.value);
-    const rentDays = parseInt(document.getElementById('pos-tool-days-input').value) || 1;
+    const rentDays = parseInt(document.getElementById('pos-tool-days-input')?.value) || 1;
 
     if (!unitId) {
-        alert("Iltimos, avval omborda bo'sh bo'lgan asbobni tanlang!");
+        const availableUnits = (DB.product_items || []).filter(u => u.status === 'omborda_bosh');
+        if (availableUnits.length === 0) {
+            alert("Omborda hozircha asbob yo'q, avval Kirim qiling!");
+        } else {
+            alert("Iltimos, avval omborda bo'sh bo'lgan asbobni tanlang!");
+        }
         return;
     }
 
@@ -757,10 +784,10 @@ function calculatePosSummary() {
     const inputPaid = document.getElementById('pos-input-paid');
     const inputDeposit = document.getElementById('pos-input-deposit');
 
-    if (inputPaid && !inputPaid.dataset.manual) {
+    if (inputPaid && !(inputPaid.dataset && inputPaid.dataset.manual)) {
         inputPaid.value = rentTotal;
     }
-    if (inputDeposit && !inputDeposit.dataset.manual) {
+    if (inputDeposit && !(inputDeposit.dataset && inputDeposit.dataset.manual)) {
         inputDeposit.value = depositTotal;
     }
 }
