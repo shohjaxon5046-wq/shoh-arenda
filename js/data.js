@@ -47,11 +47,13 @@ const DEFAULT_DB = {
     // SECTION 11: DYNAMIC SERVICE PRICING RULES (ADMIN CONFIGURABLE)
     service_pricing_rules: {
         gruzchik: {
-            bag_carry_price_per_floor: 3000,
-            bag_carry_with_elevator: 1500,
-            hourly_worker_rate: 50000,
-            min_hours: 2,
-            partner_share_percent: 75,
+            base_standard_bag_price: 3000,      // Standart qop / yuklar (0-30 kg) baza narxi: 3000 so'm
+            floor_extra_price: 2000,            // Har bir qavat uchun ustama (Lift ishlamasa): 2000 so'm
+            elevator_fixed_price: 1500,         // Lift ishlaganda 1 dona narxi (fiksirlangan): 1500 so'm
+            heavy_coefficient: 1.5,             // O'ta og'ir yuklar koeffitsiyenti (30-50 kg, masalan tsement): 1.5
+            sheet_base_price: 2500,             // Katta hajmli listlar (Gipsokarton, OSB) baza narxi: 2500 so'm
+            sheet_floor_extra: 2000,            // Listlar uchun har bir qavat ustamasi: 2000 so'm
+            partner_share_percent: 75,          // Hamkor ulushi (% da): 75%
             worker_count_rules: [
                 { max_kg: 500, workers: 1, label: "500 kg gacha" },
                 { max_kg: 1500, workers: 2, label: "500 kg - 1.5 tonnagacha" },

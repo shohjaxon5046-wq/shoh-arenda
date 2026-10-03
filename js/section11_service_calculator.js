@@ -6,9 +6,23 @@
 /**
  * Returns current pricing rules from DB or defaults
  */
+/**
+ * Returns current pricing rules from DB or defaults
+ */
 function getServicePricingRules() {
     if (!DB.service_pricing_rules) {
         DB.service_pricing_rules = JSON.parse(JSON.stringify(DEFAULT_DB.service_pricing_rules));
+    }
+    // Ensure all gruzchik multi-material fields have fallback values
+    if (DB.service_pricing_rules && DB.service_pricing_rules.gruzchik) {
+        const g = DB.service_pricing_rules.gruzchik;
+        if (g.base_standard_bag_price === undefined) g.base_standard_bag_price = 3000;
+        if (g.floor_extra_price === undefined) g.floor_extra_price = 2000;
+        if (g.elevator_fixed_price === undefined) g.elevator_fixed_price = 1500;
+        if (g.heavy_coefficient === undefined) g.heavy_coefficient = 1.5;
+        if (g.sheet_base_price === undefined) g.sheet_base_price = 2500;
+        if (g.sheet_floor_extra === undefined) g.sheet_floor_extra = 2000;
+        if (g.partner_share_percent === undefined) g.partner_share_percent = 75;
     }
     return DB.service_pricing_rules;
 }
@@ -18,74 +32,85 @@ function getServicePricingRules() {
 // -------------------------------------------------------------------------
 
 /**
- * 1. Gruzchik xizmati kalkulyatori
- * @param {Object} p - { mode, bagCount, floor, hasElevator, hourlyHours, hourlyWorkers }
+ * 1. Gruzchik xizmati kalkulyatori (Qurilish materiallari & Qavatlar)
+ * @param {Object} p - { standardBags, heavyBags, sheetCount, floor, hasElevator }
  */
 function calculateGruzchikPrice(p) {
-    const rules = getServicePricingRules().gruzchik;
-    const mode = p.mode || 'qop'; // 'qop', 'soatbay', 'mebel'
-    let customerPrice = 0;
-    let workerCount = 1;
-    let formulaText = "";
-    let taskInstruction = "";
-    let detailsText = "";
+    const rules = getServicePricingRules().gruzchik || {};
+    const baseStdPrice = Number(rules.base_standard_bag_price) || 3000;
+    const floorExtra = Number(rules.floor_extra_price) || 2000;
+    const elevFixedPrice = Number(rules.elevator_fixed_price) || 1500;
+    const heavyCoef = Number(rules.heavy_coefficient) || 1.5;
+    const sheetBasePrice = Number(rules.sheet_base_price) || 2500;
+    const sheetFloorExtra = Number(rules.sheet_floor_extra) || 2000;
+    const partnerSharePercent = Number(rules.partner_share_percent) || 75;
 
-    if (mode === 'qop') {
-        const bags = Math.max(1, parseInt(p.bagCount) || 1);
-        const floor = Math.max(1, parseInt(p.floor) || 1);
-        const hasElevator = !!p.hasElevator;
-        const totalWeightKg = bags * 50;
-        const totalWeightTons = (totalWeightKg / 1000).toFixed(1);
+    const stdBags = Math.max(0, parseInt(p.standardBags || p.bagCount) || 0);
+    const heavyBags = Math.max(0, parseInt(p.heavyBags) || 0);
+    const sheetCount = Math.max(0, parseInt(p.sheetCount || p.sheets) || 0);
+    const floor = Math.max(1, parseInt(p.floor) || 1);
+    const hasElevator = !!p.hasElevator;
 
-        // Derive worker count based on weight
-        const rule = (rules.worker_count_rules || []).find(r => totalWeightKg <= r.max_kg) || { workers: 4 };
-        workerCount = rule.workers;
+    // 1. Standart yuklar (0-30 kg):
+    // Lift bo'lsa yoki 1-qavat: (Lift narxi yoki Baza narxi) * Soni
+    // Lift bo'lmasa: [Baza narxi + ((Qavatlar soni - 1) * Har bir qavat ustamasi)] * Soni
+    const stdUnitRate = (hasElevator || floor <= 1)
+        ? (hasElevator ? elevFixedPrice : baseStdPrice)
+        : (baseStdPrice + ((floor - 1) * floorExtra));
+    const stdTotal = stdBags * stdUnitRate;
 
-        if (hasElevator) {
-            // Lift bor bo'lsa
-            customerPrice = bags * rules.bag_carry_with_elevator;
-            formulaText = `${bags} qop x ${rules.bag_carry_with_elevator.toLocaleString()} so'm (Lift bor)`;
-            taskInstruction = `Vazifa: ${bags} qop sement/aralashma (${totalWeightTons} t), ${floor}-qavat (LIFT BOR). ${workerCount} ta ishchi kerak.`;
-            detailsText = `Gruzchik: ${bags} qop (${totalWeightTons} t), ${floor}-etaj (Lift bor). ${workerCount} kishi.`;
-        } else {
-            // Lift yo'q, etajga ko'tarish
-            customerPrice = bags * floor * rules.bag_carry_price_per_floor;
-            formulaText = `${bags} qop x ${floor}-etaj x ${rules.bag_carry_price_per_floor.toLocaleString()} so'm (Lift yo'q)`;
-            taskInstruction = `Vazifa: ${bags} qop sement/aralashma (${totalWeightTons} t), ${floor}-qavat (LIFT YO'Q). ${workerCount} ta ishchi kerak.`;
-            detailsText = `Gruzchik: ${bags} qop (${totalWeightTons} t), ${floor}-etaj (Lift yo'q). ${workerCount} kishi.`;
-        }
-    } else if (mode === 'soatbay') {
-        const workers = Math.max(1, parseInt(p.hourlyWorkers) || 2);
-        const hours = Math.max(rules.min_hours, parseInt(p.hourlyHours) || rules.min_hours);
-        workerCount = workers;
+    // 2. Og'ir yuklar (30-50 kg, sement): Standart formula natijasi * 1.5
+    const heavyUnitRate = Math.round(stdUnitRate * heavyCoef);
+    const heavyTotal = heavyBags * heavyUnitRate;
 
-        customerPrice = workers * hours * rules.hourly_worker_rate;
-        formulaText = `${workers} ishchi x ${hours} soat x ${rules.hourly_worker_rate.toLocaleString()} so'm (min: ${rules.min_hours} soat)`;
-        taskInstruction = `Vazifa: Soatbay gruzchik — ${workers} nafar ishchi, ${hours} soat ishlash uchun.`;
-        detailsText = `Gruzchik: Soatbay ${workers} kishi, ${hours} soat (${rules.hourly_worker_rate.toLocaleString()} so'm/soat).`;
-    } else {
-        // Mebel va umumiy ko'chirish
-        const rooms = Math.max(1, parseInt(p.rooms) || 1);
-        const floor = Math.max(1, parseInt(p.floor) || 1);
-        const hasElevator = !!p.hasElevator;
-        workerCount = rooms >= 3 ? 4 : (rooms === 2 ? 3 : 2);
+    // 3. List materiallar (Gipsokarton, OSB): Fiksirlangan list narxi qavatlar va songa qarab
+    // Lift bo'lsa yoki 1-qavat: sheetBasePrice * Soni
+    // Lift bo'lmasa: [sheetBasePrice + ((floor - 1) * sheetFloorExtra)] * Soni
+    const sheetUnitRate = (hasElevator || floor <= 1)
+        ? sheetBasePrice
+        : (sheetBasePrice + ((floor - 1) * sheetFloorExtra));
+    const sheetTotal = sheetCount * sheetUnitRate;
 
-        const base = rooms * 300000;
-        const floorFee = hasElevator ? 50000 : (floor * 80000);
-        customerPrice = base + floorFee;
-        formulaText = `${rooms} xonali mebel ko'chirish (${base.toLocaleString()}) + Qavat haqi (${floorFee.toLocaleString()})`;
-        taskInstruction = `Vazifa: ${rooms} xonali xonadon mebellarini ko'chirish, ${floor}-etaj (${hasElevator ? 'lift bor' : 'lift yo\'q'}). ${workerCount} ta ishchi kerak.`;
-        detailsText = `Mebel ko'chirish: ${rooms} xona, ${floor}-etaj (${hasElevator ? 'Lift bor' : 'Lift yo\'q'}). ${workerCount} ishchi.`;
+    const customerPrice = stdTotal + heavyTotal + sheetTotal;
+
+    // Resurs / Ishchilar soni hisobi
+    const totalEstWeightKg = (stdBags * 25) + (heavyBags * 50) + (sheetCount * 30);
+    const totalItems = stdBags + heavyBags + sheetCount;
+    let workerCount = 2;
+    if (totalEstWeightKg > 3000 || totalItems > 80 || (floor > 6 && !hasElevator)) {
+        workerCount = 5;
+    } else if (totalEstWeightKg > 1800 || totalItems > 45 || (floor > 4 && !hasElevator)) {
+        workerCount = 4;
+    } else if (totalEstWeightKg > 800 || totalItems > 20 || (floor > 2 && !hasElevator)) {
+        workerCount = 3;
+    } else if (totalItems <= 5 && floor <= 2) {
+        workerCount = 1;
     }
 
-    const partnerCost = Math.round(customerPrice * (rules.partner_share_percent / 100));
+    const partnerCost = Math.round(customerPrice * (partnerSharePercent / 100));
     const margin = customerPrice - partnerCost;
+
+    // Formula & Task breakdown
+    const parts = [];
+    if (stdBags > 0) parts.push(`${stdBags} ta standart (${stdTotal.toLocaleString()} so'm)`);
+    if (heavyBags > 0) parts.push(`${heavyBags} ta og'ir sement (${heavyTotal.toLocaleString()} so'm)`);
+    if (sheetCount > 0) parts.push(`${sheetCount} ta list (${sheetTotal.toLocaleString()} so'm)`);
+    if (parts.length === 0) parts.push(`0 ta material (0 so'm)`);
+
+    const formulaText = parts.join(' + ') + ` [${floor}-etaj, ${hasElevator ? 'Lift bor' : 'Lift yo\'q'}]`;
+    const taskInstruction = `Vazifa: Yuk ko'tarish (${totalItems} ta material / ~${(totalEstWeightKg / 1000).toFixed(1)} t) — ${floor}-qavat (${hasElevator ? 'LIFT BOR' : 'LIFT YO\'Q'}). Tavsiya: ${workerCount} nafar ishchi.`;
+    const detailsText = `Gruzchik: ${totalItems} ta material (${parts.join(', ')}), ${floor}-etaj (${hasElevator ? 'Lift bor' : 'Lift yo\'q'}). ${workerCount} ishchi.`;
 
     return {
         customerPrice,
         partnerCost,
         margin,
         workerCount,
+        stdTotal,
+        heavyTotal,
+        sheetTotal,
+        totalItems,
+        totalEstWeightKg,
         formulaText,
         taskInstruction,
         detailsText,
@@ -231,71 +256,62 @@ function renderDynamicServiceCalculator(containerId, category, prefix = 'pos') {
                 <div class="flex items-center justify-between pb-2 border-b border-slate-800">
                     <span class="font-bold text-white flex items-center gap-1.5">
                         <i data-lucide="users-2" class="w-4 h-4 text-indigo-400"></i>
-                        <span>Gruzchik Smart Kalkulyatori</span>
+                        <span>Gruzchik Smart Kalkulyatori (Materiallar & Qavatlar)</span>
                     </span>
-                    <span class="text-[10px] text-indigo-300 font-mono">1 qop/etaj: ${rules.gruzchik.bag_carry_price_per_floor.toLocaleString()} so'm</span>
+                    <span class="text-[10px] text-indigo-300 font-mono">Baza: ${(rules.gruzchik.base_standard_bag_price || 3000).toLocaleString()} so'm | +${(rules.gruzchik.floor_extra_price || 2000).toLocaleString()}/etaj</span>
                 </div>
 
-                <!-- Mode selection -->
-                <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
-                    <button type="button" onclick="setCalcGruzchikMode('${prefix}', 'qop')" id="${prefix}-gmode-qop" class="py-1 px-2 rounded-lg text-xs font-bold bg-blue-600 text-white transition">Qoplar (Og'ir)</button>
-                    <button type="button" onclick="setCalcGruzchikMode('${prefix}', 'soatbay')" id="${prefix}-gmode-soatbay" class="py-1 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Soatbay</button>
-                    <button type="button" onclick="setCalcGruzchikMode('${prefix}', 'mebel')" id="${prefix}-gmode-mebel" class="py-1 px-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Mebel ko'chirish</button>
-                </div>
-                <input type="hidden" id="${prefix}-gruzchik-mode" value="qop">
-
-                <!-- Mode A: Qoplar -->
-                <div id="${prefix}-gsec-qop" class="space-y-2.5">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">Qoplar soni (dona / 50 kg) *</label>
-                            <input type="number" id="${prefix}-g-bags" min="1" value="20" oninput="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-1.5 px-2.5 text-xs text-white font-bold font-mono">
+                <!-- Material Inputs Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <!-- 1. Standart yuklar -->
+                    <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-[11px] font-bold text-slate-200">📦 Standart (0-30 kg)</label>
                         </div>
-                        <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">Qavat (Etaj): 1 - 25 *</label>
-                            <input type="number" id="${prefix}-g-floor" min="1" max="25" value="4" oninput="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-1.5 px-2.5 text-xs text-white font-bold font-mono">
+                        <p class="text-[10px] text-slate-400">Rotband, shpaklyovka, qop</p>
+                        <input type="number" id="${prefix}-g-std-bags" min="0" value="10" oninput="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-full rounded-lg border border-slate-700 bg-slate-900 py-1.5 px-2.5 text-xs text-white font-bold font-mono">
+                        <div class="text-[10px] text-indigo-300 font-mono flex justify-between pt-0.5">
+                            <span>Baza: ${(rules.gruzchik.base_standard_bag_price || 3000).toLocaleString()} so'm</span>
                         </div>
                     </div>
-                    <div class="flex items-center justify-between p-2 rounded-xl bg-slate-950 border border-slate-800">
+
+                    <!-- 2. Og'ir yuklar -->
+                    <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-[11px] font-bold text-amber-300">🧱 Og'ir (30-50 kg)</label>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Sement, qum, og'ir material</p>
+                        <input type="number" id="${prefix}-g-heavy-bags" min="0" value="0" oninput="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-full rounded-lg border border-slate-700 bg-slate-900 py-1.5 px-2.5 text-xs text-amber-300 font-bold font-mono">
+                        <div class="text-[10px] text-amber-400 font-mono flex justify-between pt-0.5">
+                            <span>Koef: x${rules.gruzchik.heavy_coefficient || 1.5}</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. List materiallar -->
+                    <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-[11px] font-bold text-emerald-300">📐 Katta listlar</label>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Gipsokarton, OSB, fanera</p>
+                        <input type="number" id="${prefix}-g-sheets" min="0" value="0" oninput="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-full rounded-lg border border-slate-700 bg-slate-900 py-1.5 px-2.5 text-xs text-emerald-300 font-bold font-mono">
+                        <div class="text-[10px] text-emerald-400 font-mono flex justify-between pt-0.5">
+                            <span>Baza: ${(rules.gruzchik.sheet_base_price || 2500).toLocaleString()} so'm</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Floor & Elevator Settings -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-300 mb-1">🏢 Ko'tariladigan Qavat (Etaj): 1 - 25</label>
+                        <input type="number" id="${prefix}-g-floor" min="1" max="25" value="4" oninput="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-1.5 px-2.5 text-xs text-white font-bold font-mono">
+                    </div>
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800">
                         <label class="flex items-center gap-2 cursor-pointer text-slate-200">
                             <input type="checkbox" id="${prefix}-g-elevator" onchange="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-4 h-4 rounded border-slate-700 bg-slate-800 text-indigo-500 focus:ring-0">
-                            <span class="text-xs font-semibold">Bino lifti ishlayapti (Lift mavjud)</span>
+                            <span class="text-xs font-semibold">🛗 Bino lifti ishlayapti</span>
                         </label>
-                        <span class="text-[10px] text-emerald-400 font-mono">Lift tarifi: ${rules.gruzchik.bag_carry_with_elevator.toLocaleString()} so'm/qop</span>
-                    </div>
-                </div>
-
-                <!-- Mode B: Soatbay -->
-                <div id="${prefix}-gsec-soatbay" class="hidden space-y-2.5">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">Ishchilar soni (nafar) *</label>
-                            <input type="number" id="${prefix}-g-workers" min="1" value="2" oninput="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-1.5 px-2.5 text-xs text-white font-bold font-mono">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">Soatlar soni (min ${rules.gruzchik.min_hours} soat) *</label>
-                            <input type="number" id="${prefix}-g-hours" min="${rules.gruzchik.min_hours}" value="3" oninput="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-1.5 px-2.5 text-xs text-white font-bold font-mono">
-                        </div>
-                    </div>
-                    <p class="text-[10px] text-slate-400">1 kishi uchun stavka: <b>${rules.gruzchik.hourly_worker_rate.toLocaleString()} so'm/soat</b> (Minimal 2 soat)</p>
-                </div>
-
-                <!-- Mode C: Mebel -->
-                <div id="${prefix}-gsec-mebel" class="hidden space-y-2.5">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">Xonalar soni</label>
-                            <select id="${prefix}-g-rooms" onchange="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-1.5 px-2 text-xs text-white">
-                                <option value="1">1 xonali (2 ishchi)</option>
-                                <option value="2">2 xonali (3 ishchi)</option>
-                                <option value="3">3 xonali (4 ishchi)</option>
-                                <option value="4">4+ xonali / Katta obyekt (4+ ishchi)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">Qavat (Etaj)</label>
-                            <input type="number" id="${prefix}-g-mebel-floor" min="1" value="3" oninput="updateLiveServiceCalculation('${prefix}', 'gruzchik')" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-1.5 px-2 text-xs text-white font-mono">
-                        </div>
+                        <span class="text-[10px] text-emerald-400 font-mono">Liftda: ${(rules.gruzchik.elevator_fixed_price || 1500).toLocaleString()} so'm/ta</span>
                     </div>
                 </div>
 
@@ -457,23 +473,18 @@ function updateLiveServiceCalculation(prefix, category) {
     let result = null;
 
     if (category === 'gruzchik') {
-        const mode = document.getElementById(`${prefix}-gruzchik-mode`)?.value || 'qop';
-        const bagCount = document.getElementById(`${prefix}-g-bags`)?.value || 20;
-        const floor = document.getElementById(`${prefix}-g-floor`)?.value || 4;
+        const standardBags = document.getElementById(`${prefix}-g-std-bags`)?.value || 0;
+        const heavyBags = document.getElementById(`${prefix}-g-heavy-bags`)?.value || 0;
+        const sheetCount = document.getElementById(`${prefix}-g-sheets`)?.value || 0;
+        const floor = document.getElementById(`${prefix}-g-floor`)?.value || 1;
         const hasElevator = document.getElementById(`${prefix}-g-elevator`)?.checked || false;
-        const hourlyWorkers = document.getElementById(`${prefix}-g-workers`)?.value || 2;
-        const hourlyHours = document.getElementById(`${prefix}-g-hours`)?.value || 3;
-        const rooms = document.getElementById(`${prefix}-g-rooms`)?.value || 2;
-        const mebelFloor = document.getElementById(`${prefix}-g-mebel-floor`)?.value || 3;
 
         result = calculateGruzchikPrice({
-            mode,
-            bagCount,
-            floor: mode === 'mebel' ? mebelFloor : floor,
-            hasElevator,
-            hourlyWorkers,
-            hourlyHours,
-            rooms
+            standardBags,
+            heavyBags,
+            sheetCount,
+            floor,
+            hasElevator
         });
     } else if (category === 'kran') {
         const tonnage = document.getElementById(`${prefix}-k-tonnage`)?.value || '25';
@@ -603,12 +614,15 @@ function openAdminPricingRulesModal() {
 
     const rules = getServicePricingRules();
 
-    // 1. Gruzchik inputs
-    document.getElementById('apr-g-floor-rate').value = rules.gruzchik.bag_carry_price_per_floor;
-    document.getElementById('apr-g-elev-rate').value = rules.gruzchik.bag_carry_with_elevator;
-    document.getElementById('apr-g-hour-rate').value = rules.gruzchik.hourly_worker_rate;
-    document.getElementById('apr-g-min-hours').value = rules.gruzchik.min_hours;
-    document.getElementById('apr-g-share').value = rules.gruzchik.partner_share_percent;
+    // 1. Gruzchik inputs (Materiallar & Qavatlar)
+    const g = rules.gruzchik || {};
+    if (document.getElementById('apr-g-std-base')) document.getElementById('apr-g-std-base').value = g.base_standard_bag_price ?? 3000;
+    if (document.getElementById('apr-g-floor-extra')) document.getElementById('apr-g-floor-extra').value = g.floor_extra_price ?? 2000;
+    if (document.getElementById('apr-g-elev-rate')) document.getElementById('apr-g-elev-rate').value = g.elevator_fixed_price ?? 1500;
+    if (document.getElementById('apr-g-heavy-coef')) document.getElementById('apr-g-heavy-coef').value = g.heavy_coefficient ?? 1.5;
+    if (document.getElementById('apr-g-sheet-base')) document.getElementById('apr-g-sheet-base').value = g.sheet_base_price ?? 2500;
+    if (document.getElementById('apr-g-sheet-floor')) document.getElementById('apr-g-sheet-floor').value = g.sheet_floor_extra ?? 2000;
+    if (document.getElementById('apr-g-share')) document.getElementById('apr-g-share').value = g.partner_share_percent ?? 75;
 
     // 2. Kran inputs
     document.getElementById('apr-k-16-rate').value = rules.kran.rates['16'].hourly_rate;
@@ -645,12 +659,15 @@ function handleSaveAdminPricingRules(e) {
 
     const rules = getServicePricingRules();
 
-    // 1. Gruzchik
-    rules.gruzchik.bag_carry_price_per_floor = parseFloat(document.getElementById('apr-g-floor-rate').value) || 3000;
-    rules.gruzchik.bag_carry_with_elevator = parseFloat(document.getElementById('apr-g-elev-rate').value) || 1500;
-    rules.gruzchik.hourly_worker_rate = parseFloat(document.getElementById('apr-g-hour-rate').value) || 50000;
-    rules.gruzchik.min_hours = parseInt(document.getElementById('apr-g-min-hours').value) || 2;
-    rules.gruzchik.partner_share_percent = parseInt(document.getElementById('apr-g-share').value) || 75;
+    // 1. Gruzchik (Materiallar & Qavatlar)
+    rules.gruzchik = rules.gruzchik || {};
+    rules.gruzchik.base_standard_bag_price = parseFloat(document.getElementById('apr-g-std-base')?.value) || 3000;
+    rules.gruzchik.floor_extra_price = parseFloat(document.getElementById('apr-g-floor-extra')?.value) || 2000;
+    rules.gruzchik.elevator_fixed_price = parseFloat(document.getElementById('apr-g-elev-rate')?.value) || 1500;
+    rules.gruzchik.heavy_coefficient = parseFloat(document.getElementById('apr-g-heavy-coef')?.value) || 1.5;
+    rules.gruzchik.sheet_base_price = parseFloat(document.getElementById('apr-g-sheet-base')?.value) || 2500;
+    rules.gruzchik.sheet_floor_extra = parseFloat(document.getElementById('apr-g-sheet-floor')?.value) || 2000;
+    rules.gruzchik.partner_share_percent = parseInt(document.getElementById('apr-g-share')?.value) || 75;
 
     // 2. Kran
     rules.kran.rates['16'].hourly_rate = parseFloat(document.getElementById('apr-k-16-rate').value) || 300000;

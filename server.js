@@ -1391,8 +1391,18 @@ const server = http.createServer((req, res) => {
                             const session = sellerWizardSessions.get(chatId) || {};
                             const wk = session.workers || 2;
                             const fl = session.floor || 1;
-                            const price = (wk * 150000) + (hasElevator ? 0 : (fl - 1) * 30000 * wk);
-                            const payout = Math.round(price * 0.8);
+                            const gRules = (db.service_pricing_rules && db.service_pricing_rules.gruzchik) || {
+                                base_standard_bag_price: 3000,
+                                floor_extra_price: 2000,
+                                elevator_fixed_price: 1500,
+                                partner_share_percent: 75
+                            };
+                            const stdUnitPrice = (hasElevator || fl <= 1) ? (gRules.elevator_fixed_price || 1500) : ((gRules.base_standard_bag_price || 3000) + ((fl - 1) * (gRules.floor_extra_price || 2000)));
+                            // Estimate typical order volume per worker (e.g. 20 standard bags per worker)
+                            const estBags = wk * 20;
+                            const price = estBags * stdUnitPrice;
+                            const share = (gRules.partner_share_percent || 75) / 100;
+                            const payout = Math.round(price * share);
 
                             sellerWizardSessions.set(chatId, {
                                 ...session,

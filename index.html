@@ -3543,29 +3543,40 @@
             </div>
             
             <form onsubmit="handleSaveAdminPricingRules(event)" class="p-6 overflow-y-auto flex-1 space-y-6">
-                <!-- 1. Gruzchik Tariflari -->
+                <!-- 1. Gruzchik Tariflari (Materiallar & Qavatlar) -->
                 <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                    <h4 class="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wide">
-                        <i data-lucide="users" class="w-4 h-4"></i> 1. Gruzchik Xizmati Qoidalari
-                    </h4>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold text-amber-400 flex items-center gap-1.5 uppercase tracking-wide">
+                            <i data-lucide="users" class="w-4 h-4"></i> 1. Gruzchik Xizmati Qoidalari (Materiallar & Qavatlar)
+                        </h4>
+                        <span class="text-[10px] text-slate-400 font-mono">Soatbaysiz (Dona / Qop / List / Qavat)</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
                         <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">1 qop 1 qavatga ko'tarish (so'm)</label>
-                            <input type="number" id="apr-g-floor-rate" required class="w-full rounded-xl border border-slate-700 bg-slate-900 py-1.5 px-3 text-white font-mono font-bold">
+                            <label class="block text-[11px] text-slate-400 mb-1">Standart yuk (0-30 kg) baza narxi (so'm)</label>
+                            <input type="number" id="apr-g-std-base" required class="w-full rounded-xl border border-slate-700 bg-slate-900 py-1.5 px-3 text-white font-mono font-bold">
                         </div>
                         <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">Lift bilan 1 qop narxi (so'm)</label>
+                            <label class="block text-[11px] text-slate-400 mb-1">Har bir qavat ustamasi (Liftsiz) (so'm)</label>
+                            <input type="number" id="apr-g-floor-extra" required class="w-full rounded-xl border border-slate-700 bg-slate-900 py-1.5 px-3 text-white font-mono font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Lift ishlaganda 1 dona fiks narxi (so'm)</label>
                             <input type="number" id="apr-g-elev-rate" required class="w-full rounded-xl border border-slate-700 bg-slate-900 py-1.5 px-3 text-white font-mono font-bold">
                         </div>
                         <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">Soatbay: 1 ishchi 1 soatlik narxi (so'm)</label>
-                            <input type="number" id="apr-g-hour-rate" required class="w-full rounded-xl border border-slate-700 bg-slate-900 py-1.5 px-3 text-white font-mono font-bold">
+                            <label class="block text-[11px] text-slate-400 mb-1">Og'ir yuk koeffitsiyenti (30-50 kg, sement)</label>
+                            <input type="number" step="0.1" id="apr-g-heavy-coef" required class="w-full rounded-xl border border-slate-700 bg-slate-900 py-1.5 px-3 text-amber-400 font-mono font-bold">
                         </div>
                         <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">Minimal ish soati (soat)</label>
-                            <input type="number" id="apr-g-min-hours" required class="w-full rounded-xl border border-slate-700 bg-slate-900 py-1.5 px-3 text-white font-mono font-bold">
+                            <label class="block text-[11px] text-slate-400 mb-1">Listlar (Gipsokarton, OSB) baza narxi (so'm)</label>
+                            <input type="number" id="apr-g-sheet-base" required class="w-full rounded-xl border border-slate-700 bg-slate-900 py-1.5 px-3 text-white font-mono font-bold">
                         </div>
-                        <div class="sm:col-span-2">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Listlar har bir qavat ustamasi (so'm)</label>
+                            <input type="number" id="apr-g-sheet-floor" required class="w-full rounded-xl border border-slate-700 bg-slate-900 py-1.5 px-3 text-white font-mono font-bold">
+                        </div>
+                        <div class="sm:col-span-2 lg:col-span-3">
                             <label class="block text-[11px] text-slate-400 mb-1">Hamkor ulushi (% da, qolgani korxona marjasi)</label>
                             <input type="number" id="apr-g-share" min="1" max="99" required class="w-full rounded-xl border border-slate-700 bg-slate-900 py-1.5 px-3 text-emerald-400 font-mono font-bold">
                         </div>
