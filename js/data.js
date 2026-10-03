@@ -515,15 +515,15 @@ async function fetchServerDB() {
         if (resp.ok) {
             const data = await resp.json();
             if (data && data.success && data.db && Object.keys(data.db).length > 0) {
-                const localSaved = localStorage.getItem(STORAGE_KEY);
-                if (!localSaved) {
-                    DB = data.db;
+                DB = data.db;
+                syncDbProperties(DB);
+                try {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
-                    if (typeof window !== 'undefined') window.DB = DB;
-                    if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges();
-                    if (typeof renderAllTabs === 'function') renderAllTabs();
-                    console.log('[SQLite Sync] Server SQLite bazasidan ma\'lumotlar yuklandi.');
-                }
+                } catch(e) {}
+                if (typeof window !== 'undefined') window.DB = DB;
+                if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges();
+                if (typeof renderAllTabs === 'function') renderAllTabs();
+                console.log('[SQLite Sync] Server SQLite bazasidan barcha ma\'lumotlar muvaffaqiyatli sinxronlandi.');
             }
         }
     } catch (e) {

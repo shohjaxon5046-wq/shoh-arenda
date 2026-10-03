@@ -3866,91 +3866,161 @@
     <script src="js/app.js?v=18.0"></script>
     
     <script>
-        function handleLogin(e) {
+        async function handleLogin(e) {
             if (e && typeof e.preventDefault === 'function') e.preventDefault();
 
+            const usernameEl = document.getElementById('login-username');
+            const passwordEl = document.getElementById('login-password');
+            const errBox = document.getElementById('login-error');
+            const errText = document.getElementById('login-error-text');
+            const submitBtn = document.querySelector('#login-form button[type="submit"]');
+
+            const usernameInput = (usernameEl ? usernameEl.value : '').trim();
+            const passwordInput = (passwordEl ? passwordEl.value : '').trim();
+
+            if (!usernameInput || !passwordInput) {
+                if (errBox) {
+                    errBox.classList.remove('hidden');
+                    errBox.style.setProperty('display', 'block', 'important');
+                }
+                if (errText) errText.innerText = "Iltimos, login va parolni kiriting!";
+                return;
+            }
+
+            const origBtnText = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="animate-pulse">Tekshirilmoqda...</span>';
+            }
+
             try {
-                const usernameEl = document.getElementById('login-username');
-                const passwordEl = document.getElementById('login-password');
-                const errBox = document.getElementById('login-error');
-                const errText = document.getElementById('login-error-text');
+                // 1. Try Online Server Authentication (Render SQLite Server)
+                let serverSuccess = false;
+                try {
+                    const resp = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: usernameInput, password: passwordInput })
+                    });
+                    const resData = await resp.json();
 
-                const usernameInput = (usernameEl ? usernameEl.value : '').trim();
-                const passwordInput = (passwordEl ? passwordEl.value : '').trim();
+                    if (resp.ok && resData.success) {
+                        serverSuccess = true;
+                        if (resData.db && typeof resData.db === 'object') {
+                            DB = resData.db;
+                            if (typeof syncDbProperties === 'function') syncDbProperties(DB);
+                            try {
+                                localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
+                            } catch (e) {}
+                            if (typeof window !== 'undefined') window.DB = DB;
+                        }
 
-                if (!usernameInput || !passwordInput) {
-                    if (errBox) {
-                        errBox.classList.remove('hidden');
-                        errBox.style.setProperty('display', 'block', 'important');
-                    }
-                    if (errText) errText.innerText = "Iltimos, login va parolni kiriting!";
-                    return;
-                }
+                        currentUser = resData.user;
+                        if (typeof window !== 'undefined') window.currentUser = currentUser;
 
-                // Ensure DB and users array exist
-                if (typeof DB === 'undefined' || !DB) DB = {};
-                if (!Array.isArray(DB.users) || DB.users.length === 0) {
-                    if (typeof DEFAULT_DB !== 'undefined' && Array.isArray(DEFAULT_DB.users)) {
-                        DB.users = JSON.parse(JSON.stringify(DEFAULT_DB.users));
-                    }
-                }
+                        try {
+                            localStorage.setItem('WMS_USER_SESSION', JSON.stringify(currentUser));
+                        } catch (err) {}
 
-                const usersList = Array.isArray(DB.users) ? DB.users : (typeof DEFAULT_DB !== 'undefined' ? DEFAULT_DB.users : []);
+                        if (errBox) {
+                            errBox.classList.add('hidden');
+                            errBox.style.setProperty('display', 'none', 'important');
+                        }
 
-                const user = usersList.find(u => 
-                    (u.username.toLowerCase() === usernameInput.toLowerCase() || 
-                     (u.full_name && u.full_name.toLowerCase().includes(usernameInput.toLowerCase()))) && 
-                    u.password === passwordInput
-                );
+                        showMainApp();
 
-                if (user) {
-                    if (!user.is_active) {
-                        alert(typeof t === 'function' ? t('alert.blocked_account') : "Ushbu hisob bloklangan! Bosh Admin bilan bog'laning.");
+                        const welcomeTxt = typeof t === 'function' ? `${t('alert.welcome_user')}, ${currentUser.full_name}!` : `Xush kelibsiz, ${currentUser.full_name}!`;
+                        if (typeof showNotification === 'function') {
+                            showNotification(welcomeTxt, "success");
+                        }
+                        return;
+                    } else if (resData.is_blocked) {
+                        alert(resData.error || "Ushbu hisob bloklangan! Bosh Admin bilan bog'laning.");
                         return;
                     }
-                    user.last_login = new Date().toLocaleString('uz-UZ');
-                    currentUser = { 
-                        id: user.id, 
-                        full_name: user.full_name || user.username || 'Foydalanuvchi', 
-                        username: user.username, 
-                        role_id: user.role_id || 'admin', 
-                        phone: user.phone || '' 
-                    };
+                } catch (netErr) {
+                    console.warn("Server auth ulanishda muammo (offline rejimga o'tiladi):", netErr);
+                }
 
-                    try {
-                        localStorage.setItem('WMS_USER_SESSION', JSON.stringify(currentUser));
-                    } catch (err) {}
-
-                    try {
-                        if (typeof saveDB === 'function') saveDB();
-                    } catch (err) {}
-
-                    if (errBox) {
-                        errBox.classList.add('hidden');
-                        errBox.style.setProperty('display', 'none', 'important');
+                // 2. Offline / Local Fallback Check
+                if (!serverSuccess) {
+                    if (typeof DB === 'undefined' || !DB) DB = {};
+                    if (!Array.isArray(DB.users) || DB.users.length === 0) {
+                        if (typeof DEFAULT_DB !== 'undefined' && Array.isArray(DEFAULT_DB.users)) {
+                            DB.users = JSON.parse(JSON.stringify(DEFAULT_DB.users));
+                        }
                     }
 
-                    showMainApp();
+                    const usersList = Array.isArray(DB.users) ? DB.users : (typeof DEFAULT_DB !== 'undefined' ? DEFAULT_DB.users : []);
+                    const cleanPhone = usernameInput.replace(/\D/g, '');
+                    const cleanUser = usernameInput.toLowerCase();
 
-                    const welcomeTxt = typeof t === 'function' ? `${t('alert.welcome_user')}, ${currentUser.full_name}!` : `Xush kelibsiz, ${currentUser.full_name}!`;
-                    if (typeof showNotification === 'function') {
-                        showNotification(welcomeTxt, "success");
+                    const user = usersList.find(u => {
+                        if (!u) return false;
+                        const uName = String(u.username || '').trim().toLowerCase();
+                        const uFullName = String(u.full_name || '').trim().toLowerCase();
+                        const uPhoneClean = String(u.phone || '').replace(/\D/g, '');
+                        const uPass = String(u.password || '').trim();
+
+                        const isMatch = (uName === cleanUser) || 
+                                        (uFullName === cleanUser) || 
+                                        (cleanPhone.length >= 7 && uPhoneClean.includes(cleanPhone));
+                        return isMatch && (uPass === passwordInput);
+                    });
+
+                    if (user) {
+                        if (user.is_active === false) {
+                            alert(typeof t === 'function' ? t('alert.blocked_account') : "Ushbu hisob bloklangan! Bosh Admin bilan bog'laning.");
+                            return;
+                        }
+                        user.last_login = new Date().toLocaleString('uz-UZ');
+                        currentUser = { 
+                            id: user.id, 
+                            full_name: user.full_name || user.username || 'Foydalanuvchi', 
+                            username: user.username, 
+                            role_id: user.role_id || 'admin', 
+                            phone: user.phone || '' 
+                        };
+
+                        try {
+                            localStorage.setItem('WMS_USER_SESSION', JSON.stringify(currentUser));
+                            if (typeof saveDB === 'function') saveDB();
+                        } catch (err) {}
+
+                        if (errBox) {
+                            errBox.classList.add('hidden');
+                            errBox.style.setProperty('display', 'none', 'important');
+                        }
+
+                        showMainApp();
+
+                        const welcomeTxt = typeof t === 'function' ? `${t('alert.welcome_user')}, ${currentUser.full_name}!` : `Xush kelibsiz, ${currentUser.full_name}!`;
+                        if (typeof showNotification === 'function') {
+                            showNotification(welcomeTxt, "success");
+                        }
+                        return;
                     }
-                } else {
-                    if (errBox) {
-                        errBox.classList.remove('hidden');
-                        errBox.style.setProperty('display', 'block', 'important');
-                    }
-                    if (errText) {
-                        errText.innerText = typeof t === 'function' ? t('alert.login_error') : "Foydalanuvchi nomi yoki parol noto'g'ri!";
-                    }
-                    if (typeof lucide !== 'undefined' && lucide.createIcons) {
-                        lucide.createIcons();
-                    }
+                }
+
+                // If not matched either on server or locally
+                if (errBox) {
+                    errBox.classList.remove('hidden');
+                    errBox.style.setProperty('display', 'block', 'important');
+                }
+                if (errText) {
+                    errText.innerText = typeof t === 'function' ? t('alert.login_error') : "Foydalanuvchi nomi yoki parol noto'g'ri!";
+                }
+                if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                    lucide.createIcons();
                 }
             } catch (err) {
                 console.error("handleLogin xatosi:", err);
                 alert("Kirishda xatolik yuz berdi: " + err.message);
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = origBtnText;
+                }
             }
         }
 

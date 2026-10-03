@@ -2471,6 +2471,86 @@ Ish to'liq tugagan bo'lsa, quyidagi tugmani bosing:`;
         return;
     }
 
+    // 8.5. POST /api/auth/login (Universal multi-device user authentication)
+    if (req.method === 'POST' && pathname === '/api/auth/login') {
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', () => {
+            try {
+                const payload = JSON.parse(body || '{}');
+                const rawUsername = String(payload.username || '').trim();
+                const cleanUsername = rawUsername.toLowerCase();
+                const cleanPhone = rawUsername.replace(/\D/g, '');
+                const rawPassword = String(payload.password || '').trim();
+
+                if (!cleanUsername || !rawPassword) {
+                    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({ success: false, error: "Login va parolni kiriting!" }));
+                    return;
+                }
+
+                const db = dbEngine.getEntireDB();
+                if (!Array.isArray(db.users) || db.users.length === 0) {
+                    db.users = [
+                        { id: 1, full_name: "Bosh Admin", phone: "+998 90 111-22-33", username: "admin", password: "admin123", role_id: "admin", is_active: true, last_login: "" }
+                    ];
+                }
+
+                const user = db.users.find(u => {
+                    if (!u) return false;
+                    const uName = String(u.username || '').trim().toLowerCase();
+                    const uFullName = String(u.full_name || '').trim().toLowerCase();
+                    const uPhoneClean = String(u.phone || '').replace(/\D/g, '');
+                    const uPass = String(u.password || '').trim();
+
+                    const isNameMatch = (uName === cleanUsername) || 
+                                        (uFullName === cleanUsername) || 
+                                        (cleanPhone.length >= 7 && uPhoneClean.includes(cleanPhone));
+                    const isPassMatch = (uPass === rawPassword);
+                    return isNameMatch && isPassMatch;
+                });
+
+                if (!user) {
+                    res.writeHead(401, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({ success: false, error: "Foydalanuvchi nomi yoki parol noto'g'ri!" }));
+                    return;
+                }
+
+                if (user.is_active === false) {
+                    res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({ success: false, is_blocked: true, error: "Ushbu hisob bloklangan! Bosh Admin bilan bog'laning." }));
+                    return;
+                }
+
+                user.last_login = new Date().toLocaleString('uz-UZ');
+                dbEngine.saveEntireDB(db);
+
+                const userSession = {
+                    id: user.id,
+                    full_name: user.full_name || user.username || 'Foydalanuvchi',
+                    username: user.username,
+                    role_id: user.role_id || 'admin',
+                    phone: user.phone || ''
+                };
+
+                res.writeHead(200, {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                });
+                res.end(JSON.stringify({
+                    success: true,
+                    message: "Muvaffaqiyatli tizimga kirildi",
+                    user: userSession,
+                    db: dbEngine.getEntireDB()
+                }));
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({ success: false, error: "Tizim xatoligi: " + err.message }));
+            }
+        });
+        return;
+    }
+
     // 9. GET /api/db (Fetch full persistent database from SQLite)
     if (req.method === 'GET' && pathname === '/api/db') {
         try {
