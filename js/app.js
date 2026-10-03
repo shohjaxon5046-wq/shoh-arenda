@@ -272,17 +272,28 @@ function handleGlobalScan(e) {
 // Modal Helpers & Notifications
 function openModal(id) {
     const el = document.getElementById(id);
-    if (el) el.classList.remove('hidden');
-    lucide.createIcons();
+    if (el) {
+        el.classList.remove('hidden');
+        el.style.setProperty('display', 'flex', 'important');
+    }
+    try {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    } catch(e) {}
 }
 
 function closeModal(id) {
     const el = document.getElementById(id);
-    if (el) el.classList.add('hidden');
+    if (el) {
+        el.classList.add('hidden');
+        el.style.setProperty('display', 'none', 'important');
+    }
     if (id === 'modal-order-receipt' && !currentUser) {
         if (typeof showAuthScreen === 'function') showAuthScreen();
     }
 }
+
+window.openModal = openModal;
+window.closeModal = closeModal;
 
 function showNotification(msg, type = "success") {
     const toast = document.createElement('div');

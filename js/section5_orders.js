@@ -257,45 +257,74 @@ function renderOrdersTable() {
 // 2. POS SCREEN: TEZKOR 1-MINUTLIK BUYURTMA RASMIYLASHTIRISH
 // -------------------------------------------------------------------------
 function openModalPosOrder() {
-    // Reset state
-    posCart = {
-        customerId: null,
-        tools: [],
-        services: [],
-        startDate: new Date().toISOString().substring(0, 16),
-        returnDate: '',
-        paymentMethod: 'naqd',
-        paidAmount: 0,
-        depositAmount: 0
-    };
+    try {
+        // Reset state
+        posCart = {
+            customerId: null,
+            tools: [],
+            services: [],
+            startDate: new Date().toISOString().substring(0, 16),
+            returnDate: '',
+            paymentMethod: 'naqd',
+            paidAmount: 0,
+            depositAmount: 0
+        };
 
-    // Default expected return: tomorrow same hour (+24 hours)
-    const tom = new Date();
-    tom.setDate(tom.getDate() + 1);
-    posCart.returnDate = tom.toISOString().substring(0, 16);
+        // Default expected return: tomorrow same hour (+24 hours)
+        const tom = new Date();
+        tom.setDate(tom.getDate() + 1);
+        posCart.returnDate = tom.toISOString().substring(0, 16);
 
-    // Inputs reset
-    document.getElementById('pos-customer-search').value = '';
-    document.getElementById('pos-customer-selected-card').classList.add('hidden');
-    document.getElementById('pos-customer-picker-area').classList.remove('hidden');
-    document.getElementById('pos-customer-warning-banner').classList.add('hidden');
+        // Inputs reset safely
+        const searchInput = document.getElementById('pos-customer-search');
+        if (searchInput) searchInput.value = '';
 
-    document.getElementById('pos-start-datetime').value = posCart.startDate;
-    document.getElementById('pos-return-datetime').value = posCart.returnDate;
+        const selectedCard = document.getElementById('pos-customer-selected-card');
+        if (selectedCard) {
+            selectedCard.classList.add('hidden');
+            selectedCard.style.setProperty('display', 'none', 'important');
+        }
 
-    // Populate available warehouse units (ONLY 'omborda_bosh'!)
-    populateAvailablePosTools();
+        const pickerArea = document.getElementById('pos-customer-picker-area');
+        if (pickerArea) {
+            pickerArea.classList.remove('hidden');
+            pickerArea.style.setProperty('display', 'block', 'important');
+        }
 
-    // Populate service partners
-    populatePosPartnersSelect();
+        const warningBanner = document.getElementById('pos-customer-warning-banner');
+        if (warningBanner) {
+            warningBanner.classList.add('hidden');
+            warningBanner.style.setProperty('display', 'none', 'important');
+        }
 
-    // Initialize Dynamic Service Calculator
-    if (typeof onPosServiceCategoryChange === 'function') onPosServiceCategoryChange();
+        const startDt = document.getElementById('pos-start-datetime');
+        if (startDt) startDt.value = posCart.startDate;
 
-    renderPosCartItems();
+        const returnDt = document.getElementById('pos-return-datetime');
+        if (returnDt) returnDt.value = posCart.returnDate;
+
+        // Populate available warehouse units
+        try { if (typeof populateAvailablePosTools === 'function') populateAvailablePosTools(); } catch (e) { console.warn(e); }
+
+        // Populate service partners
+        try { if (typeof populatePosPartnersSelect === 'function') populatePosPartnersSelect(); } catch (e) { console.warn(e); }
+
+        // Initialize Dynamic Service Calculator
+        try { if (typeof onPosServiceCategoryChange === 'function') onPosServiceCategoryChange(); } catch (e) { console.warn(e); }
+
+        try { if (typeof renderPosCartItems === 'function') renderPosCartItems(); } catch (e) { console.warn(e); }
+
+    } catch (err) {
+        console.error("openModalPosOrder initialization warning:", err);
+    }
+
     openModal('modal-pos-new-order');
-    lucide.createIcons();
+    try {
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    } catch (e) {}
 }
+
+window.openModalPosOrder = openModalPosOrder;
 
 function populateAvailablePosTools() {
     const select = document.getElementById('pos-tool-unit-select');
