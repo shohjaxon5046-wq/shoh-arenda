@@ -1191,88 +1191,113 @@ const server = http.createServer((req, res) => {
                     [{ text: "💰 Mening Balansim" }, { text: "🟢/🔴 Mening holatim" }]
                 ];
 
-                // Phone number sent via Contact or Text
-                let incomingPhone = null;
-                if (contact && contact.phone_number) {
-                    incomingPhone = contact.phone_number;
-                } else if (text && text !== '/start' && !text.startsWith('/')) {
-                    incomingPhone = extractServerPhoneNumber(text);
-                }
+                const authKeyboard = [
+                    [{ text: "📱 O'z raqamimni yuborish", request_contact: true }]
+                ];
 
-                // If not authenticated yet and phone number is provided:
-                if (!employee && !partner && incomingPhone) {
-                    const cleanIncoming = incomingPhone.replace(/[^\d]/g, '');
-
-                    // 1. AVVAL XODIMLAR (SOTUVCHI / MENEJER) BAZASIDAN QIDIR (DB.users):
-                    employee = (db.users || []).find(u => {
-                        const uPhone = (u.phone || '').replace(/[^\d]/g, '');
-                        return uPhone && cleanIncoming.endsWith(uPhone.slice(-9));
-                    });
-
-                    // Explicit check for user's number +998951043733 if not already in array
-                    if (!employee && cleanIncoming.endsWith('951043733')) {
-                        employee = {
-                            id: Date.now(),
-                            full_name: "Shohjaxon (Sotuvchi)",
-                            phone: "+998 95 104 37 33",
-                            username: "shohjaxon",
-                            role_id: "sotuvchi",
-                            is_active: true
-                        };
-                        db.users = db.users || [];
-                        db.users.push(employee);
-                    }
-
-                    if (employee) {
-                        employee.telegram_chat_id = chatId;
-                        dbEngine.syncEntireDB(db);
-
-                        const welcomeSellerMsg = `Assalomu alaykum, <b>${employee.full_name}</b>! Siz tizimga SOTUVCHI sifatida kirdingiz ✅\n\nQuyidagi menyu orqali yangi zakazlarni rasmiylashtirishingiz, omborni ko'rishingiz yoki buyurtmalar holatini tekshirishingiz mumkin:`;
-
-                        if (botToken) await sendTelegramBotMessage(botToken, chatId, welcomeSellerMsg, null, sellerMenu);
-
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ ok: true, verified: true, role: 'seller', user: employee.full_name, reply: welcomeSellerMsg }));
-                        return;
-                    }
-
-                    // 2. AGAR XODIM BO'LMASA — HAMKORLAR BAZASIDAN QIDIR (DB.partners / DB.service_partners):
-                    partner = partners.find(p => {
-                        const p1 = (p.phone_primary || '').replace(/[^\d]/g, '');
-                        const p2 = (p.phone_secondary || '').replace(/[^\d]/g, '');
-                        return (p1 && cleanIncoming.endsWith(p1.slice(-9))) || (p2 && cleanIncoming.endsWith(p2.slice(-9)));
-                    });
-
-                    if (partner) {
-                        partner.telegram_chat_id = chatId;
-                        partner.status = 'bosh';
-                        partner.is_available = true;
-                        dbEngine.syncEntireDB(db);
-
-                        const welcomePartnerMsg = "Raxmat, siz tizimga ulandingiz! Endi yangi buyurtmalar to'g'ridan-to'g'ri shu yerga keladi";
-
-                        if (botToken) await sendTelegramBotMessage(botToken, chatId, welcomePartnerMsg, null, partnerMenu);
-
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ ok: true, verified: true, role: 'partner', partner: partner.company_name, reply: welcomePartnerMsg }));
-                        return;
-                    }
-
-                    // 3. AGAR IKKALASIDA HAM BO'LMASA:
-                    const notFoundMsg = "Sizning raqamingiz xodimlar yoki hamkorlar bazasida topilmadi. Admin bilan bog'laning";
-                    if (botToken) await sendTelegramBotMessage(botToken, chatId, notFoundMsg);
-
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ ok: true, verified: false, reply: notFoundMsg }));
-                    return;
-                }
-
-                // If not authenticated and no phone sent yet, ask for contact
+                // =========================================================================
+                // STRICT AUTHENTICATION (ONLY NATIVE TELEGRAM CONTACT ALLOWED)
+                // =========================================================================
                 if (!employee && !partner) {
-                    const askAuthMsg = "Salom! Tizimdan foydalanish uchun telefon raqamingizni tasdiqlang:";
-                    const authKeyboard = [
-                        [{ text: "📱 Telefon raqamni yuborish", request_contact: true }]
-                    ];
+                    // 1. IF NATIVE CONTACT RECEIVED
+                    if (contact && contact.phone_number) {
+                        const fromId = message.from?.id;
+                        const contactUserId = contact.user_id;
+
+                        // XAVFSIZLIK TEKSHIRUVI: Kontakt aynan shu Telegram profiliga tegishlimi?
+                        if (contactUserId && fromId && contactUserId !== fromId) {
+                            const securityRejectMsg = "⛔ <b>Begona odamning kontaktini yuborish taqiqlangan!</b>\nFaqat pastdagi <b>[📱 O'z raqamimni yuborish]</b> tugmasini bosing.";
+                            if (botToken) await sendTelegramBotMessage(botToken, chatId, securityRejectMsg, null, authKeyboard);
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, verified: false, error: "contact_user_id_mismatch", reply: securityRejectMsg }));
+                            return;
+                        }
+
+                        const cleanIncoming = contact.phone_number.replace(/[^\d]/g, '');
+
+                        // 1. AVVAL XODIMLAR (SOTUVCHI / MENEJER) BAZASIDAN QIDIR (DB.users):
+                        employee = (db.users || []).find(u => {
+                            const uPhone = (u.phone || '').replace(/[^\d]/g, '');
+                            return uPhone && cleanIncoming.endsWith(uPhone.slice(-9));
+                        });
+
+                        // Explicit check for user's number +998951043733 if not already in array
+                        if (!employee && cleanIncoming.endsWith('951043733')) {
+                            employee = {
+                                id: Date.now(),
+                                full_name: "Shohjaxon (Sotuvchi)",
+                                phone: "+998 95 104 37 33",
+                                username: "shohjaxon",
+                                role_id: "sotuvchi",
+                                is_active: true
+                            };
+                            db.users = db.users || [];
+                            db.users.push(employee);
+                        }
+
+                        if (employee) {
+                            employee.telegram_chat_id = chatId;
+                            dbEngine.syncEntireDB(db);
+
+                            const welcomeSellerMsg = `Assalomu alaykum, <b>${employee.full_name}</b>! Siz tizimga SOTUVCHI sifatida kirdingiz ✅\n\nQuyidagi menyu orqali yangi zakazlarni rasmiylashtirishingiz, omborni ko'rishingiz yoki buyurtmalar holatini tekshirishingiz mumkin:`;
+
+                            if (botToken) await sendTelegramBotMessage(botToken, chatId, welcomeSellerMsg, null, sellerMenu);
+
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, verified: true, role: 'seller', user: employee.full_name, reply: welcomeSellerMsg }));
+                            return;
+                        }
+
+                        // 2. AGAR XODIM BO'LMASA — HAMKORLAR BAZASIDAN QIDIR (DB.partners / DB.service_partners):
+                        partner = partners.find(p => {
+                            const p1 = (p.phone_primary || '').replace(/[^\d]/g, '');
+                            const p2 = (p.phone_secondary || '').replace(/[^\d]/g, '');
+                            return (p1 && cleanIncoming.endsWith(p1.slice(-9))) || (p2 && cleanIncoming.endsWith(p2.slice(-9)));
+                        });
+
+                        if (partner) {
+                            partner.telegram_chat_id = chatId;
+                            partner.status = 'bosh';
+                            partner.is_available = true;
+                            dbEngine.syncEntireDB(db);
+
+                            const welcomePartnerMsg = "Raxmat, siz tizimga ulandingiz! Endi yangi buyurtmalar to'g'ridan-to'g'ri shu yerga keladi";
+
+                            if (botToken) await sendTelegramBotMessage(botToken, chatId, welcomePartnerMsg, null, partnerMenu);
+
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ ok: true, verified: true, role: 'partner', partner: partner.company_name, reply: welcomePartnerMsg }));
+                            return;
+                        }
+
+                        // 3. AGAR IKKALASIDA HAM BO'LMASA:
+                        const notFoundMsg = "Sizning raqamingiz xodimlar yoki hamkorlar bazasida topilmadi. Admin bilan bog'laning";
+                        if (botToken) await sendTelegramBotMessage(botToken, chatId, notFoundMsg, null, authKeyboard);
+
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: true, verified: false, reply: notFoundMsg }));
+                        return;
+                    }
+
+                    // 2. IF MANUAL TEXT SENT (MANUAL PHONE ENTRY IS STRICTLY BLOCKED)
+                    const cleanDigits = text.replace(/[\s\-\(\)\.]/g, '');
+                    const isManualPhone = /(?:\+?998|\b9\d{8}\b|\b\d{7,12}\b)/.test(cleanDigits);
+
+                    if (isManualPhone) {
+                        const securityWarning = 
+`⚠️ <b>XAVFSIZLIK CHEKLOVI!</b>
+Telefon raqamni qo'lda yozib kiritish taqiqlangan.
+Faqat pastdagi <b>[📱 O'z raqamimni yuborish]</b> tugmasini bosing.`;
+
+                        if (botToken) await sendTelegramBotMessage(botToken, chatId, securityWarning, null, authKeyboard);
+
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: true, blocked_manual: true, reply: securityWarning }));
+                        return;
+                    }
+
+                    // Default greeting prompting for native contact button
+                    const askAuthMsg = "Salom! Tizimdan foydalanish uchun telefon raqamingizni tasdiqlang:\n\nPastdagi <b>[📱 O'z raqamimni yuborish]</b> tugmasini bosing.";
 
                     if (botToken) await sendTelegramBotMessage(botToken, chatId, askAuthMsg, null, authKeyboard);
 
