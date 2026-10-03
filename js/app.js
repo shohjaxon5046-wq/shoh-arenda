@@ -398,6 +398,32 @@ function copyText(str) {
     });
 }
 
+function togglePasswordVisibility(inputId, iconId) {
+    try {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        if (!input) return;
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) {
+                icon.setAttribute('data-lucide', 'eye-off');
+            }
+        } else {
+            input.type = 'password';
+            if (icon) {
+                icon.setAttribute('data-lucide', 'eye');
+            }
+        }
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+            lucide.createIcons();
+        }
+    } catch(e) {
+        console.error("togglePasswordVisibility error:", e);
+    }
+}
+window.togglePasswordVisibility = togglePasswordVisibility;
+
 function openSelfProfileModal() {
     if (!currentUser) return;
     const modal = document.getElementById('modal-user-self-profile');

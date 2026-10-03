@@ -445,7 +445,10 @@
                         <div class="relative">
                             <i data-lucide="lock" class="absolute left-3.5 top-3 w-4 h-4 text-slate-500"></i>
                             <input type="password" id="login-password" required placeholder="Parolni kiriting" 
-                                class="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-4 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none transition">
+                                class="w-full rounded-xl border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-10 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none transition">
+                            <button type="button" onclick="togglePasswordVisibility('login-password', 'icon-login-pass')" class="absolute right-3 top-2.5 p-0.5 text-slate-400 hover:text-white transition" title="Parolni ko'rsatish/yashirish">
+                                <i data-lucide="eye" id="icon-login-pass" class="w-4 h-4"></i>
+                            </button>
                         </div>
                     </div>
                     <button type="submit" onclick="handleLogin(event)" class="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 py-2.5 text-xs font-semibold text-white shadow-sm transition cursor-pointer">
@@ -1782,7 +1785,15 @@
                 <div><label class="block text-xs font-semibold text-slate-400 mb-1">F.I.O *</label><input type="text" id="staff-fullname" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
                 <div><label class="block text-xs font-semibold text-slate-400 mb-1">Telefon *</label><input type="text" id="staff-phone" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
                 <div><label class="block text-xs font-semibold text-slate-400 mb-1">Foydalanuvchi nomi (Login) *</label><input type="text" id="staff-username" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
-                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Parol *</label><input type="password" id="staff-password" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Parol *</label>
+                    <div class="relative">
+                        <input type="password" id="staff-password" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 pl-3 pr-10 text-xs text-white focus:outline-none">
+                        <button type="button" onclick="togglePasswordVisibility('staff-password', 'icon-staff-pass')" class="absolute right-3 top-2 p-0.5 text-slate-400 hover:text-white transition" title="Parolni ko'rsatish/yashirish">
+                            <i data-lucide="eye" id="icon-staff-pass" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
                 <div><label class="block text-xs font-semibold text-slate-400 mb-1">Tizimdagi Roli *</label><select id="staff-role-select" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></select></div>
                 <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
                     <button type="button" onclick="closeModal('modal-add-staff')" class="px-4 py-2 rounded-xl border border-slate-700 text-xs text-slate-300">Bekor qilish</button>
@@ -1804,7 +1815,15 @@
                 <div><label class="block text-xs font-semibold text-slate-400 mb-1">F.I.O *</label><input type="text" id="staff-edit-fullname" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
                 <div><label class="block text-xs font-semibold text-slate-400 mb-1">Telefon *</label><input type="text" id="staff-edit-phone" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
                 <div><label class="block text-xs font-semibold text-slate-400 mb-1">Foydalanuvchi nomi (Login) *</label><input type="text" id="staff-edit-username" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
-                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Yangi Parol (ixtiyoriy)</label><input type="password" id="staff-edit-password" placeholder="O'zgartirmaslik uchun bo'sh qoldiring" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Yangi Parol (ixtiyoriy)</label>
+                    <div class="relative">
+                        <input type="password" id="staff-edit-password" placeholder="O'zgartirmaslik uchun bo'sh qoldiring" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 pl-3 pr-10 text-xs text-white focus:outline-none">
+                        <button type="button" onclick="togglePasswordVisibility('staff-edit-password', 'icon-staff-edit-pass')" class="absolute right-3 top-2 p-0.5 text-slate-400 hover:text-white transition" title="Parolni ko'rsatish/yashirish">
+                            <i data-lucide="eye" id="icon-staff-edit-pass" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
                 <div><label class="block text-xs font-semibold text-slate-400 mb-1">Tizimdagi Roli *</label>
                     <select id="staff-edit-role-select" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none">
                         <option value="admin">👑 Bosh Admin</option>
@@ -1880,7 +1899,12 @@
                     <div class="pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                         <div>
                             <label class="block text-xs font-semibold text-slate-400 mb-1">Yangi Parol berish:</label>
-                            <input type="password" id="staff-card-new-password" placeholder="Yangi parol kiriting..." class="w-full rounded-xl border border-slate-700 bg-slate-900 py-2 px-3 text-xs text-white focus:outline-none">
+                            <div class="relative">
+                                <input type="password" id="staff-card-new-password" placeholder="Yangi parol kiriting..." class="w-full rounded-xl border border-slate-700 bg-slate-900 py-2 pl-3 pr-10 text-xs text-white focus:outline-none">
+                                <button type="button" onclick="togglePasswordVisibility('staff-card-new-password', 'icon-staff-card-pass')" class="absolute right-3 top-2 p-0.5 text-slate-400 hover:text-white transition" title="Parolni ko'rsatish/yashirish">
+                                    <i data-lucide="eye" id="icon-staff-card-pass" class="w-4 h-4"></i>
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <button type="button" onclick="updateStaffPasswordFromCard()" class="w-full py-2 px-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 transition">
@@ -1982,11 +2006,21 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block text-[11px] text-slate-400 mb-1">Yangi Parol</label>
-                            <input type="password" id="self-profile-password" placeholder="Yangi parol..." class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-xs text-white focus:border-blue-500 focus:outline-none">
+                            <div class="relative">
+                                <input type="password" id="self-profile-password" placeholder="Yangi parol..." class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-3 pr-10 text-xs text-white focus:border-blue-500 focus:outline-none">
+                                <button type="button" onclick="togglePasswordVisibility('self-profile-password', 'icon-self-profile-pass')" class="absolute right-3 top-2 p-0.5 text-slate-400 hover:text-white transition" title="Parolni ko'rsatish/yashirish">
+                                    <i data-lucide="eye" id="icon-self-profile-pass" class="w-4 h-4"></i>
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-[11px] text-slate-400 mb-1">Parolni Tasdiqlash</label>
-                            <input type="password" id="self-profile-password-confirm" placeholder="Qayta kiriting..." class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-xs text-white focus:border-blue-500 focus:outline-none">
+                            <div class="relative">
+                                <input type="password" id="self-profile-password-confirm" placeholder="Qayta kiriting..." class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-3 pr-10 text-xs text-white focus:border-blue-500 focus:outline-none">
+                                <button type="button" onclick="togglePasswordVisibility('self-profile-password-confirm', 'icon-self-profile-conf-pass')" class="absolute right-3 top-2 p-0.5 text-slate-400 hover:text-white transition" title="Parolni ko'rsatish/yashirish">
+                                    <i data-lucide="eye" id="icon-self-profile-conf-pass" class="w-4 h-4"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
