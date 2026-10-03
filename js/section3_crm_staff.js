@@ -401,6 +401,9 @@ function togglePermission(roleId, permCode, checked) {
 // -------------------------------------------------------------
 // 2. SUPPLIERS ACCOUNTING & AKT-SVERKA
 // -------------------------------------------------------------
+// -------------------------------------------------------------
+// 2. SUPPLIERS ACCOUNTING & AKT-SVERKA
+// -------------------------------------------------------------
 let selectedSupplierForDetail = null;
 
 function renderSuppliersLedger() {
@@ -408,15 +411,22 @@ function renderSuppliersLedger() {
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    DB.suppliers.forEach(s => {
-        const isDebt = s.balance < 0;
-        const isPositive = s.balance > 0;
+    const suppliers = DB.suppliers || [];
+
+    if (suppliers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500">Hozircha birorta ham yetkazib beruvchi mavjud emas. Yuqoridagi "+ Yangi Yetkazib Beruvchi" tugmasi orqali qo'shing.</td></tr>`;
+        return;
+    }
+
+    suppliers.forEach(s => {
+        const isDebt = (s.balance || 0) < 0;
+        const isPositive = (s.balance || 0) > 0;
         
         let balanceBadge = '';
         if (isDebt) {
-            balanceBadge = `<span class="badge-status bg-red-500/10 text-red-400 border border-red-500/20 font-bold">Qarzdormiz: ${Math.abs(s.balance).toLocaleString()} so'm</span>`;
+            balanceBadge = `<span class="badge-status bg-red-500/10 text-red-400 border border-red-500/20 font-bold">Biz qarzdormiz: ${Math.abs(s.balance).toLocaleString()} so'm</span>`;
         } else if (isPositive) {
-            balanceBadge = `<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">Haqdormiz: ${s.balance.toLocaleString()} so'm</span>`;
+            balanceBadge = `<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">Haqdormiz: ${(s.balance || 0).toLocaleString()} so'm</span>`;
         } else {
             balanceBadge = `<span class="badge-status bg-slate-800 text-slate-300">Hisob-kitob 0</span>`;
         }
@@ -424,84 +434,296 @@ function renderSuppliersLedger() {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-800/40 transition";
         tr.innerHTML = `
-            <td class="py-3 px-4 font-bold text-white">${s.company_name}</td>
-            <td class="py-3 px-4 text-slate-300">${s.contact_person}</td>
-            <td class="py-3 px-4 font-mono text-slate-400 text-xs">${s.phone}</td>
-            <td class="py-3 px-4 text-slate-400 text-xs truncate max-w-xs">${s.address}</td>
+            <td class="py-3 px-4 font-bold text-white flex items-center gap-2">
+                <div class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-xs">
+                    ${(s.company_name || 'T').charAt(0).toUpperCase()}
+                </div>
+                <span>${s.company_name}</span>
+            </td>
+            <td class="py-3 px-4 text-slate-300">${s.contact_person || '-'}</td>
+            <td class="py-3 px-4 font-mono text-slate-400 text-xs">${s.phone || '-'}</td>
+            <td class="py-3 px-4 text-slate-400 text-xs truncate max-w-xs">${s.address || '-'}</td>
             <td class="py-3 px-4">${balanceBadge}</td>
-            <td class="py-3 px-4 text-right flex items-center justify-end gap-2">
-                <button onclick="openSupplierDetailModal(${s.id})" class="px-2.5 py-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white text-xs font-semibold transition">
-                    Akt-sverka & Moliya
-                </button>
-                <button onclick="openModalSupplierPayout(${s.id})" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition">
-                    Pul To'lash
-                </button>
+            <td class="py-3 px-4 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                    <button onclick="openSupplierDetailModal(${s.id})" class="px-2.5 py-1 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white text-xs font-semibold transition flex items-center gap-1" title="Akt-sverka & Kartochka">
+                        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                        <span>Kartochka</span>
+                    </button>
+                    <button onclick="openModalSupplierPayout(${s.id})" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition flex items-center gap-1" title="Pul To'lash">
+                        <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+                        <span>Pul To'lash</span>
+                    </button>
+                    <button onclick="openModalEditSupplier(${s.id})" class="p-1 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition" title="Tahrirlash">
+                        <i data-lucide="edit-3" class="w-3.5 h-3.5 text-amber-400"></i>
+                    </button>
+                    <button onclick="deleteSupplier(${s.id})" class="p-1 rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white transition" title="O'chirish">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(tr);
     });
 
-    lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
 }
 
+// -------------------------------------------------------------
+// ADD & EDIT SUPPLIER MODALS
+// -------------------------------------------------------------
+function openModalAddSupplier() {
+    try {
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('supplier-add-name', '');
+        setVal('supplier-add-contact', '');
+        setVal('supplier-add-phone', '+998 ');
+        setVal('supplier-add-address', '');
+        setVal('supplier-add-bank', '');
+        setVal('supplier-add-balance', '0');
+
+        openModal('modal-add-supplier');
+        if (window.lucide) lucide.createIcons();
+    } catch (err) {
+        console.error("openModalAddSupplier error:", err);
+    }
+}
+
+function handleSaveSupplier(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const name = document.getElementById('supplier-add-name')?.value.trim();
+    const contact = document.getElementById('supplier-add-contact')?.value.trim();
+    const phone = document.getElementById('supplier-add-phone')?.value.trim();
+    const address = document.getElementById('supplier-add-address')?.value.trim();
+    const bank = document.getElementById('supplier-add-bank')?.value.trim();
+    const balance = parseFloat(document.getElementById('supplier-add-balance')?.value) || 0;
+
+    if (!name) {
+        alert("Iltimos, yetkazib beruvchi nomini kiriting!");
+        return;
+    }
+
+    const newSupplier = {
+        id: Date.now(),
+        company_name: name,
+        contact_person: contact || name,
+        phone: phone || '+998 ',
+        address: address || 'Toshkent shahri',
+        bank_details: bank || '',
+        balance: balance,
+        created_at: new Date().toISOString().split('T')[0]
+    };
+
+    if (!DB.suppliers) DB.suppliers = [];
+    DB.suppliers.unshift(newSupplier);
+
+    // If starting balance was entered, record an opening balance transaction
+    if (balance !== 0) {
+        if (!DB.supplier_transactions) DB.supplier_transactions = [];
+        DB.supplier_transactions.unshift({
+            id: Date.now() + 1,
+            supplier_id: newSupplier.id,
+            type: balance < 0 ? "kirim_tovarlar" : "tolov_chiqim",
+            amount: Math.abs(balance),
+            payment_method: "boshlangich_qoldiq",
+            receipt_id: `SALDO-${Math.floor(1000 + Math.random() * 9000)}`,
+            comment: "Boshlang'ich qoldiq saldo",
+            date: new Date().toISOString().split('T')[0],
+            created_by: currentUser ? currentUser.full_name : "Admin"
+        });
+    }
+
+    saveDB();
+    closeModal('modal-add-supplier');
+    renderSuppliersLedger();
+    showNotification(`Yangi yetkazib beruvchi "${name}" muvaffaqiyatli qo'shildi!`, "success");
+}
+
+function openModalEditSupplier(supplierId) {
+    try {
+        const s = (DB.suppliers || []).find(sup => sup.id === supplierId);
+        if (!s) return;
+
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal('supplier-edit-id', s.id);
+        setVal('supplier-edit-name', s.company_name || '');
+        setVal('supplier-edit-contact', s.contact_person || '');
+        setVal('supplier-edit-phone', s.phone || '+998 ');
+        setVal('supplier-edit-address', s.address || '');
+        setVal('supplier-edit-bank', s.bank_details || '');
+        setVal('supplier-edit-balance', s.balance || 0);
+
+        openModal('modal-edit-supplier');
+        if (window.lucide) lucide.createIcons();
+    } catch (err) {
+        console.error("openModalEditSupplier error:", err);
+    }
+}
+
+function handleSaveEditSupplier(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const supId = parseInt(document.getElementById('supplier-edit-id')?.value);
+    const s = (DB.suppliers || []).find(sup => sup.id === supId);
+    if (!s) return;
+
+    const name = document.getElementById('supplier-edit-name')?.value.trim();
+    const contact = document.getElementById('supplier-edit-contact')?.value.trim();
+    const phone = document.getElementById('supplier-edit-phone')?.value.trim();
+    const address = document.getElementById('supplier-edit-address')?.value.trim();
+    const bank = document.getElementById('supplier-edit-bank')?.value.trim();
+    const balance = parseFloat(document.getElementById('supplier-edit-balance')?.value) || 0;
+
+    if (name) s.company_name = name;
+    if (contact) s.contact_person = contact;
+    if (phone) s.phone = phone;
+    if (address) s.address = address;
+    if (bank !== undefined) s.bank_details = bank;
+    s.balance = balance;
+
+    saveDB();
+    closeModal('modal-edit-supplier');
+    renderSuppliersLedger();
+    if (selectedSupplierForDetail && selectedSupplierForDetail.id === s.id) {
+        openSupplierDetailModal(s.id);
+    }
+    showNotification(`Yetkazib beruvchi "${s.company_name}" ma'lumotlari yangilandi!`, "success");
+}
+
+function deleteSupplier(supplierId) {
+    const s = (DB.suppliers || []).find(sup => sup.id === supplierId);
+    if (!s) return;
+
+    if (confirm(`Haqiqatan ham "${s.company_name}" yetkazib beruvchisini bazadan o'chirmoqchimisiz?`)) {
+        DB.suppliers = (DB.suppliers || []).filter(sup => sup.id !== supplierId);
+        saveDB();
+        renderSuppliersLedger();
+        showNotification(`Yetkazib beruvchi "${s.company_name}" o'chirildi!`, "warning");
+    }
+}
+
+// -------------------------------------------------------------
+// SUPPLIER PROFILE & AKT-SVERKA MODAL
+// -------------------------------------------------------------
 function openSupplierDetailModal(supplierId) {
-    const supplier = DB.suppliers.find(s => s.id === supplierId);
+    const supplier = (DB.suppliers || []).find(s => s.id === supplierId);
     if (!supplier) return;
     selectedSupplierForDetail = supplier;
 
-    document.getElementById('sd-company-name').innerText = supplier.company_name;
-    document.getElementById('sd-contact').innerText = `${supplier.contact_person} (${supplier.phone})`;
-    document.getElementById('sd-address').innerText = supplier.address;
-    document.getElementById('sd-bank').innerText = supplier.bank_details || 'Bank rekvizitlari kiritilmagan';
+    const nameEl = document.getElementById('sd-company-name');
+    if (nameEl) nameEl.innerText = supplier.company_name;
+
+    const contactEl = document.getElementById('sd-contact');
+    if (contactEl) contactEl.innerText = `${supplier.contact_person} (${supplier.phone})`;
+
+    const addrEl = document.getElementById('sd-address');
+    if (addrEl) addrEl.innerText = supplier.address || 'Kiritilmagan';
+
+    const bankEl = document.getElementById('sd-bank');
+    if (bankEl) bankEl.innerText = supplier.bank_details || 'Bank rekvizitlari kiritilmagan';
 
     // Transactions of this supplier
-    const txs = DB.supplier_transactions.filter(t => t.supplier_id === supplier.id);
+    const txs = (DB.supplier_transactions || []).filter(t => t.supplier_id === supplier.id);
     let totalInbound = 0;
     let totalPaid = 0;
 
     txs.forEach(t => {
-        if (t.type === 'kirim_tovarlar') totalInbound += t.amount;
-        if (t.type === 'tolov_chiqim') totalPaid += t.amount;
+        if (t.type === 'kirim_tovarlar') totalInbound += (t.amount || 0);
+        if (t.type === 'tolov_chiqim') totalPaid += (t.amount || 0);
     });
 
-    document.getElementById('sd-total-inbound').innerText = `${totalInbound.toLocaleString()} so'm`;
-    document.getElementById('sd-total-paid').innerText = `${totalPaid.toLocaleString()} so'm`;
+    // Also factor in supplier_orders
+    const orders = (DB.supplier_orders || []).filter(o => o.supplier_id === supplier.id || o.supplier_name === supplier.company_name);
+    orders.forEach(o => {
+        if (!txs.some(t => t.receipt_id === o.id || (t.comment && t.comment.includes(o.id)))) {
+            totalInbound += (o.total_amount || 0);
+        }
+    });
+
+    const inboundEl = document.getElementById('sd-total-inbound');
+    if (inboundEl) inboundEl.innerText = `${totalInbound.toLocaleString()} so'm`;
+
+    const paidEl = document.getElementById('sd-total-paid');
+    if (paidEl) paidEl.innerText = `${totalPaid.toLocaleString()} so'm`;
     
     const balanceEl = document.getElementById('sd-current-balance');
-    balanceEl.innerText = `${supplier.balance.toLocaleString()} so'm`;
-    balanceEl.className = supplier.balance < 0 ? "text-xl font-bold text-red-400" : "text-xl font-bold text-emerald-400";
+    if (balanceEl) {
+        const bal = supplier.balance || 0;
+        if (bal < 0) {
+            balanceEl.innerText = `Biz qarzdormiz: ${Math.abs(bal).toLocaleString()} so'm`;
+            balanceEl.className = "text-lg font-bold text-red-400 mt-1";
+        } else if (bal > 0) {
+            balanceEl.innerText = `Haqdormiz: ${bal.toLocaleString()} so'm`;
+            balanceEl.className = "text-lg font-bold text-emerald-400 mt-1";
+        } else {
+            balanceEl.innerText = `0 so'm (Hisob-kitob yopilgan)`;
+            balanceEl.className = "text-lg font-bold text-slate-300 mt-1";
+        }
+    }
 
+    // 1. Render Inbound Orders (Xaridlar)
+    const ordersTbody = document.getElementById('sd-orders-tbody');
+    if (ordersTbody) {
+        ordersTbody.innerHTML = '';
+        if (orders.length === 0) {
+            ordersTbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-slate-500">Ushbu ta'minotchidan hali xaridlar (PO) qabul qilinmagan</td></tr>`;
+        } else {
+            orders.forEach(o => {
+                const tr = document.createElement('tr');
+                const itemsStr = (o.items || []).map(i => `${i.model_name} (${i.quantity} dona)`).join(', ') || 'Tovarlar';
+                const statusBadge = o.status === 'yakunlandi' 
+                    ? '<span class="badge-status bg-emerald-500/10 text-emerald-400 text-[10px]">Qabul qilingan</span>'
+                    : '<span class="badge-status bg-blue-500/10 text-blue-400 text-[10px]">Kutilmoqda</span>';
+                
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 font-mono font-bold text-white">${o.id}</td>
+                    <td class="py-2.5 px-3 font-mono text-slate-400 text-[11px]">${o.order_date || '-'}</td>
+                    <td class="py-2.5 px-3 text-slate-200">${itemsStr}</td>
+                    <td class="py-2.5 px-3 font-mono font-bold text-white">${(o.total_amount || 0).toLocaleString()} so'm</td>
+                    <td class="py-2.5 px-3">${statusBadge}</td>
+                `;
+                ordersTbody.appendChild(tr);
+            });
+        }
+    }
+
+    // 2. Render Transactions (Akt-sverka)
     const tbody = document.getElementById('sd-transactions-tbody');
-    tbody.innerHTML = '';
+    if (tbody) {
+        tbody.innerHTML = '';
+        if (txs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-500">Hech qanday to'lov yoki kirim tranzaksiyasi topilmadi</td></tr>`;
+        } else {
+            const typeLabels = {
+                kirim_tovarlar: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20">Kirim Tovar</span>',
+                tolov_chiqim: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">To\'lov (Chiqim)</span>',
+                vozvrat: '<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20">Vozvrat</span>'
+            };
 
-    if (txs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-500">Hech qanday operatsiya topilmadi</td></tr>`;
-    } else {
-        const typeLabels = {
-            kirim_tovarlar: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20">Kirim Tovar</span>',
-            tolov_chiqim: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">To\'lov (Chiqim)</span>',
-            vozvrat: '<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20">Vozvrat</span>'
-        };
-
-        txs.forEach(t => {
-            const tr = document.createElement('tr');
-            tr.className = "hover:bg-slate-800/40";
-            tr.innerHTML = `
-                <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px]">${t.date}</td>
-                <td class="py-2.5 px-3">${typeLabels[t.type] || t.type}</td>
-                <td class="py-2.5 px-3 font-mono font-bold ${t.type === 'tolov_chiqim' ? 'text-emerald-400' : 'text-slate-200'}">
-                    ${t.amount.toLocaleString()} so'm
-                </td>
-                <td class="py-2.5 px-3 text-slate-400 uppercase text-[10px]">${t.payment_method}</td>
-                <td class="py-2.5 px-3 text-slate-300 text-xs">${t.comment}</td>
-                <td class="py-2.5 px-3 text-slate-400 text-xs">${t.created_by}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+            txs.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40";
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px]">${t.date}</td>
+                    <td class="py-2.5 px-3">${typeLabels[t.type] || t.type}</td>
+                    <td class="py-2.5 px-3 font-mono font-bold ${t.type === 'tolov_chiqim' ? 'text-emerald-400' : 'text-slate-200'}">
+                        ${(t.amount || 0).toLocaleString()} so'm
+                    </td>
+                    <td class="py-2.5 px-3 text-slate-400 uppercase text-[10px]">${t.payment_method || '-'}</td>
+                    <td class="py-2.5 px-3 text-slate-300 text-xs">${t.comment || '-'}</td>
+                    <td class="py-2.5 px-3 text-slate-400 text-xs">${t.created_by || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
     }
 
     openModal('modal-supplier-detail');
-    lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
+}
+
+function openModalSupplierPayoutFromDetail() {
+    if (!selectedSupplierForDetail) return;
+    openModalSupplierPayout(selectedSupplierForDetail.id);
 }
 
 function openModalSupplierPayout(supplierId) {
@@ -516,11 +738,11 @@ function openModalSupplierPayout(supplierId) {
         const balEl = document.getElementById('payout-current-balance');
         if (balEl) balEl.innerText = `${(s.balance || 0).toLocaleString()} so'm`;
         const amtEl = document.getElementById('payout-amount');
-        if (amtEl) amtEl.value = Math.abs(s.balance || 0);
+        if (amtEl) amtEl.value = s.balance < 0 ? Math.abs(s.balance) : '';
         const dateEl = document.getElementById('payout-date');
         if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
         const comEl = document.getElementById('payout-comment');
-        if (comEl) comEl.value = "Navbatdagi qarz to'lovi";
+        if (comEl) comEl.value = "Yetkazib beruvchiga qarz to'lovi";
 
         openModal('modal-supplier-payout');
     } catch (err) {
@@ -529,19 +751,45 @@ function openModalSupplierPayout(supplierId) {
 }
 
 function handleSaveSupplierPayout(e) {
-    e.preventDefault();
-    const supId = parseInt(document.getElementById('payout-supplier-id').value);
-    const amount = parseFloat(document.getElementById('payout-amount').value) || 0;
-    const method = document.getElementById('payout-method').value;
-    const pDate = document.getElementById('payout-date').value;
-    const comment = document.getElementById('payout-comment').value.trim();
+    if (e && e.preventDefault) e.preventDefault();
+    const supId = parseInt(document.getElementById('payout-supplier-id')?.value);
+    const amount = parseFloat(document.getElementById('payout-amount')?.value) || 0;
+    const method = document.getElementById('payout-method')?.value || 'naqd';
+    const pDate = document.getElementById('payout-date')?.value || new Date().toISOString().split('T')[0];
+    const comment = document.getElementById('payout-comment')?.value.trim() || "Yetkazib beruvchiga to'lov";
 
-    const supplier = DB.suppliers.find(s => s.id === supId);
+    const supplier = (DB.suppliers || []).find(s => s.id === supId);
     if (!supplier) return;
+    if (amount <= 0) {
+        alert("To'lov summasi 0 dan katta bo'lishi kerak!");
+        return;
+    }
 
-    // Supplier balance decreases debt (debt is negative, paying makes it more positive)
-    supplier.balance += amount;
+    // 1. Supplier balance decreases debt (negative balance becomes more positive)
+    supplier.balance = (supplier.balance || 0) + amount;
 
+    // 2. Deduct from cash register
+    let reg = (DB.cash_registers || []).find(r => r.code === method) || (DB.cash_registers || [])[0];
+    if (reg) {
+        reg.current_balance = (reg.current_balance || 0) - amount;
+    }
+
+    // 3. Record in financial transactions & expenses
+    if (!DB.financial_transactions) DB.financial_transactions = [];
+    DB.financial_transactions.unshift({
+        id: Date.now(),
+        type: 'chiqim',
+        category: 'yetkazib_beruvchi_tolov',
+        amount: amount,
+        payment_method: method,
+        cash_register_id: reg ? reg.id : 1,
+        description: `Ta'minotchi: ${supplier.company_name} ga to'lov (${comment})`,
+        date: pDate,
+        created_by: currentUser ? currentUser.full_name : "Kassir"
+    });
+
+    // 4. Record in supplier transactions
+    if (!DB.supplier_transactions) DB.supplier_transactions = [];
     const newTx = {
         id: Date.now(),
         supplier_id: supplier.id,
@@ -553,20 +801,99 @@ function handleSaveSupplierPayout(e) {
         date: pDate,
         created_by: currentUser ? currentUser.full_name : "Kassir"
     };
-
     DB.supplier_transactions.unshift(newTx);
+
     saveDB();
     closeModal('modal-supplier-payout');
     renderSuppliersLedger();
     if (selectedSupplierForDetail && selectedSupplierForDetail.id === supplier.id) {
         openSupplierDetailModal(supplier.id);
     }
-    showNotification(`Yetkazib beruvchiga ${amount.toLocaleString()} so'm to'lov qayd etildi!`, "success");
+    showNotification(`Yetkazib beruvchi ${supplier.company_name}ga ${amount.toLocaleString()} so'm to'lov qayd etildi! Kassa balansi yangilandi.`, "success");
+}
+
+function printSupplierAktSverka() {
+    if (!selectedSupplierForDetail) return;
+    const s = selectedSupplierForDetail;
+    const txs = (DB.supplier_transactions || []).filter(t => t.supplier_id === s.id);
+    const today = new Date().toLocaleDateString('uz-UZ');
+
+    let rowsHtml = txs.map((t, idx) => `
+        <tr>
+            <td style="border:1px solid #333; padding:6px; text-align:center;">${idx + 1}</td>
+            <td style="border:1px solid #333; padding:6px; text-align:center;">${t.date}</td>
+            <td style="border:1px solid #333; padding:6px;">${t.type === 'kirim_tovarlar' ? 'Tovar kirimi' : 'Pul to\'lovi (Chiqim)'} - ${t.comment || ''}</td>
+            <td style="border:1px solid #333; padding:6px; text-align:right;">${t.type === 'kirim_tovarlar' ? t.amount.toLocaleString() + " so'm" : '-'}</td>
+            <td style="border:1px solid #333; padding:6px; text-align:right;">${t.type === 'tolov_chiqim' ? t.amount.toLocaleString() + " so'm" : '-'}</td>
+        </tr>
+    `).join('');
+
+    const printWin = window.open('', '_blank', 'width=800,height=900');
+    printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Akt-sverka: ${s.company_name}</title>
+            <style>
+                body { font-family: Arial, sans-serif; font-size: 12px; color: #000; padding: 20px; line-height: 1.4; }
+                h2, h3 { text-align: center; margin: 5px 0; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+                th { border: 1px solid #333; background: #f0f0f0; padding: 6px; font-weight: bold; }
+                .signatures { margin-top: 50px; display: flex; justify-content: space-between; }
+                .sig-box { width: 45%; border-top: 1px solid #333; padding-top: 8px; text-align: center; }
+            </style>
+        </head>
+        <body>
+            <h2>SOLISHTIRMA DALOLATNOMA (AKT-SVERKA)</h2>
+            <h3>WMS Arenda ERP & "${s.company_name}"</h3>
+            <p style="text-align:center; color:#555;">Sana: ${today}</p>
+            
+            <p><b>Ta'minotchi:</b> ${s.company_name} | <b>Mas'ul:</b> ${s.contact_person} (${s.phone})<br>
+            <b>Manzil:</b> ${s.address || '-'}</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Sana</th>
+                        <th>Operatsiya mazmuni</th>
+                        <th>Olingan tovarlar (Debet)</th>
+                        <th>To'langan pullar (Kredit)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml || '<tr><td colspan="5" style="text-align:center; padding:10px;">Tranzaksiyalar mavjud emas</td></tr>'}
+                </tbody>
+            </table>
+
+            <div style="margin-top:20px; font-size:13px;">
+                <b>Yakuniy Saldo Balans:</b> 
+                <span style="font-weight:bold; color:${s.balance < 0 ? '#d00' : '#080'};">
+                    ${s.balance < 0 ? "Bizning qarzdorligimiz: " + Math.abs(s.balance).toLocaleString() + " so'm" : "Ortiqcha to'langan haq: " + s.balance.toLocaleString() + " so'm"}
+                </span>
+            </div>
+
+            <div class="signatures">
+                <div class="sig-box">
+                    <b>"WMS Arenda" MCHJ</b><br><br><br>
+                    Rahbar / Bosh buxgalter: ________________
+                </div>
+                <div class="sig-box">
+                    <b>"${s.company_name}"</b><br><br><br>
+                    Mas'ul shaxs: ________________
+                </div>
+            </div>
+            <script>
+                window.onload = function() { window.print(); };
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
 }
 
 function printAktSverka() {
-    if (!selectedSupplierForDetail) return;
-    window.print();
+    printSupplierAktSverka();
 }
 
 
