@@ -481,6 +481,18 @@
                 <nav class="p-4 space-y-1.5">
                     <p class="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">ERP Modullari</p>
 
+                    <!-- TEZKOR ICHKI ISHXO'NA OYNALARI (B2B FOCUS) -->
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <button onclick="switchSection('section-orders')" class="p-2.5 rounded-xl bg-gradient-to-br from-emerald-600/20 to-teal-600/10 border border-emerald-500/30 hover:border-emerald-500/60 text-emerald-400 hover:text-emerald-300 font-bold text-xs flex flex-col items-center justify-center gap-1 transition text-center shadow-sm">
+                            <i data-lucide="shopping-cart" class="w-4 h-4 text-emerald-400"></i>
+                            <span class="text-[11px] leading-tight">1. POS Sotuv & Kalkulyator</span>
+                        </button>
+                        <button onclick="switchSection('section-kirim'); switchTab('tab-placement');" class="p-2.5 rounded-xl bg-gradient-to-br from-blue-600/20 to-indigo-600/10 border border-blue-500/30 hover:border-blue-500/60 text-blue-400 hover:text-blue-300 font-bold text-xs flex flex-col items-center justify-center gap-1 transition text-center shadow-sm">
+                            <i data-lucide="package-search" class="w-4 h-4 text-blue-400"></i>
+                            <span class="text-[11px] leading-tight">2. WMS Ombor & Priyomka</span>
+                        </button>
+                    </div>
+
                     <!-- 0-bo'lim: Boshqaruv Paneli (Executive Dashboard) -->
                     <button onclick="switchSection('section-dashboard')" id="btn-section-dashboard" class="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 font-semibold text-xs transition">
                         <div class="flex items-center gap-2.5">
@@ -1631,196 +1643,125 @@
                 </main>
             </div>
 
-            <!-- ================= SECTION 9: AI AGENT & ASSISTANT (BO'LIM 9) ================= -->
+            <!-- ================= SECTION 9: AI BIZNES YORDAMCHI (ERP COPILOT) ================= -->
             <div id="section-ai" class="flex-1 flex flex-col min-w-0 overflow-y-auto hidden">
-                <div class="p-6 space-y-6">
+                <div class="p-6 space-y-5 max-w-6xl mx-auto w-full">
                     <!-- Top AI Header Banner -->
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl">
                         <div class="flex items-center gap-3.5">
-                            <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
                                 <i data-lucide="bot" class="w-6 h-6"></i>
                             </div>
                             <div>
                                 <h2 class="text-base font-bold text-white flex items-center gap-2">
-                                    <span>AI Agent & Aqlli Telegram Yordamchi</span>
-                                    <span class="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 text-[10px] font-semibold tracking-wider">LLM 24/7</span>
+                                    <span>AI Biznes Yordamchi (ERP Copilot)</span>
+                                    <span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-semibold">24/7 Avtonom</span>
                                 </h2>
-                                <p class="text-xs text-slate-400 mt-0.5">Ombor qoldig'i, narxlar va kassa hisoboti bilan to'g'ridan-to'g'ri ishlovchi avtonom yordamchi</p>
+                                <p class="text-xs text-slate-400 mt-0.5">Ombor qoldig'i, kassa balansi, kechikkanlar va tashqi hamkorlar bilan jonli ishlovchi yagona yordamchi</p>
                             </div>
                         </div>
-                        <div id="ai-global-status-badge" class="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold text-xs flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span>AI Agent Faol (24/7)</span>
+                        <div class="flex items-center gap-2.5">
+                            <div id="ai-global-status-badge" class="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold text-xs flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span>🟢 Jonli ulanish (Real-time DB Sync)</span>
+                            </div>
+                            <button type="button" onclick="toggleAISettingsAccordion()" class="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium text-xs flex items-center gap-1.5 transition">
+                                <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+                                <span>Sozlamalar (API kalit)</span>
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Main Grid: Settings vs Interactive Chat -->
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                        
-                        <!-- LEFT COLUMN: AI Configuration (5 cols) -->
-                        <div class="lg:col-span-5 space-y-6">
-                            <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl space-y-4">
-                                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-                                    <h3 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
-                                        <i data-lucide="settings" class="w-4 h-4 text-indigo-400"></i>
-                                        <span>AI Agent Sozlamalari</span>
-                                    </h3>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="ai-setting-enabled" checked onchange="saveAISettings()" class="sr-only peer">
-                                        <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                                    </label>
-                                </div>
+                    <!-- Collapsible Settings & API Key Drawer (Initially Hidden) -->
+                    <div id="ai-settings-drawer" class="hidden rounded-2xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl transition-all">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                                <i data-lucide="sliders" class="w-4 h-4 text-purple-400"></i>
+                                <span>AI Dvigatel va API Kalit Sozlamalari</span>
+                            </h3>
+                            <button type="button" onclick="toggleAISettingsAccordion()" class="text-slate-400 hover:text-white">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
 
-                                <form id="form-ai-settings" onsubmit="saveAISettings(event)" class="space-y-3.5 text-xs">
-                                    <!-- Provider Selection -->
-                                    <div>
-                                        <label class="block text-slate-400 font-semibold mb-1">AI Provayderi (LLM Engine) *</label>
-                                        <select id="ai-setting-provider" onchange="handleAIProviderChange()" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white focus:outline-none focus:border-blue-500">
-                                            <option value="builtin" selected>Ichki Aqlli AI Dvigatel (Avtonom 100% Faol — Kalitsiz)</option>
-                                            <option value="groq">Groq API (Llama 3.3 / Llama 3.1 - Bepul va Tezkor)</option>
-                                            <option value="gemini">Google Gemini 1.5 Flash (Jonli AI LLM)</option>
-                                            <option value="openai">OpenAI API (GPT-4o / GPT-4o-mini)</option>
-                                        </select>
-                                    </div>
-
-                                    <!-- API Key Field -->
-                                    <div>
-                                        <label id="ai-setting-key-label" class="block text-slate-400 font-semibold mb-1">API Kaliti (Talab etilmaydi — 100% Avtonom)</label>
-                                        <div class="relative">
-                                            <input type="password" id="ai-setting-key" placeholder="Kalit talab qilinmaydi (100% Avtonom & Offline)" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 pl-3 pr-10 text-white font-mono text-xs focus:outline-none focus:border-blue-500">
-                                            <button type="button" onclick="const i = document.getElementById('ai-setting-key'); i.type = i.type === 'password' ? 'text' : 'password';" class="absolute right-2.5 top-2 text-slate-400 hover:text-white">
-                                                <i data-lucide="eye" class="w-4 h-4"></i>
-                                            </button>
-                                        </div>
-                                        <p id="ai-setting-key-hint" class="text-[10px] text-slate-500 mt-1"><span class="text-emerald-400 font-semibold">100% Avtonom & Offline:</span> Ichki aqlli dvigatel bepul ishlaydi, hech qanday kalit yoki hisob talab qilinmaydi.</p>
-                                    </div>
-
-                                    <div class="grid grid-cols-2 gap-3">
-                                        <!-- Model Name -->
-                                        <div>
-                                            <label class="block text-slate-400 font-semibold mb-1">Model Nomi</label>
-                                            <input type="text" id="ai-setting-model" value="builtin-nlp" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white font-mono text-xs">
-                                        </div>
-
-                                        <!-- Admin PIN -->
-                                        <div>
-                                            <label class="block text-slate-400 font-semibold mb-1">Bosh Admin PIN Kodi *</label>
-                                            <input type="text" id="ai-setting-pin" value="7788" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-amber-400 font-mono font-bold text-xs">
-                                        </div>
-                                    </div>
-
-                                    <!-- Welcome Message -->
-                                    <div>
-                                        <label class="block text-slate-400 font-semibold mb-1">Xush Kelibsiz Matni (Mijozga birinchi javob)</label>
-                                        <textarea id="ai-setting-welcome" rows="2" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white text-xs"></textarea>
-                                    </div>
-
-                                    <!-- System Prompt / Instructions -->
-                                    <div>
-                                        <label class="block text-slate-400 font-semibold mb-1">System Prompt (Kontekst va Qoidalar)</label>
-                                        <textarea id="ai-setting-prompt" rows="3" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white text-[11px] font-mono"></textarea>
-                                    </div>
-
-                                    <div class="pt-2 border-t border-slate-800 flex justify-end">
-                                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-semibold text-white text-xs flex items-center gap-1.5 shadow-sm transition">
-                                            <i data-lucide="save" class="w-4 h-4"></i>
-                                            <span>Sozlamalarni Saqlash</span>
-                                        </button>
-                                    </div>
-                                </form>
+                        <form id="form-ai-settings" onsubmit="saveAISettings(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                            <div>
+                                <label class="block text-slate-400 font-semibold mb-1">AI Provayderi (LLM Engine)</label>
+                                <select id="ai-setting-provider" onchange="handleAIProviderChange()" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white focus:outline-none focus:border-purple-500">
+                                    <option value="builtin" selected>Ichki Aqlli ERP Copilot (100% Avtonom — Kalitsiz)</option>
+                                    <option value="groq">Groq API (Llama 3.3 / Llama 3.1 - Bepul va Tezkor)</option>
+                                    <option value="gemini">Google Gemini 1.5 Flash (Jonli AI LLM)</option>
+                                    <option value="openai">OpenAI API (GPT-4o)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label id="ai-setting-key-label" class="block text-slate-400 font-semibold mb-1">API Kaliti</label>
+                                <input type="password" id="ai-setting-key" placeholder="Kalit talab qilinmaydi (Avtonom)" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white font-mono text-xs focus:outline-none focus:border-purple-500">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 font-semibold mb-1">Model Nomi</label>
+                                <input type="text" id="ai-setting-model" value="wms-copilot-engine" class="w-full rounded-xl border border-slate-700 bg-slate-950 py-2 px-3 text-white font-mono text-xs">
                             </div>
 
-                            <!-- Telegram Bot Info Card -->
-                            <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg space-y-3 text-xs">
-                                <div class="flex items-center gap-2 text-blue-400 font-bold">
-                                    <i data-lucide="send" class="w-4 h-4"></i>
-                                    <span>Telegram Bot Bilan Bog'lash</span>
-                                </div>
-                                <p class="text-slate-300 text-[11px] leading-relaxed">
-                                    Telegram botingizni serveringizdagi tayyor Webhook manziliga yo'naltiring:
-                                </p>
-                                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[10px] text-blue-300 break-all select-all">
-                                    POST /api/ai/telegram-webhook
-                                </div>
-                                <div class="space-y-1.5 text-[11px] text-slate-400 pt-1">
-                                    <div><b>Mijoz rejimi:</b> AI sotuvchi va ombor qoldig'i bo'yicha maslahat beradi.</div>
-                                    <div><b>Admin rejimi:</b> <code class="text-amber-400">/admin 7788</code> kodi bilan kassa va moliyaviy hisobotlarni oladi.</div>
-                            </div>
+                            <input type="hidden" id="ai-setting-enabled" value="true">
+                            <input type="hidden" id="ai-setting-pin" value="7788">
+                            <textarea id="ai-setting-welcome" class="hidden"></textarea>
+                            <textarea id="ai-setting-prompt" class="hidden"></textarea>
 
-                            <!-- Admin System Maintenance & Clean Slate Card -->
-                            <div class="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 shadow-lg space-y-3 text-xs">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2 text-red-400 font-bold">
-                                        <i data-lucide="shield-alert" class="w-4 h-4"></i>
-                                        <span>Tizim Sozlamalari & Ma'lumotlar Bazasi</span>
-                                    </div>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400">Faqat Admin</span>
+                            <div class="md:col-span-3 flex items-center justify-between pt-2 border-t border-slate-800">
+                                <span class="text-[11px] text-slate-400">Telegram Webhook: <code class="text-purple-400 font-mono">POST /api/ai/telegram-webhook</code></span>
+                                <button type="submit" class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white text-xs flex items-center gap-1.5 shadow transition">
+                                    <i data-lucide="save" class="w-4 h-4"></i>
+                                    <span>Saqlash</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- UNIFIED CHAT WINDOW (SINGLE STREAMLINED INTERFACE) -->
+                    <div class="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/90 shadow-2xl overflow-hidden min-h-[640px]">
+                        <!-- Chat Top Bar -->
+                        <div class="px-5 py-3.5 border-b border-slate-800 bg-slate-950 flex items-center justify-between shrink-0">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
+                                <span class="text-xs font-bold text-white">WMS Copilot — Real-time Biznes Yordamchi</span>
+                            </div>
+                            <button type="button" onclick="clearChatHistory()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-slate-800 transition">
+                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                                <span>Suhbatni tozalash</span>
+                            </button>
+                        </div>
+
+                        <!-- Chat Messages Thread -->
+                        <div id="ai-chat-messages-container" class="flex-1 p-5 overflow-y-auto space-y-4 max-h-[500px] bg-slate-950/40">
+                            <div class="p-4 rounded-2xl bg-purple-950/20 border border-purple-500/20 text-xs text-purple-200 leading-relaxed">
+                                <div class="font-bold flex items-center gap-1.5 mb-1 text-white">
+                                    <span>👋 Assalomu alaykum! Men WMS Arenda AI Biznes Yordamchisiman.</span>
                                 </div>
-                                <p class="text-slate-400 text-[11px] leading-relaxed">
-                                    Barcha soxta (demo) buyurtmalar, mijozlar va asboblarni butunlay tozalab, tizimni 0 holatga qaytarish. Bosh Admin hisobi saqlanadi (admin / admin123).
-                                </p>
-                                <div class="flex items-center justify-between pt-1">
-                                    <span class="text-[10px] text-slate-500 font-mono">Baza: Production SQLite</span>
-                                    <button type="button" onclick="wipeDatabaseToCleanSlate()" class="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 font-bold text-white text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer">
-                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                        <span>🗑️ Barcha ma'lumotlarni tozalash (0 ga qaytarish)</span>
-                                    </button>
-                                </div>
+                                <p>Men korxona ombori, kassa balansi, kechikkan buyurtmalar va hamkorlar (kran, musor, gruzchik) bilan real vaqtda ishlayman. Menga savol bering yoki mijoz nomidan buyurtma rasmiylashtiring:</p>
                             </div>
                         </div>
 
-                        <!-- RIGHT COLUMN: Interactive Live AI Chat Simulator (7 cols) -->
-                        <div class="lg:col-span-7 flex flex-col rounded-2xl border border-slate-800 bg-slate-900/90 shadow-2xl overflow-hidden min-h-[620px]">
-                            <!-- Chat Top Bar -->
-                            <div class="px-5 py-3.5 border-b border-slate-800 bg-slate-950 flex items-center justify-between shrink-0">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs text-slate-400">Muloqot rejimi:</span>
-                                    <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
-                                        <button type="button" id="btn-sim-role-customer" onclick="setChatSimulatorRole('customer')" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold text-xs shadow-sm transition">
-                                            Mijoz Chat
-                                        </button>
-                                        <button type="button" id="btn-sim-role-admin" onclick="setChatSimulatorRole('admin')" class="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-white font-semibold text-xs transition">
-                                            Bosh Admin (Hisobotlar)
-                                        </button>
-                                    </div>
-                                </div>
-                                <button type="button" onclick="clearChatHistory()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 p-1 rounded hover:bg-slate-800">
-                                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-                                    <span>Tozalash</span>
-                                </button>
-                            </div>
-
-                            <!-- Chat Messages Thread -->
-                            <div id="ai-chat-messages-container" class="flex-1 p-5 overflow-y-auto space-y-4 max-h-[480px] bg-slate-950/40">
-                                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 leading-relaxed">
-                                    <div class="font-bold flex items-center gap-1.5 mb-1 text-white">
-                                        <span>WMS Arenda AI Yordamchisiga xush kelibsiz!</span>
-                                    </div>
-                                    <p>Men real vaqtda omborda bor-yo'q asboblar qoldig'i, narxlar va kassa hisobotlari bo'yicha 24/7 yordam beraman. Quyidagi tayyor savollardan birini tanlang yoki o'zingiz yozing:</p>
-                                </div>
-                            </div>
-
-                            <!-- Quick Suggestion Chips -->
-                            <div class="px-4 py-2.5 bg-slate-950/80 border-t border-slate-800/80 overflow-x-auto flex gap-1.5 shrink-0">
-                                <button type="button" onclick="sendQuickPrompt('Kran kerak')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-amber-300 whitespace-nowrap transition border border-amber-500/30">🏗 Avtokran kerak</button>
-                                <button type="button" onclick="sendQuickPrompt('Musor olib ketish xizmati qancha?')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-emerald-300 whitespace-nowrap transition border border-emerald-500/30">🚛 Musor olib ketish</button>
-                                <button type="button" onclick="sendQuickPrompt('Gruzchik kerak')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-indigo-300 whitespace-nowrap transition border border-indigo-500/30">👷‍♂️ Gruzchik kerak</button>
-                                <button type="button" onclick="sendQuickPrompt('Perforator bormi va narxi qancha?')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-blue-300 whitespace-nowrap transition border border-blue-500/30">🛠 Perforator bormi?</button>
-                                <button type="button" onclick="sendQuickPrompt('Yangi zakaz')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-400 whitespace-nowrap transition border border-slate-700">🔄 Yangi zakaz</button>
-                                <button type="button" onclick="sendQuickPrompt('/admin 7788')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-purple-300 whitespace-nowrap transition border border-purple-500/30">📊 /admin 7788 (Hisobot)</button>
-                            </div>
-
-                            <!-- Input Form -->
-                            <form onsubmit="handleSendAIChatMessage(event)" class="p-4 bg-slate-950 border-t border-slate-800 flex items-center gap-2.5 shrink-0">
-                                <div class="relative flex-1">
-                                    <input type="text" id="ai-chat-input" placeholder="Xabaringizni yozing (masalan: 'Otboynik bormi?', 'Kran qancha?', 'Bugungi kassa?')..." 
-                                        class="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 pl-4 pr-10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500">
-                                </div>
-                                <button type="submit" class="p-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/20 transition">
-                                    <i data-lucide="send" class="w-4 h-4"></i>
-                                </button>
-                            </form>
+                        <!-- Quick Suggestion Chips -->
+                        <div class="px-4 py-2.5 bg-slate-950/80 border-t border-slate-800/80 overflow-x-auto flex gap-1.5 shrink-0">
+                            <button type="button" onclick="sendQuickPrompt('Kassa qancha?')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-emerald-300 font-semibold whitespace-nowrap transition border border-emerald-500/30">📊 Kassa qancha?</button>
+                            <button type="button" onclick="sendQuickPrompt('Kechikkan buyurtmalar bormi?')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-rose-300 font-semibold whitespace-nowrap transition border border-rose-500/30">⚠️ Kechikkanlar bormi?</button>
+                            <button type="button" onclick="sendQuickPrompt('Omborda nima bo\'sh?')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-blue-300 font-semibold whitespace-nowrap transition border border-blue-500/30">📦 Omborda nima bo'sh?</button>
+                            <button type="button" onclick="sendQuickPrompt('Avtokran kerak')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-amber-300 font-semibold whitespace-nowrap transition border border-amber-500/30">🏗 Kran bormi?</button>
+                            <button type="button" onclick="sendQuickPrompt('Musor olib ketish xizmati qancha?')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-teal-300 font-semibold whitespace-nowrap transition border border-teal-500/30">🚛 Musor narxlari</button>
+                            <button type="button" onclick="sendQuickPrompt('Yangi zakaz')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 whitespace-nowrap transition border border-slate-700">🔄 Yangi buyurtma ochish</button>
                         </div>
+
+                        <!-- Input Form -->
+                        <form onsubmit="handleSendAIChatMessage(event)" class="p-4 bg-slate-950 border-t border-slate-800 flex items-center gap-2.5 shrink-0">
+                            <div class="relative flex-1">
+                                <input type="text" id="ai-chat-input" placeholder="Xabaringizni yozing (masalan: 'Kassa qancha?', 'Omborda nima bo\'sh?', 'Manzil: Qoratosh 52')..." 
+                                    class="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 pl-4 pr-10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500">
+                            </div>
+                            <button type="submit" class="p-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/20 transition">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>

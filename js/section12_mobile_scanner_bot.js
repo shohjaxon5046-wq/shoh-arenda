@@ -566,9 +566,117 @@ function renderPartnerBotChatView(order, partner, customer) {
                 <span class="text-[9px] text-slate-400 font-mono">${currentTime} &bull; Telegram Bot</span>
             </div>
         </div>
+
+        <!-- B2B PARTNER TELEGRAM PERSISTENT REPLY KEYBOARD MENU -->
+        <div class="mt-4 pt-3 border-t border-slate-700/80">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">Telegram Hamkor Menyusi</div>
+            <div class="grid grid-cols-2 gap-2">
+                <button type="button" onclick="handlePartnerBotSimMenuAction('tasks')" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 shadow-sm transition">
+                    <i data-lucide="inbox" class="w-3.5 h-3.5 text-blue-400"></i>
+                    <span>📥 Yangi vazifalar</span>
+                </button>
+                <button type="button" onclick="handlePartnerBotSimMenuAction('finish')" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 shadow-sm transition">
+                    <i data-lucide="flag" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span>🏁 Ishni yakunlash</span>
+                </button>
+                <button type="button" onclick="handlePartnerBotSimMenuAction('balance')" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 shadow-sm transition">
+                    <i data-lucide="wallet" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <span>💰 Mening Balansim</span>
+                </button>
+                <button type="button" onclick="handlePartnerBotSimMenuAction('toggle_status')" id="btn-bot-sim-status" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 shadow-sm transition">
+                    <span class="${(partner && partner.is_available !== false) ? 'text-emerald-400' : 'text-rose-400'}">${(partner && partner.is_available !== false) ? '🟢 Bo\'shman' : '🔴 Bandman'}</span>
+                </button>
+            </div>
+        </div>
     `;
 
     lucide.createIcons();
+}
+
+/**
+ * Handle persistent reply keyboard menu clicks inside the Partner Bot Simulator
+ */
+async function handlePartnerBotSimMenuAction(menuType) {
+    if (!activeBotSimulatorOrderId) return;
+    const order = (DB.service_orders || []).find(o => o.id === activeBotSimulatorOrderId);
+    const partner = order ? (DB.service_partners || []).find(p => p.id === order.assigned_partner_id) : null;
+    const container = document.getElementById('bot-sim-messages-container');
+    if (!container) return;
+
+    const timeStr = new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+
+    if (menuType === 'balance') {
+        const completedOrders = (DB.service_orders || []).filter(o => o.assigned_partner_id === partner?.id && o.order_status === 'bajarildi');
+        const totalEarned = completedOrders.reduce((sum, o) => sum + (o.partner_payout_amount || 0), 0);
+        const currentBalance = partner ? (partner.balance || totalEarned) : 0;
+
+        const bubble = document.createElement('div');
+        bubble.className = "max-w-[90%] mr-auto rounded-2xl bg-slate-800 border border-slate-700 p-3.5 text-slate-200 text-xs shadow-md space-y-1.5";
+        bubble.innerHTML = `
+            <div class="font-bold text-amber-400 flex items-center gap-1.5 border-b border-slate-700/80 pb-1">
+                <i data-lucide="wallet" class="w-4 h-4"></i> 💰 SIZNING HISOBLAR VA BALANSINGIZ
+            </div>
+            <div class="text-[11px] space-y-1">
+                <div>🏢 Hamkor: <b>${partner ? partner.company_name : 'Hamkor'}</b></div>
+                <div>• Bajarilgan ishlar: <b>${completedOrders.length} ta</b></div>
+                <div>• Jami ishlangan: <b>${totalEarned.toLocaleString()} so'm</b></div>
+                <div>• Hozirgi to'lanadigan qoldiq: <b class="text-emerald-400 font-mono">${currentBalance.toLocaleString()} so'm</b></div>
+            </div>
+            <div class="flex justify-end pt-1">
+                <span class="text-[9px] text-slate-400 font-mono">${timeStr}</span>
+            </div>
+        `;
+        container.appendChild(bubble);
+        container.scrollTop = container.scrollHeight;
+        lucide.createIcons();
+
+    } else if (menuType === 'toggle_status') {
+        if (partner) {
+            partner.is_available = !partner.is_available;
+            partner.status = partner.is_available ? 'bosh' : 'band';
+            saveDB();
+
+            try {
+                await fetch('/api/partner-bot/toggle-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ partner_id: partner.id, is_available: partner.is_available })
+                });
+            } catch (e) {}
+
+            const statusText = partner.is_available ? "🟢 BO'SH (Yangi buyurtmalarni qabul qilishga tayyor)" : "🔴 BAND (Hozircha buyurtma qabul qilinmaydi)";
+            showNotification(`Hamkor holati o'zgartirildi: ${statusText}`, partner.is_available ? "success" : "warning");
+
+            const bubble = document.createElement('div');
+            bubble.className = "max-w-[90%] mr-auto rounded-2xl bg-slate-800 border border-slate-700 p-3.5 text-slate-200 text-xs shadow-md space-y-1";
+            bubble.innerHTML = `
+                <div class="font-bold text-blue-400 border-b border-slate-700/80 pb-1">
+                    🟢/🔴 HOLAT O'ZGARTIRILDI
+                </div>
+                <div class="text-[11px] leading-relaxed pt-1">
+                    Sizning holatingiz: <b>${statusText}</b>
+                </div>
+                <div class="flex justify-end pt-1">
+                    <span class="text-[9px] text-slate-400 font-mono">${timeStr}</span>
+                </div>
+            `;
+            container.appendChild(bubble);
+            container.scrollTop = container.scrollHeight;
+
+            const btn = document.getElementById('btn-bot-sim-status');
+            if (btn) {
+                btn.innerHTML = `<span class="${partner.is_available ? 'text-emerald-400' : 'text-rose-400'}">${partner.is_available ? '🟢 Bo\'shman' : '🔴 Bandman'}</span>`;
+            }
+            if (typeof renderPartnersDirectory === 'function') renderPartnersDirectory();
+        }
+
+    } else if (menuType === 'finish') {
+        handlePartnerBotSimAction('finish');
+
+    } else if (menuType === 'tasks') {
+        const customer = (DB.customers || []).find(c => c.id === order?.customer_id);
+        renderPartnerBotChatView(order, partner, customer);
+    }
 }
 
 /**

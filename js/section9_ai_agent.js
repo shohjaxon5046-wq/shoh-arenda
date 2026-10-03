@@ -659,16 +659,84 @@ function handleAdminStatsReport(text, role, adminPin) {
 }
 
 // -------------------------------------------------------------------------
-// 6. PROCESS USER MESSAGE DISPATCHER (UI / API)
+// 6. PROCESS USER MESSAGE DISPATCHER (REAL-TIME SERVER API + FALLBACK)
 // -------------------------------------------------------------------------
-async function processUserMessage(rawMessage, role = 'customer', adminPin = '') {
+function toggleAISettingsAccordion() {
+    const drawer = document.getElementById('ai-settings-drawer');
+    if (!drawer) return;
+    drawer.classList.toggle('hidden');
+    if (!drawer.classList.contains('hidden')) {
+        renderAISettingsForm();
+    }
+}
+
+async function processUserMessage(rawMessage, role = 'operator', adminPin = '') {
     const text = (rawMessage || '').trim();
     if (!text) return { reply: "Iltimos, xabaringizni yozing.", function_called: null };
 
-    // Stateful Conversation Engine orqali qayta ishlash
-    const result = processStatefulConversation(text, role, adminPin);
+    // Format chat history for LLM
+    const formattedHistory = (chatHistory || []).map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.content
+    }));
 
-    // Xabarlar tarixiga qo'shish
+    const aiSettings = (typeof DB !== 'undefined' && DB.ai_settings) ? DB.ai_settings : {};
+    let result = null;
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: text,
+                messages: formattedHistory,
+                provider: aiSettings.provider || 'builtin',
+                api_key: aiSettings.api_key || '',
+                model: aiSettings.model_name || 'wms-copilot-engine',
+                db_state: typeof DB !== 'undefined' ? DB : null,
+                session_id: 'browser_session'
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.reply) {
+                result = {
+                    reply: data.reply,
+                    order_number: data.order_number,
+                    step: data.step
+                };
+
+                // If a new order was created by Copilot
+                if (data.order_number) {
+                    if (typeof showNotification === 'function') {
+                        showNotification(`🎉 Yangi buyurtma yaratildi: #${data.order_number}!`, "success");
+                    }
+                    // Sync client DB from server
+                    try {
+                        const dbRes = await fetch('/api/db');
+                        if (dbRes.ok) {
+                            const dbData = await dbRes.json();
+                            if (dbData.db && typeof DB !== 'undefined') {
+                                Object.assign(DB, dbData.db);
+                                if (typeof renderOrdersTable === 'function') renderOrdersTable();
+                                if (typeof renderPublicOrdersTable === 'function') renderPublicOrdersTable();
+                            }
+                        }
+                    } catch (e) {}
+                }
+            }
+        }
+    } catch (netErr) {
+        console.warn("Server /api/chat fetch failed, using local engine:", netErr);
+    }
+
+    // Fallback to local stateful conversation engine if server didn't respond
+    if (!result) {
+        result = processStatefulConversation(text, role, adminPin);
+    }
+
+    // Add to history
     chatHistory.push({ sender: 'user', content: text, timestamp: new Date() });
     chatHistory.push({ sender: 'assistant', content: result.reply, timestamp: new Date() });
 
@@ -684,18 +752,19 @@ function handleAIProviderChange() {
     if (!select) return;
     const val = select.value;
     const label = document.getElementById('ai-setting-key-label');
-    const hint = document.getElementById('ai-setting-key-hint');
     const modelInput = document.getElementById('ai-setting-model');
     const keyInput = document.getElementById('ai-setting-key');
 
     if (val === 'builtin') {
-        if (modelInput) modelInput.value = 'builtin-nlp';
-        if (keyInput) keyInput.placeholder = 'Kalit talab qilinmaydi (100% Avtonom & Offline)';
-        if (label) label.textContent = 'API Kaliti (Talab etilmaydi — 100% Avtonom)';
-        if (hint) hint.innerHTML = `<span class="text-emerald-400 font-semibold">100% Avtonom:</span> Ichki dvigatel to'liq offline rejimda ishlaydi.`;
+        if (modelInput) modelInput.value = 'wms-copilot-engine';
+        if (keyInput) keyInput.placeholder = 'Kalit talab qilinmaydi (100% Avtonom)';
+        if (label) label.textContent = 'API Kaliti (Talab etilmaydi)';
     } else {
         if (label) label.textContent = 'API Kaliti';
-        if (hint) hint.innerHTML = `Tanlangan LLM provayderi kalitini kiriting.`;
+        if (keyInput) keyInput.placeholder = 'API kalitni kiriting...';
+        if (modelInput && val === 'groq') modelInput.value = 'llama-3.3-70b-versatile';
+        if (modelInput && val === 'gemini') modelInput.value = 'gemini-1.5-flash';
+        if (modelInput && val === 'openai') modelInput.value = 'gpt-4o';
     }
 }
 
@@ -707,10 +776,8 @@ function renderAISettingsForm() {
     const keyInput = document.getElementById('ai-setting-key');
     const modelInput = document.getElementById('ai-setting-model');
     const pinInput = document.getElementById('ai-setting-pin');
-    const welcomeInput = document.getElementById('ai-setting-welcome');
-    const promptInput = document.getElementById('ai-setting-prompt');
 
-    if (toggle) toggle.checked = !!s.is_enabled;
+    if (toggle) toggle.checked = s.is_enabled !== false;
     if (provSelect) {
         provSelect.value = s.provider || 'builtin';
         handleAIProviderChange();
@@ -718,8 +785,6 @@ function renderAISettingsForm() {
     if (keyInput && s.api_key) keyInput.value = s.api_key;
     if (modelInput && s.model_name) modelInput.value = s.model_name;
     if (pinInput) pinInput.value = s.admin_pin || '7788';
-    if (welcomeInput) welcomeInput.value = s.welcome_message || '';
-    if (promptInput) promptInput.value = s.system_prompt || '';
 
     updateAIStatusBadge();
 }
@@ -730,19 +795,18 @@ function saveAISettings(e) {
     if (typeof DB !== 'undefined') {
         if (!DB.ai_settings) DB.ai_settings = {};
 
-        DB.ai_settings.is_enabled = document.getElementById('ai-setting-enabled')?.checked ?? true;
+        DB.ai_settings.is_enabled = true;
         DB.ai_settings.provider = document.getElementById('ai-setting-provider')?.value || 'builtin';
         DB.ai_settings.api_key = document.getElementById('ai-setting-key')?.value.trim() || '';
-        DB.ai_settings.model_name = document.getElementById('ai-setting-model')?.value.trim() || 'builtin-nlp';
-        DB.ai_settings.admin_pin = document.getElementById('ai-setting-pin')?.value.trim() || '7788';
-        DB.ai_settings.welcome_message = document.getElementById('ai-setting-welcome')?.value.trim() || '';
-        DB.ai_settings.system_prompt = document.getElementById('ai-setting-prompt')?.value.trim() || '';
+        DB.ai_settings.model_name = document.getElementById('ai-setting-model')?.value.trim() || 'wms-copilot-engine';
+        DB.ai_settings.admin_pin = '7788';
 
         if (typeof saveDB === 'function') saveDB();
         updateAIStatusBadge();
         if (typeof showNotification === 'function') {
-            showNotification("AI Yordamchi sozlamalari muvaffaqiyatli saqlandi!", "success");
+            showNotification("AI Copilot sozlamalari muvaffaqiyatli saqlandi!", "success");
         }
+        toggleAISettingsAccordion();
     }
 }
 
@@ -751,32 +815,13 @@ function updateAIStatusBadge() {
     const badge = document.getElementById('ai-global-status-badge');
     if (!badge) return;
 
-    if (s.is_enabled !== false) {
-        badge.className = "px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold text-[10px] flex items-center gap-1.5";
-        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> <span>AI Agent Faol (24/7)</span>`;
-    } else {
-        badge.className = "px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold text-[10px] flex items-center gap-1.5";
-        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> <span>AI O'chirilgan</span>`;
-    }
+    badge.className = "px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold text-xs flex items-center gap-2";
+    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> <span>🟢 Jonli ulanish (Real-time DB Sync)</span>`;
 }
 
 // -------------------------------------------------------------------------
 // 8. CHAT SIMULYATORI VA INTERFEYS
 // -------------------------------------------------------------------------
-
-function setChatSimulatorRole(role) {
-    chatSimulatorRole = role;
-    const btnCust = document.getElementById('btn-sim-role-customer');
-    const btnAdmin = document.getElementById('btn-sim-role-admin');
-
-    if (role === 'customer') {
-        if (btnCust) btnCust.className = "px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-sm transition";
-        if (btnAdmin) btnAdmin.className = "px-3 py-1.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white font-semibold text-xs transition";
-    } else {
-        if (btnCust) btnCust.className = "px-3 py-1.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white font-semibold text-xs transition";
-        if (btnAdmin) btnAdmin.className = "px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-sm transition";
-    }
-}
 
 function sendQuickPrompt(promptText) {
     const input = document.getElementById('ai-chat-input');
@@ -797,24 +842,22 @@ async function handleSendAIChatMessage(e) {
     input.value = '';
 
     // Foydalanuvchi xabarini ekranga chiqarish
-    appendChatMessage('user', text, chatSimulatorRole);
+    appendChatMessage('user', text);
 
     // Kutilmoqda animatsiyasi
     const typingId = appendTypingIndicator();
 
     try {
-        const adminPin = (chatSimulatorRole === 'admin') ? (DB.ai_settings?.admin_pin || '7788') : '';
-        const response = await processUserMessage(text, chatSimulatorRole, adminPin);
-
+        const response = await processUserMessage(text);
         removeTypingIndicator(typingId);
-        appendChatMessage('assistant', response.reply, 'assistant', response.function_called, response.function_result);
+        appendChatMessage('assistant', response.reply);
     } catch (err) {
         removeTypingIndicator(typingId);
-        appendChatMessage('assistant', `Xatolik: ${err.message}`, 'assistant');
+        appendChatMessage('assistant', `Xatolik yuz berdi: ${err.message}`);
     }
 }
 
-function appendChatMessage(sender, content, role = 'customer', functionCalled = null, functionResult = null) {
+function appendChatMessage(sender, content) {
     const container = document.getElementById('ai-chat-messages-container');
     if (!container) return;
 
@@ -824,9 +867,9 @@ function appendChatMessage(sender, content, role = 'customer', functionCalled = 
     if (sender === 'user') {
         msgDiv.className = "flex justify-end gap-2 text-xs";
         msgDiv.innerHTML = `
-            <div class="max-w-[80%] rounded-2xl rounded-tr-none bg-blue-600 p-3 text-white shadow-md">
+            <div class="max-w-[80%] rounded-2xl rounded-tr-none bg-blue-600 p-3.5 text-white shadow-md">
                 <div class="flex items-center justify-between gap-3 text-[10px] text-blue-200 mb-1 border-b border-blue-500/40 pb-0.5">
-                    <span>${role === 'admin' ? '👤 Bosh Admin' : '👤 Mijoz'}</span>
+                    <span class="font-bold">Siz (Operator / Mijoz)</span>
                     <span>${timeStr}</span>
                 </div>
                 <div class="leading-relaxed whitespace-pre-wrap">${escapeHtml(content)}</div>
@@ -834,29 +877,15 @@ function appendChatMessage(sender, content, role = 'customer', functionCalled = 
         `;
     } else {
         msgDiv.className = "flex justify-start gap-2.5 text-xs";
-
-        let functionBadgeHtml = '';
-        if (functionCalled) {
-            functionBadgeHtml = `
-                <div class="mb-2 p-2 rounded-xl bg-slate-950 border border-blue-500/30 text-[10px] font-mono text-blue-300">
-                    <div class="flex items-center justify-between font-bold text-blue-400">
-                        <span>⚙️ Funksiya bajarildi: ${functionCalled}()</span>
-                        <span class="text-emerald-400">STATUS: OK</span>
-                    </div>
-                </div>
-            `;
-        }
-
         msgDiv.innerHTML = `
-            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shrink-0 shadow-md">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-md">
                 🤖
             </div>
             <div class="max-w-[85%] rounded-2xl rounded-tl-none bg-slate-900 border border-slate-800 p-3.5 text-slate-200 shadow-md space-y-1">
                 <div class="flex items-center justify-between text-[10px] text-slate-400 border-b border-slate-800 pb-1">
-                    <span class="font-bold text-indigo-400">WMS AI Agent 24/7 (Kontekstli)</span>
+                    <span class="font-bold text-purple-400">AI Biznes Yordamchi (ERP Copilot)</span>
                     <span>${timeStr}</span>
                 </div>
-                ${functionBadgeHtml}
                 <div class="leading-relaxed whitespace-pre-wrap text-slate-100">${formatMarkdownText(content)}</div>
             </div>
         `;
