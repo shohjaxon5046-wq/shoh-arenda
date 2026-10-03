@@ -580,38 +580,10 @@ function saveDB() {
     syncDBToServer();
 }
 
-// Barcha ma'lumotlarni tozalash (0 ga qaytarish)
+// Safe DB persistence
 window.wipeDatabaseToCleanSlate = function() {
-    if (confirm("DIQQAT! Barcha demo buyurtmalar, mijozlar, asboblar, kassa to'lovlari va xarajatlar butunlay o'chiriladi va 0 holatga keltiriladi.\n\nBosh Admin login va paroli saqlanadi (admin / admin123).\n\nDavom ettirilsinmi?")) {
-        ['WMS_ARENDA_DB_V1', 'WMS_ARENDA_DB_V2', 'WMS_ARENDA_DB_V3', 'WMS_ARENDA_DB_PROD_V4', 'wms_database'].forEach(k => {
-            try { localStorage.removeItem(k); } catch (e) {}
-        });
-        DB = JSON.parse(JSON.stringify(DEFAULT_DB));
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
-        if (typeof window !== 'undefined') window.DB = DB;
-        syncDbProperties(DB);
-        syncDBToServer(true);
-
-        // Re-render all modules
-        try { if (typeof renderAllTabs === 'function') renderAllTabs(); } catch (e) {}
-        try { if (typeof renderCatalogCards === 'function') renderCatalogCards(); } catch (e) {}
-        try { if (typeof renderStaffTable === 'function') renderStaffTable(); } catch (e) {}
-        try { if (typeof renderSuppliersLedger === 'function') renderSuppliersLedger(); } catch (e) {}
-        try { if (typeof renderCustomersCRM === 'function') renderCustomersCRM(); } catch (e) {}
-        try { if (typeof renderPartnersDirectory === 'function') renderPartnersDirectory(); } catch (e) {}
-        try { if (typeof renderOrdersSection === 'function') renderOrdersSection(); } catch (e) {}
-        try { if (typeof renderFinanceSection === 'function') renderFinanceSection(); } catch (e) {}
-        try { if (typeof renderDashboard === 'function') renderDashboard(); } catch (e) {}
-        try { if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges(); } catch (e) {}
-
-        if (typeof showNotification === 'function') {
-            showNotification("Barcha demo ma'lumotlar tozalandi va tizim 0 holatga keltirildi!", "success");
-        } else {
-            alert("Barcha demo ma'lumotlar tozalandi va tizim 0 holatga keltirildi!");
-        }
-    }
+    console.warn("Xavfsizlik maqsadida bazani tozalash funksiyasi o'chirilgan.");
 };
-
 window.resetDemoData = window.wipeDatabaseToCleanSlate;
 
 // User session
