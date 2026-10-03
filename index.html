@@ -1,12 +1,27 @@
 <!DOCTYPE html>
-<html lang="uz" class="h-full bg-slate-900">
+<html lang="uz" class="h-full light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WMS Arenda ERP - Boshqaruv Tizimi</title>
+    <!-- Early Theme Initializer to prevent theme flashing -->
+    <script>
+        (function() {
+            try {
+                const savedTheme = localStorage.getItem('WMS_THEME_MODE') || 'light';
+                if (savedTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
+                }
+            } catch(e) {}
+        })();
+    </script>
     <!-- PWA Web App Manifest & Mobile Meta -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#f8fafc">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="WMS Arenda">
@@ -99,6 +114,274 @@
         .hidden {
             display: none !important;
         }
+
+        /* ========================================================
+           LIGHT MODE THEME (STANDART: OQ FON)
+           Modern, high-contrast, clean ERP design
+           ======================================================== */
+        html:not(.dark) body {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+        }
+
+        html:not(.dark) #main-app,
+        html:not(.dark) #auth-screen {
+            background-color: #f1f5f9 !important;
+        }
+
+        /* Sidebars & Headers */
+        html:not(.dark) aside {
+            background-color: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            box-shadow: 1px 0 3px 0 rgba(0, 0, 0, 0.03);
+        }
+
+        html:not(.dark) aside .h-16,
+        html:not(.dark) aside .border-b,
+        html:not(.dark) aside .border-t {
+            background-color: #ffffff !important;
+            border-color: #e2e8f0 !important;
+        }
+
+        html:not(.dark) header {
+            background-color: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+        }
+
+        /* Viewports & Sections */
+        html:not(.dark) .flex-1.bg-slate-950,
+        html:not(.dark) div[id^="section-"],
+        html:not(.dark) main {
+            background-color: #f8fafc !important;
+        }
+
+        /* Backgrounds: White Cards */
+        html:not(.dark) .bg-slate-900,
+        html:not(.dark) .bg-slate-900\/95,
+        html:not(.dark) .bg-slate-900\/80,
+        html:not(.dark) .bg-slate-900\/60,
+        html:not(.dark) .bg-slate-900\/50,
+        html:not(.dark) .bg-slate-900\/40 {
+            background-color: #ffffff !important;
+        }
+
+        /* Backgrounds: Light Sub-boxes */
+        html:not(.dark) .bg-slate-950,
+        html:not(.dark) .bg-slate-950\/80,
+        html:not(.dark) .bg-slate-950\/60,
+        html:not(.dark) .bg-slate-950\/40 {
+            background-color: #f8fafc !important;
+        }
+
+        html:not(.dark) .bg-slate-800,
+        html:not(.dark) .bg-slate-800\/90,
+        html:not(.dark) .bg-slate-800\/80,
+        html:not(.dark) .bg-slate-800\/60 {
+            background-color: #f1f5f9 !important;
+        }
+
+        /* High-Definition Light Borders */
+        html:not(.dark) .border-slate-800,
+        html:not(.dark) .border-slate-800\/80,
+        html:not(.dark) .border-slate-800\/50,
+        html:not(.dark) .border-slate-700,
+        html:not(.dark) .border-slate-700\/80,
+        html:not(.dark) .border-slate-700\/50 {
+            border-color: #e2e8f0 !important;
+        }
+
+        /* Card and Panel subtle shadows */
+        html:not(.dark) .rounded-2xl,
+        html:not(.dark) .rounded-xl {
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        /* High Contrast Dark Typography */
+        html:not(.dark) .text-white,
+        html:not(.dark) .text-slate-100 {
+            color: #0f172a !important;
+        }
+
+        html:not(.dark) .text-slate-200,
+        html:not(.dark) .text-slate-300 {
+            color: #334155 !important;
+        }
+
+        html:not(.dark) .text-slate-400,
+        html:not(.dark) .text-slate-500 {
+            color: #64748b !important;
+        }
+
+        html:not(.dark) .hover\:text-white:hover {
+            color: #0f172a !important;
+        }
+
+        html:not(.dark) .hover\:bg-slate-800:hover {
+            background-color: #f1f5f9 !important;
+        }
+
+        html:not(.dark) .hover\:bg-slate-700:hover {
+            background-color: #e2e8f0 !important;
+        }
+
+        /* Preservation of White Text in Solid Action Buttons & Badges */
+        html:not(.dark) .bg-blue-600,
+        html:not(.dark) .bg-blue-500,
+        html:not(.dark) .bg-emerald-600,
+        html:not(.dark) .bg-emerald-500,
+        html:not(.dark) .bg-red-600,
+        html:not(.dark) .bg-red-500,
+        html:not(.dark) .bg-indigo-600,
+        html:not(.dark) .bg-indigo-500,
+        html:not(.dark) .bg-purple-600,
+        html:not(.dark) .bg-amber-600 {
+            color: #ffffff !important;
+        }
+
+        html:not(.dark) .bg-blue-600 *,
+        html:not(.dark) .bg-blue-500 *,
+        html:not(.dark) .bg-emerald-600 *,
+        html:not(.dark) .bg-emerald-500 *,
+        html:not(.dark) .bg-red-600 *,
+        html:not(.dark) .bg-red-500 *,
+        html:not(.dark) .bg-indigo-600 *,
+        html:not(.dark) .bg-indigo-500 *,
+        html:not(.dark) .bg-purple-600 *,
+        html:not(.dark) .bg-amber-600 * {
+            color: #ffffff !important;
+        }
+
+        html:not(.dark) button.bg-blue-600:hover { background-color: #2563eb !important; }
+        html:not(.dark) button.bg-emerald-600:hover { background-color: #059669 !important; }
+        html:not(.dark) button.bg-red-600:hover { background-color: #dc2626 !important; }
+        html:not(.dark) button.bg-indigo-600:hover { background-color: #4f46e5 !important; }
+
+        /* Crisp status badges */
+        html:not(.dark) .text-emerald-400, html:not(.dark) .text-emerald-300 { color: #059669 !important; }
+        html:not(.dark) .text-blue-400, html:not(.dark) .text-blue-300 { color: #2563eb !important; }
+        html:not(.dark) .text-amber-400, html:not(.dark) .text-amber-300 { color: #d97706 !important; }
+        html:not(.dark) .text-red-400, html:not(.dark) .text-red-300 { color: #dc2626 !important; }
+        html:not(.dark) .text-purple-400, html:not(.dark) .text-purple-300 { color: #9333ea !important; }
+        html:not(.dark) .text-indigo-400 { color: #4f46e5 !important; }
+        html:not(.dark) .text-cyan-400 { color: #0891b2 !important; }
+        html:not(.dark) .text-pink-400 { color: #db2777 !important; }
+
+        /* Light mode soft tinted badges */
+        html:not(.dark) .bg-blue-600\/10,
+        html:not(.dark) .bg-blue-500\/10,
+        html:not(.dark) .bg-blue-500\/20 {
+            background-color: #eff6ff !important;
+            color: #1d4ed8 !important;
+            border-color: #bfdbfe !important;
+        }
+
+        html:not(.dark) .bg-emerald-500\/10,
+        html:not(.dark) .bg-emerald-500\/20 {
+            background-color: #ecfdf5 !important;
+            color: #047857 !important;
+            border-color: #a7f3d0 !important;
+        }
+
+        html:not(.dark) .bg-amber-500\/10,
+        html:not(.dark) .bg-amber-500\/20 {
+            background-color: #fffbeb !important;
+            color: #b45309 !important;
+            border-color: #fde68a !important;
+        }
+
+        html:not(.dark) .bg-red-500\/10,
+        html:not(.dark) .bg-red-500\/20 {
+            background-color: #fef2f2 !important;
+            color: #b91c1c !important;
+            border-color: #fecaca !important;
+        }
+
+        html:not(.dark) .bg-purple-500\/10,
+        html:not(.dark) .bg-purple-500\/20 {
+            background-color: #faf5ff !important;
+            color: #7e22ce !important;
+            border-color: #e9d5ff !important;
+        }
+
+        /* Form Inputs & Controls */
+        html:not(.dark) input:not([type="checkbox"]):not([type="radio"]),
+        html:not(.dark) select,
+        html:not(.dark) textarea {
+            background-color: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+
+        html:not(.dark) input::placeholder,
+        html:not(.dark) textarea::placeholder {
+            color: #94a3b8 !important;
+        }
+
+        html:not(.dark) input:focus,
+        html:not(.dark) select:focus,
+        html:not(.dark) textarea:focus {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
+        }
+
+        /* Clean Enterprise Tables */
+        html:not(.dark) table {
+            background-color: #ffffff !important;
+        }
+
+        html:not(.dark) thead,
+        html:not(.dark) thead tr {
+            background-color: #f8fafc !important;
+        }
+
+        html:not(.dark) th {
+            background-color: #f8fafc !important;
+            color: #475569 !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            font-weight: 600;
+        }
+
+        html:not(.dark) td {
+            background-color: #ffffff !important;
+            color: #1e293b !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+        }
+
+        html:not(.dark) tbody tr:hover td {
+            background-color: #f8fafc !important;
+        }
+
+        html:not(.dark) .divide-slate-800 > :not([hidden]) ~ :not([hidden]),
+        html:not(.dark) .divide-slate-700 > :not([hidden]) ~ :not([hidden]) {
+            border-color: #f1f5f9 !important;
+        }
+
+        /* Overlays & Modals */
+        html:not(.dark) .fixed.inset-0.bg-slate-950\/85,
+        html:not(.dark) .fixed.inset-0.bg-slate-950\/80,
+        html:not(.dark) .fixed.inset-0.bg-slate-950\/70,
+        html:not(.dark) .fixed.inset-0.bg-slate-950\/60 {
+            background-color: rgba(15, 23, 42, 0.4) !important;
+        }
+
+        html:not(.dark) .fixed .rounded-2xl.bg-slate-900,
+        html:not(.dark) .fixed .rounded-3xl.bg-slate-900 {
+            background-color: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        /* Scrollbars in Light Mode */
+        html:not(.dark) ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        html:not(.dark) ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+        }
+        html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
 </head>
 <body class="h-full bg-slate-950 text-slate-100 antialiased overflow-hidden">
@@ -110,8 +393,12 @@
         <div class="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/95 p-8 shadow-2xl backdrop-blur-md">
             
             <div class="relative z-10">
-                <!-- Language Switcher in Login Screen -->
-                <div class="flex justify-end mb-4">
+                <!-- Language & Theme Switcher in Login Screen -->
+                <div class="flex justify-between items-center mb-4">
+                    <button type="button" onclick="toggleThemeMode()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-800 bg-slate-950 text-xs text-slate-300 hover:text-white transition cursor-pointer" title="Rejimni almashtirish (☀️ Kunduzgi / 🌙 Tungi)">
+                        <span class="theme-icon-login text-sm">☀️</span>
+                        <span class="theme-label-login text-[11px] font-medium">Kunduzgi</span>
+                    </button>
                     <div class="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-xs">
                         <button type="button" id="btn-login-lang-uz" onclick="setLanguage('uz')" class="px-2.5 py-1 rounded font-semibold text-slate-300 hover:text-white transition">UZ</button>
                         <button type="button" id="btn-login-lang-ru" onclick="setLanguage('ru')" class="px-2.5 py-1 rounded font-semibold text-slate-400 hover:text-white transition">RU</button>
@@ -332,6 +619,12 @@
                         <button id="btn-lang-ru" onclick="setLanguage('ru')" class="px-2 py-1 rounded font-semibold text-slate-400 hover:text-white transition">RU</button>
                     </div>
 
+                    <!-- Theme Mode Toggle Button (☀️ Kunduzgi / 🌙 Tungi) -->
+                    <button id="btn-theme-toggle" onclick="toggleThemeMode()" class="px-2.5 py-1.5 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800/90 text-xs font-semibold text-slate-300 hover:text-white flex items-center gap-1.5 transition shrink-0 cursor-pointer" title="Rejimni almashtirish (☀️ Kunduzgi / 🌙 Tungi)">
+                        <span id="theme-icon" class="text-sm">☀️</span>
+                        <span id="theme-label" class="hidden sm:inline text-xs font-medium">Kunduzgi</span>
+                    </button>
+
                     <!-- Universal Search Button (Ctrl+K) -->
                     <button onclick="openUniversalSearch()" class="px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800/90 text-xs text-slate-300 hover:text-white flex items-center gap-2 transition" title="Tezkor Qidiruv (Mijoz, Asbob, Zakaz)">
                         <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400"></i>
@@ -353,13 +646,14 @@
 
                     <!-- Clear Cache & SQLite Memory Button -->
                     <button onclick="clearSystemCacheAndMemory()" title="Keshni tozalash va xotirani bo'shatish" class="px-2.5 py-1.5 rounded-xl border border-slate-800 bg-slate-900 text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1.5 transition">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5 text-slate-400"></i>
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-slate-400"></i>
                         <span class="hidden xl:inline text-[11px]">Kesh tozalash</span>
                     </button>
 
-                    <!-- Reset Demo Button -->
-                    <button onclick="resetDemoData()" title="Ma'lumotlarni qayta tiklash (Reset)" class="px-2.5 py-1.5 rounded-xl border border-slate-800 bg-slate-900 text-xs text-slate-400 hover:text-white flex items-center gap-1 transition">
-                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-slate-400"></i>
+                    <!-- Wipe Database to Clean Slate (0 ga qaytarish) -->
+                    <button onclick="wipeDatabaseToCleanSlate()" title="Barcha ma'lumotlarni tozalash (0 ga qaytarish)" class="px-2.5 py-1.5 rounded-xl border border-red-500/30 bg-red-500/10 text-xs text-red-400 hover:bg-red-500/20 hover:text-red-300 flex items-center gap-1.5 transition cursor-pointer">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-400"></i>
+                        <span class="hidden xl:inline text-[11px] font-bold">0 ga qaytarish</span>
                     </button>
                 </div>
             </header>
@@ -1440,6 +1734,26 @@
                                 <div class="space-y-1.5 text-[11px] text-slate-400 pt-1">
                                     <div><b>Mijoz rejimi:</b> AI sotuvchi va ombor qoldig'i bo'yicha maslahat beradi.</div>
                                     <div><b>Admin rejimi:</b> <code class="text-amber-400">/admin 7788</code> kodi bilan kassa va moliyaviy hisobotlarni oladi.</div>
+                            </div>
+
+                            <!-- Admin System Maintenance & Clean Slate Card -->
+                            <div class="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 shadow-lg space-y-3 text-xs">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2 text-red-400 font-bold">
+                                        <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                                        <span>Tizim Sozlamalari & Ma'lumotlar Bazasi</span>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400">Faqat Admin</span>
+                                </div>
+                                <p class="text-slate-400 text-[11px] leading-relaxed">
+                                    Barcha soxta (demo) buyurtmalar, mijozlar va asboblarni butunlay tozalab, tizimni 0 holatga qaytarish. Bosh Admin hisobi saqlanadi (admin / admin123).
+                                </p>
+                                <div class="flex items-center justify-between pt-1">
+                                    <span class="text-[10px] text-slate-500 font-mono">Baza: Production SQLite</span>
+                                    <button type="button" onclick="wipeDatabaseToCleanSlate()" class="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 font-bold text-white text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                        <span>🗑️ Barcha ma'lumotlarni tozalash (0 ga qaytarish)</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -3174,21 +3488,21 @@
     <!-- ========================================== -->
     <!-- 4. MODULAR JAVASCRIPT INCLUSIONS           -->
     <!-- ========================================== -->
-    <script src="js/i18n.js?v=17.0"></script>
-    <script src="js/data.js?v=17.0"></script>
-    <script src="js/section1_kirim.js?v=17.0"></script>
-    <script src="js/section1_wms_picking_putaway.js?v=17.0"></script>
-    <script src="js/section2_catalog.js?v=17.0"></script>
-    <script src="js/section3_crm_staff.js?v=17.0"></script>
-    <script src="js/section4_partners.js?v=17.0"></script>
-    <script src="js/section5_orders.js?v=17.0"></script>
-    <script src="js/section6_finance.js?v=17.0"></script>
-    <script src="js/section7_receipts.js?v=17.0"></script>
-    <script src="js/section8_dashboard.js?v=17.0"></script>
-    <script src="js/section9_ai_agent.js?v=17.0"></script>
-    <script src="js/section11_service_calculator.js?v=17.0"></script>
-    <script src="js/section12_mobile_scanner_bot.js?v=17.0"></script>
-    <script src="js/app.js?v=17.0"></script>
+    <script src="js/i18n.js?v=18.0"></script>
+    <script src="js/data.js?v=18.0"></script>
+    <script src="js/section1_kirim.js?v=18.0"></script>
+    <script src="js/section1_wms_picking_putaway.js?v=18.0"></script>
+    <script src="js/section2_catalog.js?v=18.0"></script>
+    <script src="js/section3_crm_staff.js?v=18.0"></script>
+    <script src="js/section4_partners.js?v=18.0"></script>
+    <script src="js/section5_orders.js?v=18.0"></script>
+    <script src="js/section6_finance.js?v=18.0"></script>
+    <script src="js/section7_receipts.js?v=18.0"></script>
+    <script src="js/section8_dashboard.js?v=18.0"></script>
+    <script src="js/section9_ai_agent.js?v=18.0"></script>
+    <script src="js/section11_service_calculator.js?v=18.0"></script>
+    <script src="js/section12_mobile_scanner_bot.js?v=18.0"></script>
+    <script src="js/app.js?v=18.0"></script>
     
     <script>
         function handleLogin(e) {
@@ -3374,6 +3688,53 @@
                 console.warn(e);
             }
         }
+
+        // ========================================================
+        // THEME MODE CONTROLLER (STANDART: OQ FON / LIGHT MODE)
+        // ========================================================
+        function initThemeMode() {
+            const savedTheme = localStorage.getItem('WMS_THEME_MODE') || 'light';
+            applyThemeMode(savedTheme);
+        }
+
+        function applyThemeMode(theme) {
+            const htmlEl = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            const themeLabel = document.getElementById('theme-label');
+            const loginIcons = document.querySelectorAll('.theme-icon-login');
+            const loginLabels = document.querySelectorAll('.theme-label-login');
+
+            if (theme === 'dark') {
+                htmlEl.classList.add('dark');
+                htmlEl.classList.remove('light');
+                if (themeIcon) themeIcon.textContent = '🌙';
+                if (themeLabel) themeLabel.textContent = 'Tungi';
+                loginIcons.forEach(el => el.textContent = '🌙');
+                loginLabels.forEach(el => el.textContent = 'Tungi');
+            } else {
+                htmlEl.classList.remove('dark');
+                htmlEl.classList.add('light');
+                if (themeIcon) themeIcon.textContent = '☀️';
+                if (themeLabel) themeLabel.textContent = 'Kunduzgi';
+                loginIcons.forEach(el => el.textContent = '☀️');
+                loginLabels.forEach(el => el.textContent = 'Kunduzgi');
+            }
+            try {
+                localStorage.setItem('WMS_THEME_MODE', theme);
+            } catch(e) {}
+        }
+
+        function toggleThemeMode() {
+            const isDark = document.documentElement.classList.contains('dark');
+            applyThemeMode(isDark ? 'light' : 'dark');
+        }
+
+        window.initThemeMode = initThemeMode;
+        window.applyThemeMode = applyThemeMode;
+        window.toggleThemeMode = toggleThemeMode;
+
+        // Initialize theme immediately on script load
+        try { initThemeMode(); } catch(e) {}
 
         window.showSection = function(id) {
             if (typeof switchSection === 'function') return switchSection(id);
