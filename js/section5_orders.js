@@ -242,6 +242,8 @@ function renderOrdersTable() {
                     <button onclick="openOrderDetailModal(${o.id})" class="p-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 hover:text-white" title="Batafsil">
                         <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                     </button>
+
+                    ${typeof adminActionButtonsHtml === 'function' ? adminActionButtonsHtml(`editRentalOrder(${o.id})`, `deleteRentalOrder(${o.id})`) : ''}
                 </div>
             </td>
         `;

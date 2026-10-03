@@ -149,6 +149,7 @@ function renderPOTable() {
             <td class="py-3 px-4 font-semibold text-emerald-400">${order.total_amount.toLocaleString()} so'm</td>
             <td class="py-3 px-4">${statusBadges[order.status] || order.status}</td>
             <td class="py-3 px-4 text-right">
+                <div class="flex items-center justify-end gap-1.5">
                 ${order.status !== 'yakunlandi' ? `
                     <button onclick="convertToInbound('${order.id}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600 hover:text-white font-semibold text-xs transition">
                         <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5"></i>
@@ -157,6 +158,8 @@ function renderPOTable() {
                 ` : `
                     <span class="text-xs text-slate-500 font-medium">Kirim qilingan </span>
                 `}
+                ${typeof adminActionButtonsHtml === 'function' ? adminActionButtonsHtml(`editSupplierOrder('${order.id}')`, `deleteSupplierOrder('${order.id}')`) : ''}
+                </div>
             </td>
         `;
         tbody.appendChild(tr);

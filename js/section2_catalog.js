@@ -117,6 +117,7 @@ function renderCatalogCards() {
                 <button onclick="openAddUnitForModel(${model.id})" title="Yangi dona qo'shish" class="p-2 rounded-xl bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-600 hover:text-white transition">
                     <i data-lucide="plus" class="w-4 h-4"></i>
                 </button>
+                ${typeof adminActionButtonsHtml === 'function' ? adminActionButtonsHtml(`editProductModel(${model.id})`, `deleteProductModel(${model.id})`) : ''}
             </div>
         `;
 

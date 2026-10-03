@@ -128,10 +128,13 @@ function renderPartnersDirectory() {
                         ${Math.abs(p.balance).toLocaleString()} so'm
                     </span>
                 </div>
-                <button onclick="openModalCreateServiceOrder(${p.id})" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold text-slate-950 transition flex items-center gap-1">
-                    <i data-lucide="send" class="w-3.5 h-3.5"></i>
-                    <span>Buyurtma Berish</span>
-                </button>
+                <div class="flex items-center gap-1.5">
+                    ${typeof adminActionButtonsHtml === 'function' ? adminActionButtonsHtml(`editPartner(${p.id})`, `deletePartner(${p.id})`) : ''}
+                    <button onclick="openModalCreateServiceOrder(${p.id})" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold text-slate-950 transition flex items-center gap-1">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span>Buyurtma Berish</span>
+                    </button>
+                </div>
             </div>
         `;
         grid.appendChild(card);
@@ -401,6 +404,7 @@ function renderServiceOrdersTable() {
                     ${o.order_status === 'bajarildi' ? `
                         <span class="text-xs text-emerald-400 font-bold">Yakunlandi</span>
                     ` : ''}
+                    ${typeof adminActionButtonsHtml === 'function' ? adminActionButtonsHtml(`editServiceOrder(${o.id})`, `deleteServiceOrder(${o.id})`) : ''}
                 </div>
             </td>
         `;
