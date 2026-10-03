@@ -90,6 +90,16 @@
       "role_id": "admin",
       "is_active": true,
       "last_login": ""
+    },
+    {
+      "id": 2,
+      "full_name": "Shohjaxon (Sotuvchi)",
+      "phone": "+998 95 104 37 33",
+      "username": "shohjaxon",
+      "password": "password123",
+      "role_id": "sotuvchi",
+      "is_active": true,
+      "last_login": ""
     }
   ],
   "service_partners": [],

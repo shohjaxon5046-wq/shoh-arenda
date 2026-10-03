@@ -1209,8 +1209,19 @@ const server = http.createServer((req, res) => {
                     return;
                 }
 
-                // Find partner by telegram_chat_id
+                // Find employee or partner by telegram_chat_id
+                let employee = (db.users || []).find(u => u.telegram_chat_id == chatId);
                 let partner = partners.find(p => p.telegram_chat_id == chatId);
+
+                const sellerMenu = [
+                    [{ text: "➕ Yangi Zakaz urish (POS)", web_app: { url: "https://shoh-arenda.onrender.com" } }],
+                    [{ text: "📋 Buyurtmalar holati" }, { text: "📦 Ombor qoldig'i" }]
+                ];
+
+                const partnerMenu = [
+                    [{ text: "📥 Yangi vazifalar" }, { text: "🏁 Ishni yakunlash" }],
+                    [{ text: "💰 Mening Balansim" }, { text: "🟢/🔴 Mening holatim" }]
+                ];
 
                 // Phone number sent via Contact or Text
                 let incomingPhone = null;
@@ -1220,9 +1231,44 @@ const server = http.createServer((req, res) => {
                     incomingPhone = extractServerPhoneNumber(text);
                 }
 
-                // If not authenticated yet, verify phone
-                if (!partner && incomingPhone) {
+                // If not authenticated yet and phone number is provided:
+                if (!employee && !partner && incomingPhone) {
                     const cleanIncoming = incomingPhone.replace(/[^\d]/g, '');
+
+                    // 1. AVVAL XODIMLAR (SOTUVCHI / MENEJER) BAZASIDAN QIDIR (DB.users):
+                    employee = (db.users || []).find(u => {
+                        const uPhone = (u.phone || '').replace(/[^\d]/g, '');
+                        return uPhone && cleanIncoming.endsWith(uPhone.slice(-9));
+                    });
+
+                    // Explicit check for user's number +998951043733 if not already in array
+                    if (!employee && cleanIncoming.endsWith('951043733')) {
+                        employee = {
+                            id: Date.now(),
+                            full_name: "Shohjaxon (Sotuvchi)",
+                            phone: "+998 95 104 37 33",
+                            username: "shohjaxon",
+                            role_id: "sotuvchi",
+                            is_active: true
+                        };
+                        db.users = db.users || [];
+                        db.users.push(employee);
+                    }
+
+                    if (employee) {
+                        employee.telegram_chat_id = chatId;
+                        dbEngine.syncEntireDB(db);
+
+                        const welcomeSellerMsg = `Assalomu alaykum, <b>${employee.full_name}</b>! Siz tizimga SOTUVCHI sifatida kirdingiz ✅\n\nQuyidagi menyu orqali yangi zakazlarni rasmiylashtirishingiz, omborni ko'rishingiz yoki buyurtmalar holatini tekshirishingiz mumkin:`;
+
+                        if (botToken) await sendTelegramBotMessage(botToken, chatId, welcomeSellerMsg, null, sellerMenu);
+
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: true, verified: true, role: 'seller', user: employee.full_name, reply: welcomeSellerMsg }));
+                        return;
+                    }
+
+                    // 2. AGAR XODIM BO'LMASA — HAMKORLAR BAZASIDAN QIDIR (DB.partners / DB.service_partners):
                     partner = partners.find(p => {
                         const p1 = (p.phone_primary || '').replace(/[^\d]/g, '');
                         const p2 = (p.phone_secondary || '').replace(/[^\d]/g, '');
@@ -1235,32 +1281,27 @@ const server = http.createServer((req, res) => {
                         partner.is_available = true;
                         dbEngine.syncEntireDB(db);
 
-                        const welcomeMsg = "Raxmat, siz tizimga ulandingiz! Endi yangi buyurtmalar to'g'ridan-to'g'ri shu yerga keladi";
+                        const welcomePartnerMsg = "Raxmat, siz tizimga ulandingiz! Endi yangi buyurtmalar to'g'ridan-to'g'ri shu yerga keladi";
 
-                        const partnerMenu = [
-                            [{ text: "📥 Yangi vazifalar" }, { text: "🏁 Ishni yakunlash" }],
-                            [{ text: "💰 Mening Balansim" }, { text: "🟢/🔴 Mening holatim" }]
-                        ];
-
-                        if (botToken) await sendTelegramBotMessage(botToken, chatId, welcomeMsg, null, partnerMenu);
+                        if (botToken) await sendTelegramBotMessage(botToken, chatId, welcomePartnerMsg, null, partnerMenu);
 
                         res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ ok: true, verified: true, partner: partner.company_name, reply: welcomeMsg }));
-                        return;
-                    } else {
-                        const rejectMsg = `⛔️ <b>RUXSAT BERILMAGAN!</b>\n\nSizning telefon raqamingiz (${incomingPhone}) tizimda hamkor sifatida ro'yxatdan o'tmagan.\n\nUshbu bot faqat WMS Arenda tasdiqlangan hamkorlari (kran, musor, gruzchik) uchun mo'ljallangan. Dispetcher bilan bog'laning: +998 71 200-00-00`;
-                        if (botToken) await sendTelegramBotMessage(botToken, chatId, rejectMsg);
-
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ ok: true, verified: false, reply: rejectMsg }));
+                        res.end(JSON.stringify({ ok: true, verified: true, role: 'partner', partner: partner.company_name, reply: welcomePartnerMsg }));
                         return;
                     }
+
+                    // 3. AGAR IKKALASIDA HAM BO'LMASA:
+                    const notFoundMsg = "Sizning raqamingiz xodimlar yoki hamkorlar bazasida topilmadi. Admin bilan bog'laning";
+                    if (botToken) await sendTelegramBotMessage(botToken, chatId, notFoundMsg);
+
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: true, verified: false, reply: notFoundMsg }));
+                    return;
                 }
 
                 // If not authenticated and no phone sent yet, ask for contact
-                if (!partner) {
-                    const askAuthMsg = "Salom! Buyurtmalarni qabul qilish uchun telefon raqamingizni tasdiqlang";
-
+                if (!employee && !partner) {
+                    const askAuthMsg = "Salom! Tizimdan foydalanish uchun telefon raqamingizni tasdiqlang:";
                     const authKeyboard = [
                         [{ text: "📱 Telefon raqamni yuborish", request_contact: true }]
                     ];
@@ -1272,11 +1313,123 @@ const server = http.createServer((req, res) => {
                     return;
                 }
 
-                // --- AUTHENTICATED PARTNER MENU ACTIONS ---
-                const partnerMenu = [
-                    [{ text: "📥 Yangi vazifalar" }, { text: "🏁 Ishni yakunlash" }],
-                    [{ text: "💰 Mening Balansim" }, { text: "🟢/🔴 Mening holatim" }]
-                ];
+                // =========================================================================
+                // A. AUTHENTICATED SELLER (SOTUVCHI / MENEJER) ACTIONS
+                // =========================================================================
+                if (employee) {
+                    // ACTION: ➕ Yangi Zakaz urish (POS)
+                    if (text.includes("Yangi Zakaz") || text.includes("POS") || text === '/pos') {
+                        const posMsg = 
+`🛍 <b>WMS ARENDA — TEZKOR POS SOTUV & ZAKAZ</b>
+
+Telegram ichida tezkor zakaz urish uchun pastdagi tugmani bosing:`;
+
+                        const posInline = [
+                            [{ text: "🚀 POS Oynasini Ochish (Web App)", web_app: { url: "https://shoh-arenda.onrender.com" } }],
+                            [{ text: "🌐 Brauzerda ochish", url: "https://shoh-arenda.onrender.com" }]
+                        ];
+
+                        if (botToken) await sendTelegramBotMessage(botToken, chatId, posMsg, posInline, sellerMenu);
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: true, reply: posMsg }));
+                        return;
+                    }
+
+                    // ACTION: 📋 Buyurtmalar holati
+                    if (text.includes("Buyurtmalar holati") || text === '/orders') {
+                        const today = new Date().toISOString().substring(0, 10);
+                        const allOrders = db.orders || [];
+                        const allServiceOrders = db.service_orders || [];
+
+                        const activeOrders = allOrders.filter(o => o.status === 'faol' || o.status === 'ijarada' || o.order_status === 'faol');
+                        const newOrders = allOrders.filter(o => o.status === 'yangi' || o.order_status === 'yangi');
+                        const activeServices = allServiceOrders.filter(o => 
+                            o.order_status === 'yangi' || 
+                            o.order_status === 'hamkor_qabul_qildi' || 
+                            o.order_status === 'bajarilmoqda' || 
+                            o.order_status === 'hamkorga_uzatildi'
+                        );
+
+                        let msg = `📋 <b>BUGUNGI BUYURTMALAR VA IJARALAR HOLATI</b>\nSana: <b>${today}</b>\n\n`;
+                        msg += `📦 <b>Asboblar ijarasi:</b>\n`;
+                        msg += `• Faol ijarada: <b>${activeOrders.length} ta</b>\n`;
+                        msg += `• Yangi buyurtmalar: <b>${newOrders.length} ta</b>\n\n`;
+                        msg += `🛠 <b>Tashqi xizmatlar (Kran, Musor, Gruzchik):</b>\n`;
+                        msg += `• Jarayondagi buyurtmalar: <b>${activeServices.length} ta</b>\n\n`;
+
+                        if (activeOrders.length > 0) {
+                            msg += `<b>Faol asboblar:</b>\n`;
+                            activeOrders.slice(0, 5).forEach((o, idx) => {
+                                const cust = (db.customers || []).find(c => c.id === o.customer_id);
+                                msg += `${idx + 1}. #${o.order_number || o.id} — ${cust ? cust.full_name : 'Mijoz'} (${o.start_date || o.order_date || today})\n`;
+                            });
+                            if (activeOrders.length > 5) msg += `<i>... va yana ${activeOrders.length - 5} ta ijara</i>\n`;
+                            msg += `\n`;
+                        }
+
+                        if (activeServices.length > 0) {
+                            msg += `<b>Xizmat buyurtmalari:</b>\n`;
+                            activeServices.slice(0, 5).forEach((s, idx) => {
+                                const part = (db.service_partners || []).find(p => p.id === s.assigned_partner_id);
+                                msg += `${idx + 1}. #${s.order_number || s.id} (${s.service_category}) — ${part ? part.company_name : 'Hamkor'} [${s.order_status}]\n`;
+                            });
+                            if (activeServices.length > 5) msg += `<i>... va yana ${activeServices.length - 5} ta xizmat</i>\n`;
+                            msg += `\n`;
+                        }
+
+                        if (activeOrders.length === 0 && activeServices.length === 0) {
+                            msg += `<i>Hozircha faol buyurtmalar mavjud emas. Yangi zakaz ochish uchun [➕ Yangi Zakaz urish (POS)] tugmasini bosing.</i>`;
+                        }
+
+                        if (botToken) await sendTelegramBotMessage(botToken, chatId, msg, null, sellerMenu);
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: true, reply: msg }));
+                        return;
+                    }
+
+                    // ACTION: 📦 Ombor qoldig'i
+                    if (text.includes("Ombor qoldig'i") || text === '/stock') {
+                        let availableItems = [];
+                        if (db.tools && db.tools.length > 0) {
+                            availableItems = db.tools.filter(t => t.status === 'bosh' || t.status === 'mavjud' || t.status === 'available');
+                        } else if (db.product_items && db.product_items.length > 0) {
+                            availableItems = db.product_items.filter(i => i.status === 'bosh' || i.status === 'mavjud' || i.status === 'available');
+                        } else if (PUBLIC_AVAILABLE_TOOLS && PUBLIC_AVAILABLE_TOOLS.length > 0) {
+                            availableItems = PUBLIC_AVAILABLE_TOOLS.filter(t => (t.available_count || 0) > 0 || t.status === 'mavjud');
+                        }
+
+                        let stockMsg = `📦 <b>OMBORDA BO'SH (MAVJUD) ASBOBLAR:</b>\n\n`;
+                        if (availableItems.length === 0) {
+                            stockMsg += `<i>Hozirda omborda bo'sh asboblar topilmadi.</i>`;
+                        } else {
+                            availableItems.slice(0, 15).forEach((item, idx) => {
+                                const name = item.name || item.model_name || `Asbob #${item.id}`;
+                                const price = (item.daily_price || item.price || 0).toLocaleString();
+                                const count = item.available_count !== undefined ? `${item.available_count} ta` : 'Mavjud';
+                                stockMsg += `${idx + 1}. <b>${name}</b>\n   💵 Kunlik: ${price} so'm | 🟢 ${count}\n`;
+                            });
+                            if (availableItems.length > 15) {
+                                stockMsg += `\n<i>... va yana ${availableItems.length - 15} ta asbob mavjud.</i>`;
+                            }
+                        }
+
+                        if (botToken) await sendTelegramBotMessage(botToken, chatId, stockMsg, null, sellerMenu);
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: true, reply: stockMsg }));
+                        return;
+                    }
+
+                    // Default response for seller
+                    const sellerWelcome = `Assalomu alaykum, <b>${employee.full_name}</b>! Siz tizimga SOTUVCHI sifatida ulangansiz ✅\n\nQuyidagi menyu tugmalaridan birini tanlang:`;
+                    if (botToken) await sendTelegramBotMessage(botToken, chatId, sellerWelcome, null, sellerMenu);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: true, reply: sellerWelcome }));
+                    return;
+                }
+
+                // =========================================================================
+                // B. AUTHENTICATED PARTNER (HAMKOR) ACTIONS
+                // =========================================================================
 
                 // ACTION: 📥 Yangi vazifalar
                 if (text === "📥 Yangi vazifalar" || text === '/tasks') {
@@ -1590,7 +1743,7 @@ Ish to'liq tugagan bo'lsa, quyidagi tugmani bosing:`;
         return;
     }
 
-    // 8b. POST /api/partner-bot/verify-phone (Simulator & Web Partner Verification)
+    // 8b. POST /api/partner-bot/verify-phone (Simulator & Web Partner/Seller Verification)
     if (req.method === 'POST' && pathname === '/api/partner-bot/verify-phone') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
@@ -1599,6 +1752,26 @@ Ish to'liq tugagan bo'lsa, quyidagi tugmani bosing:`;
                 const payload = JSON.parse(body || '{}');
                 const phone = (payload.phone || '').replace(/[^\d]/g, '');
                 const db = dbEngine.getEntireDB();
+
+                // 1. Check users (employees)
+                const employee = (db.users || []).find(u => {
+                    const uPhone = (u.phone || '').replace(/[^\d]/g, '');
+                    return uPhone && phone.endsWith(uPhone.slice(-9));
+                });
+
+                if (employee) {
+                    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({
+                        success: true,
+                        verified: true,
+                        role: 'seller',
+                        user: employee,
+                        message: `Xush kelibsiz, ${employee.full_name}! (Sotuvchi)`
+                    }));
+                    return;
+                }
+
+                // 2. Check partners
                 const partner = (db.service_partners || []).find(p => {
                     const p1 = (p.phone_primary || '').replace(/[^\d]/g, '');
                     const p2 = (p.phone_secondary || '').replace(/[^\d]/g, '');
@@ -1610,15 +1783,16 @@ Ish to'liq tugagan bo'lsa, quyidagi tugmani bosing:`;
                     res.end(JSON.stringify({
                         success: true,
                         verified: true,
+                        role: 'partner',
                         partner: partner,
-                        message: `Xush kelibsiz, ${partner.company_name}!`
+                        message: `Xush kelibsiz, ${partner.company_name}! (Hamkor)`
                     }));
                 } else {
                     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                     res.end(JSON.stringify({
                         success: false,
                         verified: false,
-                        message: "Ushbu telefon raqami ro'yxatdan o'tmagan."
+                        message: "Sizning raqamingiz xodimlar yoki hamkorlar bazasida topilmadi. Admin bilan bog'laning"
                     }));
                 }
             } catch (e) {
