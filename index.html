@@ -3919,7 +3919,7 @@
                         errBox.style.setProperty('display', 'block', 'important');
                     }
                     if (errText) {
-                        errText.innerText = (typeof t === 'function' ? t('alert.login_error') : "Foydalanuvchi nomi yoki parol noto'g'ri!") + " (Standart: admin / admin123)";
+                        errText.innerText = typeof t === 'function' ? t('alert.login_error') : "Foydalanuvchi nomi yoki parol noto'g'ri!";
                     }
                     if (typeof lucide !== 'undefined' && lucide.createIcons) {
                         lucide.createIcons();
