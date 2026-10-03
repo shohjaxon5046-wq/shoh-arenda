@@ -911,7 +911,7 @@ function handleCheckoutPosOrder(e) {
 
         // Also push to Section 4 Service Orders journal
         if (!DB.service_orders) DB.service_orders = [];
-        DB.service_orders.unshift({
+        const srvOrder = {
             id: Date.now() + Math.floor(Math.random() * 1000),
             order_number: `SRV-${orderNumber}`,
             customer_id: customer.id,
@@ -927,10 +927,14 @@ function handleCheckoutPosOrder(e) {
             customer_total_price: s.customer_price,
             partner_payout_amount: s.partner_cost,
             net_profit: s.margin,
-            order_status: "hamkorga_uzatildi",
+            order_status: "yangi",
             payment_status: "tolandi",
             created_at: new Date().toLocaleString('uz-UZ')
-        });
+        };
+        DB.service_orders.unshift(srvOrder);
+        if (typeof autoDispatchOrderToPartner === 'function') {
+            autoDispatchOrderToPartner(srvOrder);
+        }
     });
 
     // 4. Record Payments & Update Cash Registers & Safe Deposits

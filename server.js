@@ -410,6 +410,27 @@ function sendTelegramBotMessage(botToken, chatId, text, inlineKeyboard = null, r
     });
 }
 
+function getBotToken(db) {
+    return process.env.TELEGRAM_BOT_TOKEN || 
+           (db && db.ai_settings && db.ai_settings.telegram_bot_token) || 
+           (db && db.system_settings && db.system_settings.telegram_bot_token) || 
+           '';
+}
+
+// In-memory queue of live dispatcher events for real-time seller UI updates
+const partnerLiveEvents = [];
+function recordPartnerLiveEvent(event) {
+    const ev = {
+        id: Date.now() + Math.random(),
+        timestamp: Date.now(),
+        timeStr: new Date().toLocaleTimeString('uz-UZ'),
+        ...event
+    };
+    partnerLiveEvents.push(ev);
+    if (partnerLiveEvents.length > 100) partnerLiveEvents.shift();
+    return ev;
+}
+
 // =========================================================================
 // SERVER-SIDE STATEFUL CONVERSATION SESSIONS (MULTI-TURN MEMORY)
 // =========================================================================
@@ -1067,8 +1088,8 @@ const server = http.createServer((req, res) => {
         req.on('end', async () => {
             try {
                 const update = JSON.parse(body || '{}');
-                const botToken = process.env.TELEGRAM_BOT_TOKEN || '';
                 const db = dbEngine.getEntireDB();
+                const botToken = getBotToken(db);
                 const partners = db.service_partners || [];
 
                 // 1. Handle Inline Button Callback Queries (Accept, Reject, Finish)
@@ -1076,46 +1097,103 @@ const server = http.createServer((req, res) => {
                     const cb = update.callback_query;
                     const cbData = cb.data || '';
                     const chatId = cb.message?.chat?.id;
-                    const messageId = cb.message?.message_id;
-
-                    let replyText = "Amal bajarildi.";
                     const partner = partners.find(p => p.telegram_chat_id == chatId);
 
                     if (cbData.startsWith('accept_')) {
-                        const orderId = parseInt(cbData.replace('accept_', ''));
-                        const sOrder = (db.service_orders || []).find(o => o.id === orderId);
+                        const orderId = parseInt(cbData.replace('accept_', '')) || cbData.replace('accept_', '');
+                        const sOrder = (db.service_orders || []).find(o => o.id == orderId || o.order_number == orderId);
                         if (sOrder) {
-                            sOrder.order_status = 'bajarilmoqda';
+                            sOrder.order_status = 'hamkor_qabul_qildi';
+                            sOrder.status = 'hamkor_qabul_qildi';
                             dbEngine.syncEntireDB(db);
-                            replyText = `✅ Buyurtma #${sOrder.order_number} qabul qilindi!\n\nIshni bajargach, quyidagi menyudan [🏁 Ishni yakunlash] tugmasini bosing.`;
                         }
+                        const replyText = "Buyurtma qabul qilindi. Ishni tugatgach [🏁 Bajarildi] tugmasini bosing";
+                        recordPartnerLiveEvent({
+                            type: 'accept',
+                            order_id: sOrder ? sOrder.id : orderId,
+                            order_number: sOrder ? sOrder.order_number : `SRV-${orderId}`,
+                            status: 'hamkor_qabul_qildi',
+                            partner_id: partner ? partner.id : null,
+                            partner_name: partner ? partner.company_name : 'Hamkor',
+                            message: `✅ Hamkor (${partner ? partner.company_name : 'Hamkor'}) #${sOrder ? sOrder.order_number : orderId} buyurtmani qabul qildi!`
+                        });
+
+                        if (botToken && chatId) {
+                            await sendTelegramBotMessage(botToken, chatId, replyText, [
+                                [{ text: "🏁 Bajarildi", callback_data: `finish_${sOrder ? sOrder.id : orderId}` }]
+                            ]);
+                        }
+
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: true, callback_handled: true, reply: replyText }));
+                        return;
+
                     } else if (cbData.startsWith('reject_')) {
-                        const orderId = parseInt(cbData.replace('reject_', ''));
-                        const sOrder = (db.service_orders || []).find(o => o.id === orderId);
+                        const orderId = parseInt(cbData.replace('reject_', '')) || cbData.replace('reject_', '');
+                        const sOrder = (db.service_orders || []).find(o => o.id == orderId || o.order_number == orderId);
                         if (sOrder) {
-                            sOrder.order_status = 'yangi';
+                            sOrder.order_status = 'rad_etildi';
+                            sOrder.status = 'rad_etildi';
                             dbEngine.syncEntireDB(db);
-                            replyText = `❌ Buyurtma #${sOrder.order_number} rad etildi. Boshqa ijrochiga yo'naltiriladi.`;
                         }
+                        const replyText = "Buyurtma rad etildi.";
+                        recordPartnerLiveEvent({
+                            type: 'reject',
+                            order_id: sOrder ? sOrder.id : orderId,
+                            order_number: sOrder ? sOrder.order_number : `SRV-${orderId}`,
+                            status: 'rad_etildi',
+                            partner_id: partner ? partner.id : null,
+                            partner_name: partner ? partner.company_name : 'Hamkor',
+                            message: `⚠️ Hamkor buyurtmani rad etdi, boshqa hamkorni tanlang!`
+                        });
+
+                        if (botToken && chatId) {
+                            await sendTelegramBotMessage(botToken, chatId, replyText);
+                        }
+
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: true, callback_handled: true, reply: replyText }));
+                        return;
+
                     } else if (cbData.startsWith('finish_')) {
-                        const orderId = parseInt(cbData.replace('finish_', ''));
-                        const sOrder = (db.service_orders || []).find(o => o.id === orderId);
+                        const orderId = parseInt(cbData.replace('finish_', '')) || cbData.replace('finish_', '');
+                        const sOrder = (db.service_orders || []).find(o => o.id == orderId || o.order_number == orderId);
                         if (sOrder) {
                             sOrder.order_status = 'bajarildi';
+                            sOrder.status = 'bajarildi';
                             if (partner) {
                                 partner.balance = (partner.balance || 0) + (sOrder.partner_payout_amount || 0);
                             }
                             dbEngine.syncEntireDB(db);
-                            replyText = `🎉 Tabriklaymiz! #${sOrder.order_number} buyurtma yakunlandi.\n\nHisobingizga +${(sOrder.partner_payout_amount || 0).toLocaleString()} so'm yozildi!`;
                         }
-                    }
+                        const replyText = `🎉 Ish muvaffaqiyatli yakunlandi! Hisobingizga +${(sOrder ? (sOrder.partner_payout_amount || 0) : 0).toLocaleString()} so'm yozildi.`;
+                        recordPartnerLiveEvent({
+                            type: 'finish',
+                            order_id: sOrder ? sOrder.id : orderId,
+                            order_number: sOrder ? sOrder.order_number : `SRV-${orderId}`,
+                            status: 'bajarildi',
+                            partner_id: partner ? partner.id : null,
+                            partner_name: partner ? partner.company_name : 'Hamkor',
+                            payout_amount: sOrder ? sOrder.partner_payout_amount : 0,
+                            message: `🏁 Hamkor (${partner ? partner.company_name : 'Hamkor'}) #${sOrder ? sOrder.order_number : orderId} buyurtmani yakunladi!`
+                        });
 
-                    if (botToken && chatId) {
-                        await sendTelegramBotMessage(botToken, chatId, replyText);
+                        const partnerMenu = [
+                            [{ text: "📥 Yangi vazifalar" }, { text: "🏁 Ishni yakunlash" }],
+                            [{ text: "💰 Mening Balansim" }, { text: "🟢/🔴 Mening holatim" }]
+                        ];
+
+                        if (botToken && chatId) {
+                            await sendTelegramBotMessage(botToken, chatId, replyText, null, partnerMenu);
+                        }
+
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ ok: true, callback_handled: true, reply: replyText }));
+                        return;
                     }
 
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ ok: true, callback_handled: true, reply: replyText }));
+                    res.end(JSON.stringify({ ok: true }));
                     return;
                 }
 
@@ -1138,7 +1216,7 @@ const server = http.createServer((req, res) => {
                 let incomingPhone = null;
                 if (contact && contact.phone_number) {
                     incomingPhone = contact.phone_number;
-                } else if (text) {
+                } else if (text && text !== '/start' && !text.startsWith('/')) {
                     incomingPhone = extractServerPhoneNumber(text);
                 }
 
@@ -1157,14 +1235,7 @@ const server = http.createServer((req, res) => {
                         partner.is_available = true;
                         dbEngine.syncEntireDB(db);
 
-                        const welcomeMsg = 
-`✅ <b>AVTORIZATSIYA MUVAFFAQIYATLI O'TDI!</b>
-
-Assalomu alaykum, <b>${partner.company_name}</b>!
-Kategoriya: <b>${partner.service_category.toUpperCase()}</b>
-Holatingiz: 🟢 <b>BO'SH (Buyurtma qabul qilishga tayyor)</b>
-
-Yangi buyurtmalar dispecher tomonidan shu yerga yuboriladi. Quyidagi menyu orqali balansingiz va buyurtmalaringizni boshqarishingiz mumkin:`;
+                        const welcomeMsg = "Raxmat, siz tizimga ulandingiz! Endi yangi buyurtmalar to'g'ridan-to'g'ri shu yerga keladi";
 
                         const partnerMenu = [
                             [{ text: "📥 Yangi vazifalar" }, { text: "🏁 Ishni yakunlash" }],
@@ -1188,15 +1259,10 @@ Yangi buyurtmalar dispecher tomonidan shu yerga yuboriladi. Quyidagi menyu orqal
 
                 // If not authenticated and no phone sent yet, ask for contact
                 if (!partner) {
-                    const askAuthMsg = 
-`🔒 <b>WMS ARENDA — HAMKORLAR VA DISPECHERLIK BOTI</b>
-
-Hurmatli hamkor, tizimdan foydalanish uchun telefon raqamingizni tasdiqlashingiz lozim.
-
-Pastdagi <b>"📱 Telefon raqamimni yuborish"</b> tugmasini bosing:`;
+                    const askAuthMsg = "Salom! Buyurtmalarni qabul qilish uchun telefon raqamingizni tasdiqlang";
 
                     const authKeyboard = [
-                        [{ text: "📱 Telefon raqamimni yuborish", request_contact: true }]
+                        [{ text: "📱 Telefon raqamni yuborish", request_contact: true }]
                     ];
 
                     if (botToken) await sendTelegramBotMessage(botToken, chatId, askAuthMsg, null, authKeyboard);
@@ -1228,18 +1294,16 @@ Pastdagi <b>"📱 Telefon raqamimni yuborish"</b> tugmasini bosing:`;
                     }
 
                     const o = assignedOrders[0];
-                    const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(o.destination_address || 'Toshkent')}`;
+                    const serviceText = o.details ? `${o.service_category.toUpperCase()} (${o.details})` : o.service_category.toUpperCase();
                     const taskMsg = 
-`🔔 <b>YANGI VAZIFA! #${o.order_number}</b>
-🛠 <b>Xizmat:</b> ${o.service_category.toUpperCase()}
-📍 <b>Manzil:</b> ${o.destination_address}
+`🔔 <b>SIZGA YANGI BUYURTMA BIRIKTIRILDI!</b>
+🛠 <b>Xizmat:</b> ${serviceText}
+📍 <b>Ish joyi:</b> ${o.destination_address || 'Toshkent sh.'}
 🕒 <b>Vaqt:</b> ${o.service_date} (${o.execution_time || 'Kelishilgan'})
-💵 <b>Sizga to'lanadigan haq:</b> <b>${(o.partner_payout_amount || 0).toLocaleString()} so'm</b>
-📋 <b>Topshiriq:</b> ${o.task_instruction || 'Standart rejim'}`;
+💵 <b>Sizga to'lanadigan haq:</b> <b>${(o.partner_payout_amount || 0).toLocaleString()} so'm</b>${o.task_instruction ? `\n📋 <b>Topshiriq:</b> ${o.task_instruction}` : ''}`;
 
                     const inlineButtons = [
-                        [{ text: "✅ Qabul qilaman", callback_data: `accept_${o.id}` }, { text: "❌ Rad etaman", callback_data: `reject_${o.id}` }],
-                        [{ text: "📍 Xaritada ko'rish", url: mapUrl }]
+                        [{ text: "✅ Qabul qilaman", callback_data: `accept_${o.id}` }, { text: "❌ Rad etaman", callback_data: `reject_${o.id}` }]
                     ];
 
                     if (botToken) await sendTelegramBotMessage(botToken, chatId, taskMsg, inlineButtons);
@@ -1288,7 +1352,10 @@ To'lovlar har hafta seshanba va juma kunlari kassa orqali amalga oshiriladi.`;
 
                 // ACTION: 🏁 Ishni yakunlash
                 if (text === "🏁 Ishni yakunlash" || text === '/finish') {
-                    const inProgress = (db.service_orders || []).filter(o => o.assigned_partner_id === partner.id && o.order_status === 'bajarilmoqda');
+                    const inProgress = (db.service_orders || []).filter(o => 
+                        (o.assigned_partner_id === partner.id || o.service_category === partner.service_category) && 
+                        (o.order_status === 'bajarilmoqda' || o.order_status === 'hamkor_qabul_qildi' || o.order_status === 'qabul_qilindi')
+                    );
                     if (inProgress.length === 0) {
                         const noActiveMsg = "🏁 <b>Hozirda jarayonda bo'lgan buyurtmangiz yo'q.</b>";
                         if (botToken) await sendTelegramBotMessage(botToken, chatId, noActiveMsg, null, partnerMenu);
@@ -1304,10 +1371,10 @@ Buyurtma: <b>#${o.order_number}</b>
 Manzil: ${o.destination_address}
 Sizga to'lanadigan haq: <b>${(o.partner_payout_amount || 0).toLocaleString()} so'm</b>
 
-Ish to'liq tugagan bo'lsa, tasdiqlash tugmasini bosing:`;
+Ish to'liq tugagan bo'lsa, quyidagi tugmani bosing:`;
 
                     const inlineButtons = [
-                        [{ text: "🏁 Ha, ishni tugatdim!", callback_data: `finish_${o.id}` }]
+                        [{ text: "🏁 Bajarildi", callback_data: `finish_${o.id}` }]
                     ];
 
                     if (botToken) await sendTelegramBotMessage(botToken, chatId, finishPrompt, inlineButtons);
@@ -1317,7 +1384,7 @@ Ish to'liq tugagan bo'lsa, tasdiqlash tugmasini bosing:`;
                 }
 
                 // Default answer for registered partners
-                const defaultMsg = `Salom, ${partner.company_name}! Quyidagi menyu tugmalaridan birini tanlang:`;
+                const defaultMsg = `Salom, ${partner.company_name}! Buyurtmalaringiz va holatingizni quyidagi menyu orqali boshqarishingiz mumkin:`;
                 if (botToken) await sendTelegramBotMessage(botToken, chatId, defaultMsg, null, partnerMenu);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1335,43 +1402,78 @@ Ish to'liq tugagan bo'lsa, tasdiqlash tugmasini bosing:`;
     if (req.method === 'POST' && pathname === '/api/partner-bot/dispatch') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
-        req.on('end', () => {
+        req.on('end', async () => {
             try {
                 const payload = JSON.parse(body || '{}');
+                const db = dbEngine.getEntireDB();
+                const botToken = getBotToken(db);
                 const orderId = payload.order_id;
                 const orderNum = payload.order_number || `SRV-${String(orderId).slice(-4)}`;
+                const partnerId = payload.partner_id;
+                const partnerPhone = payload.partner_phone;
                 const partnerName = payload.partner_name || 'Hamkor';
                 const serviceName = payload.service_type || 'Xizmat';
+                const details = payload.details || '';
                 const payoutAmount = payload.payout_amount || 0;
                 const address = payload.address || 'Toshkent sh.';
                 const time = payload.time || '10:00';
-                const task = payload.task_instruction || payload.details || 'Ko\'rsatma berilmagan';
+                const serviceDate = payload.service_date || new Date().toISOString().substring(0, 10);
+                const task = payload.task_instruction || details || '';
 
-                const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(address)}`;
+                // Find partner
+                let partner = (db.service_partners || []).find(p => 
+                    (partnerId && p.id === partnerId) || 
+                    (partnerPhone && ((p.phone_primary || '').replace(/[^\d]/g, '').endsWith(String(partnerPhone).replace(/[^\d]/g, '').slice(-9)))) ||
+                    (p.company_name === partnerName)
+                );
+
+                // Find order in DB
+                const sOrder = (db.service_orders || []).find(o => o.id === orderId || o.order_number === orderNum);
+                if (sOrder && sOrder.order_status === 'yangi') {
+                    sOrder.order_status = 'hamkorga_uzatildi';
+                    dbEngine.syncEntireDB(db);
+                }
+
+                const serviceText = details ? `${serviceName} (${details})` : serviceName;
+                const dateTimeText = `${serviceDate} ${time}`.trim();
                 const botMessage = 
-`🔔 YANGI BUYURTMA! (#${orderNum})
-🏢 WMS ARENDA DISPECHERLIK
-🛠 Xizmat: ${serviceName}
+`🔔 SIZGA YANGI BUYURTMA BIRIKTIRILDI!
+🛠 Xizmat: ${serviceText}
 📍 Ish joyi: ${address}
-🗺 Xarita: ${mapUrl}
-🕒 Vaqt: Bugun soat ${time} da
-💵 Sizga to'lanadigan summa: ${Number(payoutAmount).toLocaleString()} so'm
-📋 Topshiriq: ${task}`;
+🕒 Vaqt: ${dateTimeText}
+💵 Sizga to'lanadigan haq: ${Number(payoutAmount).toLocaleString()} so'm${task ? `\n📋 Topshiriq: ${task}` : ''}`;
+
+                const inlineKeyboard = [
+                    [
+                        { text: "✅ Qabul qilaman", callback_data: `accept_${orderId}` },
+                        { text: "❌ Rad etaman", callback_data: `reject_${orderId}` }
+                    ]
+                ];
+
+                let telegramSent = false;
+                let sendError = null;
+
+                if (botToken && partner && partner.telegram_chat_id) {
+                    try {
+                        const tgRes = await sendTelegramBotMessage(botToken, partner.telegram_chat_id, botMessage, inlineKeyboard);
+                        telegramSent = !!(tgRes && tgRes.ok);
+                    } catch (tgErr) {
+                        sendError = tgErr.message;
+                    }
+                }
 
                 res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                 res.end(JSON.stringify({
                     success: true,
-                    status: "sent",
+                    telegram_sent: telegramSent,
+                    partner_has_telegram: !!(partner && partner.telegram_chat_id),
+                    partner_chat_id: partner ? partner.telegram_chat_id : null,
+                    partner_name: partner ? partner.company_name : partnerName,
                     order_id: orderId,
                     order_number: orderNum,
-                    partner_name: partnerName,
                     bot_message: botMessage,
-                    map_url: mapUrl,
-                    inline_keyboard: [
-                        [{ text: "✅ Qabul qilaman", callback_data: `accept_${orderId}` }],
-                        [{ text: "❌ Bandman / Rad etish", callback_data: `reject_${orderId}` }],
-                        [{ text: "📍 Xaritada ko'rish", url: mapUrl }]
-                    ]
+                    inline_keyboard: inlineKeyboard,
+                    error: sendError
                 }));
             } catch (e) {
                 res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -1381,7 +1483,7 @@ Ish to'liq tugagan bo'lsa, tasdiqlash tugmasini bosing:`;
         return;
     }
 
-    // 8. POST /api/partner-bot/callback (Partner presses inline buttons in bot)
+    // 8. POST /api/partner-bot/callback (Partner presses inline buttons in bot or simulator)
     if (req.method === 'POST' && pathname === '/api/partner-bot/callback') {
         let body = '';
         req.on('data', chunk => { body += chunk.toString(); });
@@ -1389,24 +1491,72 @@ Ish to'liq tugagan bo'lsa, tasdiqlash tugmasini bosing:`;
             try {
                 const payload = JSON.parse(body || '{}');
                 const { order_id, action, partner_name, payout_amount } = payload;
+                const db = dbEngine.getEntireDB();
+                const sOrder = (db.service_orders || []).find(o => o.id === order_id || o.order_number === order_id);
+                const partner = (db.service_partners || []).find(p => (sOrder && p.id === sOrder.assigned_partner_id) || p.company_name === partner_name);
 
                 let newStatus = 'yangi';
                 let replyText = '';
                 let alertTone = 'info';
 
                 if (action === 'accept') {
-                    newStatus = 'bajarilmoqda';
-                    replyText = `👍 Buyurtma #${order_id} qabul qilindi! Ishni bajargach, [🏁 Ish yakunlandi] tugmasini bosing.`;
+                    newStatus = 'hamkor_qabul_qildi';
+                    if (sOrder) {
+                        sOrder.order_status = 'hamkor_qabul_qildi';
+                        sOrder.status = 'hamkor_qabul_qildi';
+                    }
+                    replyText = "Buyurtma qabul qilindi. Ishni tugatgach [🏁 Bajarildi] tugmasini bosing";
                     alertTone = 'success';
+                    recordPartnerLiveEvent({
+                        type: 'accept',
+                        order_id: order_id,
+                        order_number: sOrder ? sOrder.order_number : `SRV-${order_id}`,
+                        status: 'hamkor_qabul_qildi',
+                        partner_id: partner ? partner.id : null,
+                        partner_name: partner ? partner.company_name : (partner_name || 'Hamkor'),
+                        message: `✅ Hamkor (${partner ? partner.company_name : 'Hamkor'}) #${sOrder ? sOrder.order_number : order_id} buyurtmani qabul qildi!`
+                    });
                 } else if (action === 'reject') {
-                    newStatus = 'yangi';
-                    replyText = `❌ Buyurtma rad etildi. Boshqa buyurtmalar kutmoqda!`;
+                    newStatus = 'rad_etildi';
+                    if (sOrder) {
+                        sOrder.order_status = 'rad_etildi';
+                        sOrder.status = 'rad_etildi';
+                    }
+                    replyText = "Hamkor buyurtmani rad etdi, boshqa hamkorni tanlang";
                     alertTone = 'warning';
+                    recordPartnerLiveEvent({
+                        type: 'reject',
+                        order_id: order_id,
+                        order_number: sOrder ? sOrder.order_number : `SRV-${order_id}`,
+                        status: 'rad_etildi',
+                        partner_id: partner ? partner.id : null,
+                        partner_name: partner ? partner.company_name : (partner_name || 'Hamkor'),
+                        message: `⚠️ Hamkor buyurtmani rad etdi, boshqa hamkorni tanlang!`
+                    });
                 } else if (action === 'finish') {
                     newStatus = 'bajarildi';
-                    replyText = `🎉 Ish muvaffaqiyatli yakunlandi! Hisobingizga +${Number(payoutAmount || 0).toLocaleString()} so'm qo'shildi. Rahmat!`;
+                    if (sOrder) {
+                        sOrder.order_status = 'bajarildi';
+                        sOrder.status = 'bajarildi';
+                    }
+                    if (partner) {
+                        partner.balance = (partner.balance || 0) + (sOrder ? (sOrder.partner_payout_amount || 0) : Number(payout_amount || 0));
+                    }
+                    replyText = `🎉 Ish muvaffaqiyatli yakunlandi! Hisobingizga +${Number(payout_amount || (sOrder ? sOrder.partner_payout_amount : 0) || 0).toLocaleString()} so'm qo'shildi.`;
                     alertTone = 'success';
+                    recordPartnerLiveEvent({
+                        type: 'finish',
+                        order_id: order_id,
+                        order_number: sOrder ? sOrder.order_number : `SRV-${order_id}`,
+                        status: 'bajarildi',
+                        partner_id: partner ? partner.id : null,
+                        partner_name: partner ? partner.company_name : (partner_name || 'Hamkor'),
+                        payout_amount: sOrder ? sOrder.partner_payout_amount : Number(payout_amount || 0),
+                        message: `🏁 Hamkor (${partner ? partner.company_name : 'Hamkor'}) #${sOrder ? sOrder.order_number : order_id} buyurtmani yakunladi!`
+                    });
                 }
+
+                dbEngine.syncEntireDB(db);
 
                 res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                 res.end(JSON.stringify({
@@ -1414,7 +1564,7 @@ Ish to'liq tugagan bo'lsa, tasdiqlash tugmasini bosing:`;
                     order_id: order_id,
                     action: action,
                     new_status: newStatus,
-                    partner_name: partnerName || 'Hamkor',
+                    partner_name: partner ? partner.company_name : (partner_name || 'Hamkor'),
                     reply_text: replyText,
                     alert_tone: alertTone,
                     timestamp: new Date().toLocaleTimeString('uz-UZ')
@@ -1424,6 +1574,19 @@ Ish to'liq tugagan bo'lsa, tasdiqlash tugmasini bosing:`;
                 res.end(JSON.stringify({ success: false, error: e.message }));
             }
         });
+        return;
+    }
+
+    // 8a. GET /api/partner-bot/live-events (Real-time live updates for seller web dashboard)
+    if (req.method === 'GET' && pathname === '/api/partner-bot/live-events') {
+        const since = parseInt(parsedUrl.searchParams.get('since') || '0', 10);
+        const freshEvents = partnerLiveEvents.filter(ev => ev.timestamp > since);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+            success: true,
+            server_time: Date.now(),
+            events: freshEvents
+        }));
         return;
     }
 

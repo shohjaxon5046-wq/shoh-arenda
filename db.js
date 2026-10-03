@@ -615,6 +615,7 @@ if (isDBEmpty()) {
 module.exports = {
     isSQLiteAvailable,
     saveEntireDB,
+    syncEntireDB: saveEntireDB,
     getEntireDB,
     cleanupCache,
     getCacheStatus,

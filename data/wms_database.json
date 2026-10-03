@@ -409,6 +409,9 @@
   ],
   "expenses": [],
   "financial_transactions": [],
+  "test_sync_key": {
+    "synced_at": 1791010980657
+  },
   "ai_settings": {
     "is_enabled": true,
     "provider": "builtin",

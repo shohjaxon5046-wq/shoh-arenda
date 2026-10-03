@@ -506,19 +506,31 @@ function renderPartnerBotChatView(order, partner, customer) {
                 </a>
             </div>
         `;
-    } else if (order.order_status === 'qabul_qilindi' || order.order_status === 'bajarilmoqda') {
+    } else if (order.order_status === 'hamkor_qabul_qildi' || order.order_status === 'qabul_qilindi' || order.order_status === 'bajarilmoqda') {
         buttonsHtml = `
             <div class="space-y-2 pt-2 border-t border-slate-700/60">
-                <div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] flex items-center gap-2">
-                    <i data-lucide="clock" class="w-4 h-4 shrink-0 text-amber-400"></i>
-                    <span>Siz buyurtmani qabul qildingiz. Ishni bajargach, yakunlash tugmasini bosing:</span>
+                <div class="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-4 h-4 shrink-0 text-emerald-400"></i>
+                    <span>Buyurtma qabul qilindi. Ishni tugatgach [🏁 Bajarildi] tugmasini bosing:</span>
                 </div>
                 <button type="button" onclick="handlePartnerBotSimAction('finish')" class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition">
-                    <i data-lucide="flag" class="w-4 h-4"></i>  Ish Yakunlandi (Hisobga olish)
+                    <i data-lucide="flag" class="w-4 h-4"></i> 🏁 Bajarildi
                 </button>
                 <a href="${mapUrl}" target="_blank" class="w-full py-1.5 px-3 rounded-xl bg-slate-800 text-blue-400 font-semibold text-xs flex items-center justify-center gap-1.5 border border-slate-700">
                     <i data-lucide="map-pin" class="w-3.5 h-3.5 text-red-400"></i> Obyekt Manzili Xaritada
                 </a>
+            </div>
+        `;
+    } else if (order.order_status === 'rad_etildi') {
+        buttonsHtml = `
+            <div class="pt-2 border-t border-slate-700/60">
+                <div class="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                    <i data-lucide="x-circle" class="w-5 h-5 text-rose-400 shrink-0"></i>
+                    <div>
+                        <div class="font-bold">Buyurtma rad etildi</div>
+                        <div class="text-[10px] text-rose-400/90 font-mono">Boshqa ijrochi biriktirilishi kutilmoqda.</div>
+                    </div>
+                </div>
             </div>
         `;
     } else if (order.order_status === 'bajarildi') {
@@ -706,13 +718,13 @@ async function handlePartnerBotSimAction(action) {
     playScanBeep(action === 'finish' ? 2200 : 1800, 150);
 
     if (action === 'accept') {
-        order.order_status = 'bajarilmoqda';
+        order.order_status = 'hamkor_qabul_qildi';
         saveDB();
-        showNotification(`Hamkor [${partner ? partner.company_name : 'Hamkor'}] buyurtmani qabul qildi va ishni boshladi! `, "success");
+        showNotification(`✅ Hamkor [${partner ? partner.company_name : 'Hamkor'}] buyurtmani qabul qildi!`, "success");
     } else if (action === 'reject') {
-        order.order_status = 'yangi';
+        order.order_status = 'rad_etildi';
         saveDB();
-        showNotification(`Hamkor [${partner ? partner.company_name : 'Hamkor'}] bandligi sababli rad etdi! Boshqa ijrochi biriktiring.`, "warning");
+        showNotification("⚠️ Hamkor buyurtmani rad etdi, boshqa hamkorni tanlang", "warning");
     } else if (action === 'finish') {
         order.order_status = 'bajarildi';
         // Partner payout credit
@@ -720,7 +732,7 @@ async function handlePartnerBotSimAction(action) {
             partner.balance -= order.partner_payout_amount; // company owes partner
         }
         saveDB();
-        showNotification(`Buyurtma #${order.order_number} bajarildi! Hamkor balansiga +${order.partner_payout_amount.toLocaleString()} so'm yozildi. `, "success");
+        showNotification(`🏁 Buyurtma #${order.order_number} bajarildi! Hamkor balansiga +${order.partner_payout_amount.toLocaleString()} so'm yozildi.`, "success");
     }
 
     if (typeof renderServiceOrdersTable === 'function') renderServiceOrdersTable();

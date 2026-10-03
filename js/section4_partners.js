@@ -311,11 +311,13 @@ function renderServiceOrdersTable() {
 
     const statusBadges = {
         yangi: '<span class="badge-status bg-blue-500/10 text-blue-400 border border-blue-500/20">Yangi</span>',
-        hamkorga_uzatildi: '<span class="badge-status bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Uzatildi </span>',
-        qabul_qilindi: '<span class="badge-status bg-amber-500/10 text-amber-400 border border-amber-500/20">Hamkor qabul qildi</span>',
+        hamkorga_uzatildi: '<span class="badge-status bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Uzatildi 📤</span>',
+        hamkor_qabul_qildi: '<span class="badge-status bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold">✅ Hamkor qabul qildi</span>',
+        qabul_qilindi: '<span class="badge-status bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold">✅ Hamkor qabul qildi</span>',
+        rad_etildi: '<span class="badge-status bg-rose-500/20 text-rose-400 border border-rose-500/40 font-bold">❌ Rad etildi</span>',
         bajarilmoqda: '<span class="badge-status bg-purple-500/10 text-purple-400 border border-purple-500/20">Bajarilmoqda ⏳</span>',
-        bajarildi: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Bajarildi </span>',
-        bekor_qilindi: '<span class="badge-status bg-red-500/10 text-red-400 border border-red-500/20">Bekor qilindi </span>'
+        bajarildi: '<span class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Bajarildi 🏁</span>',
+        bekor_qilindi: '<span class="badge-status bg-red-500/10 text-red-400 border border-red-500/20">Bekor qilindi 🚫</span>'
     };
 
     const orders = (DB.service_orders || []).filter(o => !orderStatusFilter || o.order_status === orderStatusFilter);
@@ -330,7 +332,13 @@ function renderServiceOrdersTable() {
         const partner = (DB.service_partners || []).find(p => p.id === o.assigned_partner_id);
 
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-800/40 transition";
+        let rowClass = "hover:bg-slate-800/40 transition";
+        if (o.order_status === 'hamkor_qabul_qildi' || o.order_status === 'qabul_qilindi') {
+            rowClass = "bg-emerald-950/25 border-l-4 border-l-emerald-500 hover:bg-emerald-950/35 transition";
+        } else if (o.order_status === 'rad_etildi') {
+            rowClass = "bg-rose-950/25 border-l-4 border-l-rose-500 hover:bg-rose-950/35 transition";
+        }
+        tr.className = rowClass;
         tr.innerHTML = `
             <td class="py-3 px-4 font-mono font-bold text-white">${o.order_number}</td>
             <td class="py-3 px-4">
@@ -371,13 +379,18 @@ function renderServiceOrdersTable() {
                         </button>
                     ` : ''}
                     ${o.order_status === 'hamkorga_uzatildi' ? `
-                        <button onclick="advanceOrderStatus(${o.id}, 'qabul_qilindi')" class="px-2 py-1 rounded bg-amber-600 text-xs font-semibold text-white">
+                        <button onclick="advanceOrderStatus(${o.id}, 'hamkor_qabul_qildi')" class="px-2 py-1 rounded bg-amber-600 text-xs font-semibold text-white">
                             Qabul qilindi
                         </button>
                     ` : ''}
-                    ${o.order_status === 'qabul_qilindi' ? `
+                    ${(o.order_status === 'hamkor_qabul_qildi' || o.order_status === 'qabul_qilindi') ? `
                         <button onclick="advanceOrderStatus(${o.id}, 'bajarilmoqda')" class="px-2 py-1 rounded bg-purple-600 text-xs font-semibold text-white">
                             Ish boshlandi
+                        </button>
+                    ` : ''}
+                    ${o.order_status === 'rad_etildi' ? `
+                        <button onclick="openModalCreateServiceOrder(${o.assigned_partner_id || 'null'})" class="px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-xs font-semibold text-white" title="Boshqa ijrochi biriktirish">
+                            Boshqa ijrochi 🔁
                         </button>
                     ` : ''}
                     ${o.order_status === 'bajarilmoqda' ? `
@@ -422,24 +435,10 @@ function advanceOrderStatus(orderId, nextStatus) {
 function dispatchOrderToPartner(orderId) {
     const order = (DB.service_orders || []).find(o => o.id === orderId);
     if (!order) return;
-    const customer = (DB.customers || []).find(c => c.id === order.customer_id);
-    const partner = (DB.service_partners || []).find(p => p.id === order.assigned_partner_id);
-
     order.order_status = 'hamkorga_uzatildi';
     saveDB();
     renderServiceOrdersTable();
-
-    // Show preview dispatch message (Telegram/SMS format)
-    const dispatchText = `DISPECHERLIK BUYURTMASI (${order.order_number})\n` +
-        `Hamkor: ${partner ? partner.company_name : ''}\n` +
-        `Xizmat: ${order.service_category.toUpperCase()}\n` +
-        `Sana va vaqt: ${order.service_date} ${order.execution_time}\n` +
-        `Manzil: ${order.destination_address}\n` +
-        `Ish tafsiloti: ${order.details}\n` +
-        `Mijoz: ${customer ? customer.full_name : ''} (${customer ? customer.phone_primary : ''})\n` +
-        `Hamkor to'lovi: ${order.partner_payout_amount.toLocaleString()} so'm`;
-
-    alert(dispatchText);
+    autoDispatchOrderToPartner(order);
     showNotification("Buyurtma hamkorga muvaffaqiyatli uzatildi!", "success");
 }
 
@@ -562,6 +561,7 @@ function handleSaveServiceOrder(e) {
     closeModal('modal-create-service-order');
     renderServiceOrdersTable();
     showNotification(`Yangi buyurtma ${newOrder.order_number} yaratildi!`, "success");
+    autoDispatchOrderToPartner(newOrder);
 }
 
 
@@ -688,3 +688,89 @@ function handleSavePartnerPayout(e) {
     renderPartnersDirectory();
     showNotification(`Hamkorga ${amount.toLocaleString()} so'm vypłata qilindi!`, "success");
 }
+
+// -------------------------------------------------------------------------
+// 5. AUTOMATIC B2B PARTNER TELEGRAM DISPATCHER & LIVE EVENTS LISTENER
+// -------------------------------------------------------------------------
+async function autoDispatchOrderToPartner(order) {
+    if (!order || !order.assigned_partner_id) return;
+    const partner = (DB.service_partners || []).find(p => p.id === order.assigned_partner_id);
+    const payload = {
+        order_id: order.id,
+        order_number: order.order_number,
+        partner_id: order.assigned_partner_id,
+        partner_name: partner ? partner.company_name : 'Hamkor',
+        partner_phone: partner ? partner.phone_primary : '',
+        service_type: (order.service_category || '').toUpperCase(),
+        details: order.details || '',
+        address: order.destination_address || 'Toshkent sh.',
+        service_date: order.service_date || '',
+        time: order.execution_time || '10:00',
+        payout_amount: order.partner_payout_amount || 0,
+        task_instruction: order.task_instruction || order.details || ''
+    };
+
+    try {
+        const resp = await fetch('/api/partner-bot/dispatch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (data && data.telegram_sent) {
+            showNotification(`🔔 Buyurtma #${order.order_number} ${partner ? partner.company_name : 'Hamkor'}ning Telegramiga yuborildi!`, "success");
+        } else {
+            console.log('[PartnerBot Dispatch]', data);
+        }
+    } catch (e) {
+        console.warn('[PartnerBot] Auto-dispatch network error:', e);
+    }
+}
+window.autoDispatchOrderToPartner = autoDispatchOrderToPartner;
+
+// Live events polling listener for Seller UI (updates on Telegram button clicks in real time)
+let lastPartnerEventTimestamp = Date.now() - 5000;
+let partnerLiveEventsPoller = null;
+
+function initPartnerLiveEventsListener() {
+    if (partnerLiveEventsPoller) return;
+    partnerLiveEventsPoller = setInterval(async () => {
+        try {
+            const resp = await fetch(`/api/partner-bot/live-events?since=${lastPartnerEventTimestamp}`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data && data.events && data.events.length > 0) {
+                let hasChanges = false;
+                data.events.forEach(ev => {
+                    if (ev.timestamp > lastPartnerEventTimestamp) {
+                        lastPartnerEventTimestamp = ev.timestamp;
+                    }
+                    const order = (DB.service_orders || []).find(o => o.id === ev.order_id || o.order_number === ev.order_number);
+                    if (order && order.order_status !== ev.status) {
+                        order.order_status = ev.status;
+                        hasChanges = true;
+                    }
+
+                    if (ev.type === 'accept') {
+                        showNotification(`✅ Hamkor (${ev.partner_name || 'Hamkor'}) #${ev.order_number} buyurtmani qabul qildi!`, "success");
+                    } else if (ev.type === 'reject') {
+                        showNotification(`⚠️ Hamkor buyurtmani rad etdi, boshqa hamkorni tanlang!`, "error");
+                    } else if (ev.type === 'finish') {
+                        showNotification(`🏁 Hamkor #${ev.order_number} buyurtmani yakunladi!`, "success");
+                    }
+                });
+
+                if (hasChanges) {
+                    saveDB();
+                    if (typeof renderServiceOrdersTable === 'function') renderServiceOrdersTable();
+                }
+            }
+        } catch (e) {}
+    }, 2000);
+}
+
+// Automatically start polling when page loads
+if (typeof window !== 'undefined') {
+    initPartnerLiveEventsListener();
+}
+
