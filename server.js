@@ -1395,14 +1395,32 @@ const server = http.createServer((req, res) => {
                                 base_standard_bag_price: 3000,
                                 floor_extra_price: 2000,
                                 elevator_fixed_price: 1500,
+                                lift_high_floor_start: 5,
+                                lift_high_floor_extra: 300,
                                 min_order_price: 30000,
+                                heavy_volume_min_price: 100000,
                                 partner_share_percent: 75
                             };
-                            const stdUnitPrice = (hasElevator || fl <= 1) ? (gRules.elevator_fixed_price || 1500) : ((gRules.base_standard_bag_price || 3000) + ((fl - 1) * (gRules.floor_extra_price || 2000)));
-                            // Estimate typical order volume per worker (e.g. 20 standard bags per worker)
+                            let stdUnitPrice = 0;
+                            if (hasElevator) {
+                                stdUnitPrice = (fl > (gRules.lift_high_floor_start || 5))
+                                    ? (gRules.elevator_fixed_price || 1500) + ((fl - (gRules.lift_high_floor_start || 5)) * (gRules.lift_high_floor_extra || 300))
+                                    : (gRules.elevator_fixed_price || 1500);
+                            } else {
+                                stdUnitPrice = (fl <= 1) ? (gRules.base_standard_bag_price || 3000) : ((gRules.base_standard_bag_price || 3000) + ((fl - 1) * (gRules.floor_extra_price || 2000)));
+                            }
+
+                            // Estimate typical volume: 20 bags (~500kg) per worker
                             const estBags = wk * 20;
+                            const estWeightKg = estBags * 25;
                             const rawPrice = estBags * stdUnitPrice;
-                            const price = Math.max(gRules.min_order_price || 30000, rawPrice);
+                            
+                            let effectiveMin = gRules.min_order_price || 30000;
+                            if (estWeightKg >= 1000) {
+                                effectiveMin = Math.max(effectiveMin, Math.round((estWeightKg / 1000) * (gRules.heavy_volume_min_price || 100000)));
+                            }
+
+                            const price = Math.max(effectiveMin, rawPrice);
                             const share = (gRules.partner_share_percent || 75) / 100;
                             const payout = Math.round(price * share);
 

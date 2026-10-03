@@ -50,10 +50,13 @@ const DEFAULT_DB = {
             base_standard_bag_price: 3000,      // Standart qop / yuklar (0-30 kg) baza narxi: 3000 so'm
             floor_extra_price: 2000,            // Har bir qavat uchun ustama (Lift ishlamasa): 2000 so'm
             elevator_fixed_price: 1500,         // Lift ishlaganda 1 dona narxi (fiksirlangan): 1500 so'm
+            lift_high_floor_start: 5,           // Liftda yuqori qavatlar chegarasi (5-qavat)
+            lift_high_floor_extra: 300,         // Liftda 5-qavatdan yuqori har bir qavat uchun qo'shimcha ustama: 300 so'm
             heavy_coefficient: 1.5,             // O'ta og'ir yuklar koeffitsiyenti (30-50 kg, masalan tsement): 1.5
             sheet_base_price: 2500,             // Katta hajmli listlar (Gipsokarton, OSB) baza narxi: 2500 so'm
             sheet_floor_extra: 2000,            // Listlar uchun har bir qavat ustamasi: 2000 so'm
             min_order_price: 30000,             // Minimal chaqiruv summasi (Minimalovka): 30000 so'm
+            heavy_volume_min_price: 100000,     // Katta hajmli (1 tonnadan oshiq) yuklar uchun har 1 tonnaga min ostonasi: 100000 so'm
             partner_share_percent: 75,          // Hamkor ulushi (% da): 75%
             worker_count_rules: [
                 { max_kg: 400, workers: 1, label: "400 kg gacha (1 nafar gruzchik)" },
