@@ -1794,6 +1794,156 @@
         </div>
     </div>
 
+    <!-- MODAL: EDIT STAFF -->
+    <div id="modal-edit-staff" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+            <div class="flex justify-between items-center pb-4 border-b border-slate-800">
+                <h3 class="text-base font-bold text-white flex items-center gap-2"><i data-lucide="user-cog" class="w-5 h-5 text-amber-400"></i> Xodim Ma'lumotlarini Tahrirlash</h3>
+                <button onclick="closeModal('modal-edit-staff')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form onsubmit="handleSaveEditStaff(event)" class="mt-4 space-y-3">
+                <input type="hidden" id="staff-edit-id">
+                <div><label class="block text-xs font-semibold text-slate-400 mb-1">F.I.O *</label><input type="text" id="staff-edit-fullname" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
+                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Telefon *</label><input type="text" id="staff-edit-phone" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
+                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Foydalanuvchi nomi (Login) *</label><input type="text" id="staff-edit-username" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
+                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Yangi Parol (ixtiyoriy)</label><input type="password" id="staff-edit-password" placeholder="O'zgartirmaslik uchun bo'sh qoldiring" class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none"></div>
+                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Tizimdagi Roli *</label>
+                    <select id="staff-edit-role-select" required class="w-full rounded-xl border border-slate-700 bg-slate-800 py-2 px-3 text-xs text-white focus:outline-none">
+                        <option value="admin">👑 Bosh Admin</option>
+                        <option value="manager">👔 Menejer (Sotuvchi)</option>
+                        <option value="cashier">💳 Kassir</option>
+                        <option value="warehouseman">📦 Skladchi (WMS)</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button type="button" onclick="closeModal('modal-edit-staff')" class="px-4 py-2 rounded-xl border border-slate-700 text-xs text-slate-300">Bekor qilish</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white">O'zgarishlarni Saqlash</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: COMPREHENSIVE STAFF PROFILE CARD -->
+    <div id="modal-staff-profile" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
+        <div class="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden">
+            <div class="h-16 px-6 border-b border-slate-800 bg-slate-950/60 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div id="staff-card-avatar" class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-base">A</div>
+                    <div>
+                        <h3 id="staff-card-fullname" class="text-base font-bold text-white">Xodim Ismi</h3>
+                        <p id="staff-card-subtitle" class="text-xs text-slate-400">@username | Menejer</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-staff-profile')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto space-y-6">
+                <!-- BLOCK 1: Shaxsiy Ma'lumotlar va Rolni Boshqarish -->
+                <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <i data-lucide="user" class="w-4 h-4 text-blue-400"></i>
+                            <span>1. Shaxsiy Ma'lumotlar va Rol</span>
+                        </h4>
+                        <span id="staff-card-status-badge" class="badge-status bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px]">Faol</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div>
+                            <span class="text-slate-400 block mb-1">Telefon raqami:</span>
+                            <span id="staff-card-phone" class="font-mono text-white font-semibold">+998 -- --- -- --</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block mb-1">Foydalanuvchi nomi (Login):</span>
+                            <span id="staff-card-username" class="font-mono text-blue-400 font-semibold">@user</span>
+                        </div>
+                    </div>
+
+                    <!-- Role Changing Controls -->
+                    <div class="pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Tizimdagi Rolini o'zgartirish:</label>
+                            <select id="staff-card-role-select" class="w-full rounded-xl border border-slate-700 bg-slate-900 py-2 px-3 text-xs text-white focus:outline-none">
+                                <option value="admin">👑 Bosh Admin</option>
+                                <option value="manager">👔 Menejer (Sotuvchi)</option>
+                                <option value="cashier">💳 Kassir</option>
+                                <option value="warehouseman">📦 Skladchi (WMS)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button type="button" onclick="saveStaffRoleFromCard()" class="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white flex items-center justify-center gap-1.5 transition">
+                                <i data-lucide="shield-check" class="w-4 h-4"></i>
+                                <span>Rolni Saqlash</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Password Reset Control -->
+                    <div class="pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Yangi Parol berish:</label>
+                            <input type="password" id="staff-card-new-password" placeholder="Yangi parol kiriting..." class="w-full rounded-xl border border-slate-700 bg-slate-900 py-2 px-3 text-xs text-white focus:outline-none">
+                        </div>
+                        <div>
+                            <button type="button" onclick="updateStaffPasswordFromCard()" class="w-full py-2 px-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 transition">
+                                <i data-lucide="key" class="w-4 h-4 text-amber-400"></i>
+                                <span>Parolni Yangilash</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BLOCK 2: Xodimning Ish Natijalari (KPI Ko'rsatkichlari) -->
+                <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i>
+                        <span>2. Xodimning Ish Natijalari (KPI Ko'rsatkichlari)</span>
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                            <p class="text-xs text-slate-400 flex items-center gap-1.5"><i data-lucide="shopping-bag" class="w-3.5 h-3.5 text-blue-400"></i> Jami rasmiylashtirgan buyurtmalari</p>
+                            <h4 id="staff-card-kpi-total-orders" class="text-xl font-bold text-white mt-1.5">0 ta</h4>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                            <p class="text-xs text-slate-400 flex items-center gap-1.5"><i data-lucide="coins" class="w-3.5 h-3.5 text-emerald-400"></i> Jami keltirgan savdo summasi</p>
+                            <h4 id="staff-card-kpi-total-sales" class="text-xl font-bold text-emerald-400 mt-1.5">0 so'm</h4>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                            <p class="text-xs text-slate-400 flex items-center gap-1.5"><i data-lucide="clock" class="w-3.5 h-3.5 text-amber-400"></i> Hozirgi faol ijaralari</p>
+                            <h4 id="staff-card-kpi-active-rentals" class="text-xl font-bold text-amber-400 mt-1.5">0 ta</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BLOCK 3: Ushbu Xodim Urgan Barcha Buyurtmalar Ro'yxati -->
+                <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i data-lucide="history" class="w-4 h-4 text-indigo-400"></i>
+                        <span>3. Ushbu Xodim Ochgan Buyurtmalar Tarixi</span>
+                    </h4>
+                    <div class="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden">
+                        <div class="overflow-x-auto max-h-64 overflow-y-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-900 text-slate-400 border-b border-slate-800 text-[10px] uppercase font-semibold sticky top-0 z-10">
+                                    <tr>
+                                        <th class="py-2.5 px-3">Buyurtma №</th>
+                                        <th class="py-2.5 px-3">Mijoz</th>
+                                        <th class="py-2.5 px-3">Asbob / Xizmat</th>
+                                        <th class="py-2.5 px-3">Summa</th>
+                                        <th class="py-2.5 px-3">Sana</th>
+                                        <th class="py-2.5 px-3">Holati</th>
+                                        <th class="py-2.5 px-3 text-right">Amal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="staff-card-orders-tbody" class="divide-y divide-slate-800 text-slate-300"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: SUPPLIER DETAIL & AKT-SVERKA -->
     <div id="modal-supplier-detail" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md">
         <div class="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden">

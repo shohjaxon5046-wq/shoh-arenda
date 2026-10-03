@@ -48,65 +48,31 @@ function saveWebOrders(orders) {
     }
 }
 
-// Available tools catalog for public API
-const PUBLIC_AVAILABLE_TOOLS = [
-    {
-        model_id: 1,
-        name: "Perforator Bosch GBH 2-26 DRE",
-        brand: "Bosch",
-        category: "Elektr asboblar",
-        daily_price: 80000,
-        hourly_price: 15000,
-        deposit_amount: 400000,
-        available_count: 2,
-        total_count: 3,
-        status: "mavjud",
-        specs: { "Quvvati": "800W", "Og'irligi": "2.7 kg", "Patron": "SDS-Plus", "Zarba kuchi": "2.7 J" },
-        kit_items: ["Keys/Chemodan", "2 ta bur", "Qo'shimcha tutqich", "Chuqurlik o'lchagich"]
-    },
-    {
-        model_id: 2,
-        name: "Otboyniy Molotok Makita HM1203C",
-        brand: "Makita",
-        category: "Elektr asboblar",
-        daily_price: 150000,
-        hourly_price: 25000,
-        deposit_amount: 700000,
-        available_count: 1,
-        total_count: 2,
-        status: "mavjud",
-        specs: { "Quvvati": "1510W", "Og'irligi": "9.7 kg", "Patron": "SDS-Max", "Zarba kuchi": "19.1 J" },
-        kit_items: ["Metall keys", "1 ta pik (nayza)", "1 ta lopatka", "Maxsus moylash moyi"]
-    },
-    {
-        model_id: 3,
-        name: "Benzinli Generator Honda EM5500CXS",
-        brand: "Honda",
-        category: "Benzinli texnika",
-        daily_price: 200000,
-        hourly_price: 35000,
-        deposit_amount: 1000000,
-        available_count: 1,
-        total_count: 1,
-        status: "mavjud",
-        specs: { "Quvvati": "5.5 kVA", "Yoqilg'i": "Benzin AI-92", "Bak hajmi": "25 L", "Ishlash vaqti": "8 soat" },
-        kit_items: ["G'ildiraklar to'plami", "Zaryadka klemmalari", "Svecha kaliti"]
-    },
-    {
-        model_id: 4,
-        name: "Payvandlash Apparati Resanta SAI-220",
-        brand: "Resanta",
-        category: "Payvandlash",
-        daily_price: 60000,
-        hourly_price: 12000,
-        deposit_amount: 300000,
-        available_count: 2,
-        total_count: 2,
-        status: "mavjud",
-        specs: { "Tok kuchi": "10-220 A", "Elektrod": "1.6 - 5.0 mm", "Og'irligi": "4.9 kg" },
-        kit_items: ["Massa kabeli", "Elektrod ushlagich kabel", "Himoya niqobi"]
-    }
-];
+// Dynamic available tools catalog for public API
+function getPublicAvailableTools(db) {
+    if (!db) db = dbEngine.getEntireDB();
+    const models = db.product_models || [];
+    const items = db.product_items || db.tools || [];
+    return models.map(m => {
+        const mItems = items.filter(it => (it.model_id === m.id || it.product_model_id === m.id));
+        const available = mItems.filter(it => it.status === 'omborda_bosh' || it.status === 'bosh' || it.status === 'mavjud');
+        return {
+            model_id: m.id,
+            name: `${m.brand || ''} ${m.model_name || m.name}`.trim(),
+            brand: m.brand || '',
+            category: m.category_name || 'Asboblar',
+            daily_price: m.daily_rental_price || m.daily_price || 0,
+            hourly_price: Math.round((m.daily_rental_price || 100000) / 8),
+            deposit_amount: m.base_deposit_amount || m.deposit_amount || 0,
+            available_count: available.length,
+            total_count: mItems.length,
+            status: available.length > 0 ? "mavjud" : "mavjud_emas",
+            specs: m.specs || {},
+            kit_items: m.kit_items || []
+        };
+    }).filter(m => m.total_count > 0);
+}
+const PUBLIC_AVAILABLE_TOOLS = [];
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -845,13 +811,15 @@ const server = http.createServer((req, res) => {
 
     // 1. GET /api/public/tools/available
     if (req.method === 'GET' && pathname === '/api/public/tools/available') {
+        const db = dbEngine.getEntireDB();
+        const availableTools = getPublicAvailableTools(db);
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({
             success: true,
             status: "success",
             timestamp: new Date().toISOString(),
-            total_available_models: PUBLIC_AVAILABLE_TOOLS.length,
-            tools: PUBLIC_AVAILABLE_TOOLS
+            total_available_models: availableTools.length,
+            tools: availableTools
         }, null, 2));
         return;
     }
@@ -1341,8 +1309,10 @@ Telegram ichida tezkor zakaz urish uchun pastdagi tugmani bosing:`;
                         const allOrders = db.orders || [];
                         const allServiceOrders = db.service_orders || [];
 
-                        const activeOrders = allOrders.filter(o => o.status === 'faol' || o.status === 'ijarada' || o.order_status === 'faol');
+                        const activeOrders = allOrders.filter(o => o.status === 'faol' || o.status === 'faol_ijarada' || o.status === 'ijarada' || o.order_status === 'faol');
+                        const delayedOrders = allOrders.filter(o => o.status === 'kechikkan');
                         const newOrders = allOrders.filter(o => o.status === 'yangi' || o.order_status === 'yangi');
+                        const completedOrders = allOrders.filter(o => o.status === 'qaytarildi' || o.status === 'yopildi' || o.status === 'bajarildi');
                         const activeServices = allServiceOrders.filter(o => 
                             o.order_status === 'yangi' || 
                             o.order_status === 'hamkor_qabul_qildi' || 
@@ -1350,35 +1320,49 @@ Telegram ichida tezkor zakaz urish uchun pastdagi tugmani bosing:`;
                             o.order_status === 'hamkorga_uzatildi'
                         );
 
-                        let msg = `📋 <b>BUGUNGI BUYURTMALAR VA IJARALAR HOLATI</b>\nSana: <b>${today}</b>\n\n`;
-                        msg += `📦 <b>Asboblar ijarasi:</b>\n`;
-                        msg += `• Faol ijarada: <b>${activeOrders.length} ta</b>\n`;
-                        msg += `• Yangi buyurtmalar: <b>${newOrders.length} ta</b>\n\n`;
-                        msg += `🛠 <b>Tashqi xizmatlar (Kran, Musor, Gruzchik):</b>\n`;
-                        msg += `• Jarayondagi buyurtmalar: <b>${activeServices.length} ta</b>\n\n`;
+                        let msg = `📋 <b>BUYURTMALAR VA IJARALAR HOLATI</b>\nSana: <b>${today}</b>\n\n`;
 
-                        if (activeOrders.length > 0) {
-                            msg += `<b>Faol asboblar:</b>\n`;
-                            activeOrders.slice(0, 5).forEach((o, idx) => {
-                                const cust = (db.customers || []).find(c => c.id === o.customer_id);
-                                msg += `${idx + 1}. #${o.order_number || o.id} — ${cust ? cust.full_name : 'Mijoz'} (${o.start_date || o.order_date || today})\n`;
-                            });
-                            if (activeOrders.length > 5) msg += `<i>... va yana ${activeOrders.length - 5} ta ijara</i>\n`;
-                            msg += `\n`;
-                        }
+                        if (allOrders.length === 0 && allServiceOrders.length === 0) {
+                            msg += `Hozircha birorta ham buyurtma rasmiylashtirilmagan (0 ta).\n\nYangi zakaz ochish uchun [➕ Yangi Zakaz urish (POS)] tugmasini bosing.`;
+                        } else {
+                            msg += `📦 <b>Asboblar ijarasi:</b>\n`;
+                            msg += `• Faol ijarada: <b>${activeOrders.length} ta</b>\n`;
+                            if (delayedOrders.length > 0) {
+                                msg += `• ⚠️ Kechikkanlar: <b style="color:#ef4444;">${delayedOrders.length} ta</b>\n`;
+                            }
+                            msg += `• Yangi buyurtmalar: <b>${newOrders.length} ta</b>\n`;
+                            msg += `• Yakunlangan (qaytarilgan): <b>${completedOrders.length} ta</b>\n\n`;
 
-                        if (activeServices.length > 0) {
-                            msg += `<b>Xizmat buyurtmalari:</b>\n`;
-                            activeServices.slice(0, 5).forEach((s, idx) => {
-                                const part = (db.service_partners || []).find(p => p.id === s.assigned_partner_id);
-                                msg += `${idx + 1}. #${s.order_number || s.id} (${s.service_category}) — ${part ? part.company_name : 'Hamkor'} [${s.order_status}]\n`;
-                            });
-                            if (activeServices.length > 5) msg += `<i>... va yana ${activeServices.length - 5} ta xizmat</i>\n`;
-                            msg += `\n`;
-                        }
+                            msg += `🛠 <b>Tashqi xizmatlar (Kran, Musor, Gruzchik):</b>\n`;
+                            msg += `• Jarayondagi buyurtmalar: <b>${activeServices.length} ta</b>\n\n`;
 
-                        if (activeOrders.length === 0 && activeServices.length === 0) {
-                            msg += `<i>Hozircha faol buyurtmalar mavjud emas. Yangi zakaz ochish uchun [➕ Yangi Zakaz urish (POS)] tugmasini bosing.</i>`;
+                            if (activeOrders.length > 0) {
+                                msg += `<b>Faol asboblar:</b>\n`;
+                                activeOrders.slice(0, 5).forEach((o, idx) => {
+                                    const cust = (db.customers || []).find(c => c.id === o.customer_id);
+                                    msg += `${idx + 1}. #${o.order_number || o.id} — ${cust ? cust.full_name : 'Mijoz'} (${o.start_date || o.order_date || today})\n`;
+                                });
+                                if (activeOrders.length > 5) msg += `<i>... va yana ${activeOrders.length - 5} ta ijara</i>\n`;
+                                msg += `\n`;
+                            }
+
+                            if (delayedOrders.length > 0) {
+                                msg += `<b>⚠️ Muddati o'tganlar:</b>\n`;
+                                delayedOrders.slice(0, 5).forEach((o, idx) => {
+                                    const cust = (db.customers || []).find(c => c.id === o.customer_id);
+                                    msg += `${idx + 1}. #${o.order_number || o.id} — ${cust ? cust.full_name : 'Mijoz'} (Qaytarish: ${o.expected_return_date || 'Muddati o\'tgan'})\n`;
+                                });
+                                msg += `\n`;
+                            }
+
+                            if (activeServices.length > 0) {
+                                msg += `<b>Xizmat buyurtmalari:</b>\n`;
+                                activeServices.slice(0, 5).forEach((s, idx) => {
+                                    const part = (db.service_partners || []).find(p => p.id === s.assigned_partner_id);
+                                    msg += `${idx + 1}. #${s.order_number || s.id} (${s.service_category}) — ${part ? part.company_name : 'Hamkor'} [${s.order_status}]\n`;
+                                });
+                                if (activeServices.length > 5) msg += `<i>... va yana ${activeServices.length - 5} ta xizmat</i>\n`;
+                            }
                         }
 
                         if (botToken) await sendTelegramBotMessage(botToken, chatId, msg, null, sellerMenu);
@@ -1389,27 +1373,47 @@ Telegram ichida tezkor zakaz urish uchun pastdagi tugmani bosing:`;
 
                     // ACTION: 📦 Ombor qoldig'i
                     if (text.includes("Ombor qoldig'i") || text === '/stock') {
-                        let availableItems = [];
-                        if (db.tools && db.tools.length > 0) {
-                            availableItems = db.tools.filter(t => t.status === 'bosh' || t.status === 'mavjud' || t.status === 'available');
-                        } else if (db.product_items && db.product_items.length > 0) {
-                            availableItems = db.product_items.filter(i => i.status === 'bosh' || i.status === 'mavjud' || i.status === 'available');
-                        } else if (PUBLIC_AVAILABLE_TOOLS && PUBLIC_AVAILABLE_TOOLS.length > 0) {
-                            availableItems = PUBLIC_AVAILABLE_TOOLS.filter(t => (t.available_count || 0) > 0 || t.status === 'mavjud');
-                        }
+                        const models = db.product_models || [];
+                        const items = db.product_items || db.tools || [];
 
-                        let stockMsg = `📦 <b>OMBORDA BO'SH (MAVJUD) ASBOBLAR:</b>\n\n`;
-                        if (availableItems.length === 0) {
-                            stockMsg += `<i>Hozirda omborda bo'sh asboblar topilmadi.</i>`;
+                        // Real available tools
+                        const availableItems = items.filter(it => 
+                            it.status === 'omborda_bosh' || 
+                            it.status === 'bosh' || 
+                            it.status === 'mavjud' || 
+                            it.status === 'available'
+                        );
+
+                        let stockMsg = `📦 <b>OMBOR QOLDIG'I:</b>\n`;
+
+                        if (availableItems.length === 0 || (models.length === 0 && items.length === 0)) {
+                            stockMsg += `Hozirda omborda birorta ham asbob mavjud emas (0 ta).\n\nYangi asboblarni qo'shish uchun sayt orqali "Kirim" qiling.`;
                         } else {
-                            availableItems.slice(0, 15).forEach((item, idx) => {
-                                const name = item.name || item.model_name || `Asbob #${item.id}`;
-                                const price = (item.daily_price || item.price || 0).toLocaleString();
-                                const count = item.available_count !== undefined ? `${item.available_count} ta` : 'Mavjud';
-                                stockMsg += `${idx + 1}. <b>${name}</b>\n   💵 Kunlik: ${price} so'm | 🟢 ${count}\n`;
-                            });
-                            if (availableItems.length > 15) {
-                                stockMsg += `\n<i>... va yana ${availableItems.length - 15} ta asbob mavjud.</i>`;
+                            stockMsg += `Jami asboblar: <b>${items.length} ta</b> | Bo'sh: <b>${availableItems.length} ta</b>\n\n`;
+
+                            if (models.length > 0) {
+                                let shownCount = 0;
+                                models.forEach((m, idx) => {
+                                    const freeItems = availableItems.filter(i => (i.model_id === m.id || i.product_model_id === m.id));
+                                    if (freeItems.length > 0) {
+                                        shownCount++;
+                                        const shelf = freeItems[0].warehouse_location_shelf || 'A-01';
+                                        const price = (m.daily_rental_price || m.daily_price || 0).toLocaleString();
+                                        const deposit = (m.base_deposit_amount || m.deposit_amount || 0).toLocaleString();
+                                        stockMsg += `${shownCount}. <b>${m.brand || ''} ${m.model_name || m.name}</b>\n   🟢 Bo'sh: <b>${freeItems.length} ta</b> (Polka: ${shelf})\n   💵 Kunlik: ${price} so'm | Garov: ${deposit} so'm\n\n`;
+                                    }
+                                });
+
+                                if (shownCount === 0) {
+                                    stockMsg += `<i>Hozirda barcha mavjud asboblar ijarada.</i>`;
+                                }
+                            } else {
+                                availableItems.slice(0, 15).forEach((item, idx) => {
+                                    const name = item.name || item.model_name || `Asbob #${item.id}`;
+                                    const price = (item.daily_price || item.price || 0).toLocaleString();
+                                    const shelf = item.warehouse_location_shelf || item.shelf || 'A-01';
+                                    stockMsg += `${idx + 1}. <b>${name}</b> (Polka: ${shelf})\n   💵 Kunlik: ${price} so'm | 🟢 Bo'sh\n`;
+                                });
                             }
                         }
 
