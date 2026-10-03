@@ -1395,12 +1395,14 @@ const server = http.createServer((req, res) => {
                                 base_standard_bag_price: 3000,
                                 floor_extra_price: 2000,
                                 elevator_fixed_price: 1500,
+                                min_order_price: 30000,
                                 partner_share_percent: 75
                             };
                             const stdUnitPrice = (hasElevator || fl <= 1) ? (gRules.elevator_fixed_price || 1500) : ((gRules.base_standard_bag_price || 3000) + ((fl - 1) * (gRules.floor_extra_price || 2000)));
                             // Estimate typical order volume per worker (e.g. 20 standard bags per worker)
                             const estBags = wk * 20;
-                            const price = estBags * stdUnitPrice;
+                            const rawPrice = estBags * stdUnitPrice;
+                            const price = Math.max(gRules.min_order_price || 30000, rawPrice);
                             const share = (gRules.partner_share_percent || 75) / 100;
                             const payout = Math.round(price * share);
 

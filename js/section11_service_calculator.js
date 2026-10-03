@@ -9,6 +9,9 @@
 /**
  * Returns current pricing rules from DB or defaults
  */
+/**
+ * Returns current pricing rules from DB or defaults
+ */
 function getServicePricingRules() {
     if (!DB.service_pricing_rules) {
         DB.service_pricing_rules = JSON.parse(JSON.stringify(DEFAULT_DB.service_pricing_rules));
@@ -22,6 +25,7 @@ function getServicePricingRules() {
         if (g.heavy_coefficient === undefined) g.heavy_coefficient = 1.5;
         if (g.sheet_base_price === undefined) g.sheet_base_price = 2500;
         if (g.sheet_floor_extra === undefined) g.sheet_floor_extra = 2000;
+        if (g.min_order_price === undefined) g.min_order_price = 30000;
         if (g.partner_share_percent === undefined) g.partner_share_percent = 75;
     }
     return DB.service_pricing_rules;
@@ -43,6 +47,7 @@ function calculateGruzchikPrice(p) {
     const heavyCoef = Number(rules.heavy_coefficient) || 1.5;
     const sheetBasePrice = Number(rules.sheet_base_price) || 2500;
     const sheetFloorExtra = Number(rules.sheet_floor_extra) || 2000;
+    const minOrderPrice = Number(rules.min_order_price) || 30000;
     const partnerSharePercent = Number(rules.partner_share_percent) || 75;
 
     const stdBags = Math.max(0, parseInt(p.standardBags || p.bagCount) || 0);
@@ -71,20 +76,35 @@ function calculateGruzchikPrice(p) {
         : (sheetBasePrice + ((floor - 1) * sheetFloorExtra));
     const sheetTotal = sheetCount * sheetUnitRate;
 
-    const customerPrice = stdTotal + heavyTotal + sheetTotal;
+    const rawCalculatedPrice = stdTotal + heavyTotal + sheetTotal;
 
-    // Resurs / Ishchilar soni hisobi
+    // 4. Gruzchilar sonini avtomatik aniqlash mantiqi:
+    // 400 kg gacha bo'lgan yuklarga qat'iy 1 nafar gruzchik (pul bo'linmasligi uchun).
+    // 400 kg dan oshganda yoki o'ta noqulay listlar bo'lganda 2 nafar gruzchik (xizmat haqi 2x).
     const totalEstWeightKg = (stdBags * 25) + (heavyBags * 50) + (sheetCount * 30);
     const totalItems = stdBags + heavyBags + sheetCount;
-    let workerCount = 2;
-    if (totalEstWeightKg > 3000 || totalItems > 80 || (floor > 6 && !hasElevator)) {
-        workerCount = 5;
-    } else if (totalEstWeightKg > 1800 || totalItems > 45 || (floor > 4 && !hasElevator)) {
-        workerCount = 4;
-    } else if (totalEstWeightKg > 800 || totalItems > 20 || (floor > 2 && !hasElevator)) {
+
+    let workerCount = 1;
+    let workerMultiplier = 1;
+    if (totalEstWeightKg > 400 || sheetCount > 4) {
+        workerCount = 2;
+        workerMultiplier = 2;
+    }
+    if (totalEstWeightKg > 2000 || totalItems > 60) {
         workerCount = 3;
-    } else if (totalItems <= 5 && floor <= 2) {
-        workerCount = 1;
+        workerMultiplier = 3;
+    }
+
+    let calculatedCustomerPrice = rawCalculatedPrice * workerMultiplier;
+
+    // 5. Minimal chaqiruv summasi (Minimalovka: 30,000 so'm)
+    let isMinApplied = false;
+    let customerPrice = calculatedCustomerPrice;
+    if (totalItems > 0 && customerPrice < minOrderPrice) {
+        customerPrice = minOrderPrice;
+        isMinApplied = true;
+    } else if (totalItems === 0) {
+        customerPrice = 0;
     }
 
     const partnerCost = Math.round(customerPrice * (partnerSharePercent / 100));
@@ -97,15 +117,25 @@ function calculateGruzchikPrice(p) {
     if (sheetCount > 0) parts.push(`${sheetCount} ta list (${sheetTotal.toLocaleString()} so'm)`);
     if (parts.length === 0) parts.push(`0 ta material (0 so'm)`);
 
-    const formulaText = parts.join(' + ') + ` [${floor}-etaj, ${hasElevator ? 'Lift bor' : 'Lift yo\'q'}]`;
-    const taskInstruction = `Vazifa: Yuk ko'tarish (${totalItems} ta material / ~${(totalEstWeightKg / 1000).toFixed(1)} t) — ${floor}-qavat (${hasElevator ? 'LIFT BOR' : 'LIFT YO\'Q'}). Tavsiya: ${workerCount} nafar ishchi.`;
-    const detailsText = `Gruzchik: ${totalItems} ta material (${parts.join(', ')}), ${floor}-etaj (${hasElevator ? 'Lift bor' : 'Lift yo\'q'}). ${workerCount} ishchi.`;
+    let formulaText = parts.join(' + ') + ` [${floor}-etaj, ${hasElevator ? 'Lift bor' : 'Lift yo\'q'}]`;
+    if (workerMultiplier > 1) {
+        formulaText += ` x ${workerCount} ishchi (${totalEstWeightKg} kg > 400 kg)`;
+    }
+    if (isMinApplied) {
+        formulaText += ` → Minimalovka: ${minOrderPrice.toLocaleString()} so'm`;
+    }
+
+    const taskInstruction = `Vazifa: Yuk ko'tarish (${totalItems} ta material / ~${(totalEstWeightKg / 1000).toFixed(1)} t) — ${floor}-qavat (${hasElevator ? 'LIFT BOR' : 'LIFT YO\'Q'}). Biriktirildi: ${workerCount} nafar gruzchik${isMinApplied ? ` (Minimalovka: ${minOrderPrice.toLocaleString()} so'm)` : ''}.`;
+    const detailsText = `Gruzchik: ${totalItems} ta material (${totalEstWeightKg} kg, ${workerCount} kishi), ${floor}-etaj (${hasElevator ? 'Lift bor' : 'Lift yo\'q'})${isMinApplied ? ' (Minimalovka)' : ''}.`;
 
     return {
         customerPrice,
         partnerCost,
         margin,
         workerCount,
+        workerMultiplier,
+        isMinApplied,
+        minOrderPrice,
         stdTotal,
         heavyTotal,
         sheetTotal,
@@ -258,7 +288,7 @@ function renderDynamicServiceCalculator(containerId, category, prefix = 'pos') {
                         <i data-lucide="users-2" class="w-4 h-4 text-indigo-400"></i>
                         <span>Gruzchik Smart Kalkulyatori (Materiallar & Qavatlar)</span>
                     </span>
-                    <span class="text-[10px] text-indigo-300 font-mono">Baza: ${(rules.gruzchik.base_standard_bag_price || 3000).toLocaleString()} so'm | +${(rules.gruzchik.floor_extra_price || 2000).toLocaleString()}/etaj</span>
+                    <span class="text-[10px] text-indigo-300 font-mono">Baza: ${(rules.gruzchik.base_standard_bag_price || 3000).toLocaleString()} so'm | Min: ${(rules.gruzchik.min_order_price || 30000).toLocaleString()} so'm</span>
                 </div>
 
                 <!-- Material Inputs Grid -->
@@ -622,6 +652,7 @@ function openAdminPricingRulesModal() {
     if (document.getElementById('apr-g-heavy-coef')) document.getElementById('apr-g-heavy-coef').value = g.heavy_coefficient ?? 1.5;
     if (document.getElementById('apr-g-sheet-base')) document.getElementById('apr-g-sheet-base').value = g.sheet_base_price ?? 2500;
     if (document.getElementById('apr-g-sheet-floor')) document.getElementById('apr-g-sheet-floor').value = g.sheet_floor_extra ?? 2000;
+    if (document.getElementById('apr-g-min-order')) document.getElementById('apr-g-min-order').value = g.min_order_price ?? 30000;
     if (document.getElementById('apr-g-share')) document.getElementById('apr-g-share').value = g.partner_share_percent ?? 75;
 
     // 2. Kran inputs
@@ -667,6 +698,7 @@ function handleSaveAdminPricingRules(e) {
     rules.gruzchik.heavy_coefficient = parseFloat(document.getElementById('apr-g-heavy-coef')?.value) || 1.5;
     rules.gruzchik.sheet_base_price = parseFloat(document.getElementById('apr-g-sheet-base')?.value) || 2500;
     rules.gruzchik.sheet_floor_extra = parseFloat(document.getElementById('apr-g-sheet-floor')?.value) || 2000;
+    rules.gruzchik.min_order_price = parseFloat(document.getElementById('apr-g-min-order')?.value) || 30000;
     rules.gruzchik.partner_share_percent = parseInt(document.getElementById('apr-g-share')?.value) || 75;
 
     // 2. Kran

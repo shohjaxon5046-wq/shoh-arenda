@@ -53,12 +53,13 @@ const DEFAULT_DB = {
             heavy_coefficient: 1.5,             // O'ta og'ir yuklar koeffitsiyenti (30-50 kg, masalan tsement): 1.5
             sheet_base_price: 2500,             // Katta hajmli listlar (Gipsokarton, OSB) baza narxi: 2500 so'm
             sheet_floor_extra: 2000,            // Listlar uchun har bir qavat ustamasi: 2000 so'm
+            min_order_price: 30000,             // Minimal chaqiruv summasi (Minimalovka): 30000 so'm
             partner_share_percent: 75,          // Hamkor ulushi (% da): 75%
             worker_count_rules: [
-                { max_kg: 500, workers: 1, label: "500 kg gacha" },
-                { max_kg: 1500, workers: 2, label: "500 kg - 1.5 tonnagacha" },
-                { max_kg: 3000, workers: 3, label: "1.5 t - 3 tonnagacha" },
-                { max_kg: 999999, workers: 4, label: "3 tonnadan yuqori" }
+                { max_kg: 400, workers: 1, label: "400 kg gacha (1 nafar gruzchik)" },
+                { max_kg: 1500, workers: 2, label: "400 kg - 1.5 tonnagacha (2 nafar gruzchik)" },
+                { max_kg: 3000, workers: 3, label: "1.5 t - 3 tonnagacha (3 nafar gruzchik)" },
+                { max_kg: 999999, workers: 4, label: "3 tonnadan yuqori (4+ nafar gruzchik)" }
             ]
         },
         kran: {
