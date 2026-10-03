@@ -1,235 +1,643 @@
 // =========================================================================
-// SECTION 9: AI AGENT (GEMINI / OPENAI / SMART FUNCTION CALLING)
+// SECTION 9: STATEFUL SMART AI AGENT (MULTI-TURN CONVERSATION ENGINE)
 // =========================================================================
 
 let chatHistory = [];
 let chatSimulatorRole = 'customer'; // 'customer' or 'admin'
 
 // -------------------------------------------------------------------------
-// 1. AI CORE FUNCTION CALLING TOOLS (MA'LUMOTLAR BAZASI BILAN ISHLASH)
+// 1. DIALOG XOTIRASI VA BOSQICHLAR (CONVERSATION STATE MACHINE)
+// -------------------------------------------------------------------------
+let currentSession = {
+    step: 'init', // 'init' | 'awaiting_address' | 'awaiting_time' | 'awaiting_phone' | 'completed'
+    service_type: null, // 'kran' | 'musor' | 'gruzchik' | 'asbob'
+    service_title: null, // 'Avtokran xizmati (25t)'
+    tool_id: null,
+    tool_model: null,
+    estimated_price: 0,
+    deposit_amount: 0,
+    details: null,
+    address: null,
+    booking_time: null,
+    phone: null,
+    customer_name: null,
+    created_order: null
+};
+
+function resetSession() {
+    currentSession = {
+        step: 'init',
+        service_type: null,
+        service_title: null,
+        tool_id: null,
+        tool_model: null,
+        estimated_price: 0,
+        deposit_amount: 0,
+        details: null,
+        address: null,
+        booking_time: null,
+        phone: null,
+        customer_name: null,
+        created_order: null
+    };
+    return currentSession;
+}
+
+// -------------------------------------------------------------------------
+// 2. SMART PARSING (AQLLI MATN TUSHUNISH)
 // -------------------------------------------------------------------------
 
 /**
- * 1. check_tool_availability(tool_name)
- * Omborda so'ralgan asbob bo'sh bormi, kunlik narxi va zalogi qancha ekanligini tekshirish.
+ * Telefon raqami formatini aniqlash va normalizatsiya qilish (+998 90 123-45-67)
  */
-function tool_check_tool_availability(tool_name) {
-    const query = (tool_name || '').toLowerCase().trim();
-    const models = DB.product_models || [];
-    const items = DB.product_items || [];
+function extractPhoneNumber(text) {
+    if (!text) return null;
+    const cleanStr = text.replace(/[\s\-\(\)\.]/g, '');
+    
+    // 1. Full uzbek number: +998901234567 or 998901234567
+    const fullMatch = cleanStr.match(/(?:\+?998)(9\d|88|33|77|95|99|97|98|94|93|91)\d{7}/);
+    if (fullMatch) {
+        const d = fullMatch[0].replace('+', '');
+        const code = d.slice(3, 5);
+        const p1 = d.slice(5, 8);
+        const p2 = d.slice(8, 10);
+        const p3 = d.slice(10, 12);
+        return `+998 ${code} ${p1}-${p2}-${p3}`;
+    }
 
-    // Find best match model
+    // 2. Short 9-digit: 901234567 or 93 123 45 67
+    const shortMatch = cleanStr.match(/\b(9\d|88|33|77|95|99|97|98|94|93|91)\d{7}\b/);
+    if (shortMatch) {
+        const d = shortMatch[0];
+        const code = d.slice(0, 2);
+        const p1 = d.slice(2, 5);
+        const p2 = d.slice(5, 7);
+        const p3 = d.slice(7, 9);
+        return `+998 ${code} ${p1}-${p2}-${p3}`;
+    }
+
+    // 3. Generic 7-12 digits if preceded by tel, telefon, raqam
+    const genericMatch = text.match(/(?:tel|telefon|raqam|nomer|тел|номер|phone)\s*:?\s*([+\d\s\-()]{7,18})/i);
+    if (genericMatch && genericMatch[1]) {
+        const d = genericMatch[1].replace(/[^\d+]/g, '');
+        if (d.length >= 7) return d;
+    }
+
+    return null;
+}
+
+/**
+ * Vaqt yoki sana iboralarini aniqlash
+ */
+function extractBookingTime(text) {
+    if (!text) return null;
+
+    // Explicit: vaqti: ertaga 14:00 da
+    const explicitMatch = text.match(/(?:vaqti|vaqt|время)\s*:?\s*([^\n,;]+?(?=(?:manzil|tel|telefon|\+?998|$)))/i);
+    if (explicitMatch && explicitMatch[1].trim().length > 2) {
+        return explicitMatch[1].trim();
+    }
+
+    // Pattern matching: "ertaga soat 14:00 da", "bugun 16:00 ga", "soat 10:00 da"
+    const timeMatch = text.match(/(?:ertaga|bugun|indin|завтра|сегодня|dushanba|seshanba|chorshanba|payshanba|juma|shanba|yakshanba)\s*(?:soat|v|k)?\s*\d{1,2}(?:[:.]\d{2})?\s*(?:da|ga|gacha)?/i)
+                   || text.match(/soat\s*\d{1,2}(?:[:.]\d{2})?\s*(?:da|ga|gacha)?/i)
+                   || text.match(/\b\d{1,2}[:.]\d{2}\s*(?:da|ga|gacha)?/i);
+
+    if (timeMatch) {
+        return timeMatch[0].trim();
+    }
+
+    const lower = text.toLowerCase();
+    const timeKeywords = ['ertaga', 'bugun', 'indin', 'ertalab', 'kechqurun', 'завтра', 'сегодня'];
+    if (timeKeywords.some(w => lower.includes(w))) {
+        let clean = text.split(/(?:tel|phone|telefon|manzil|\+?998)/i)[0].trim();
+        return clean.replace(/[,;]+$/, '').trim();
+    }
+
+    return null;
+}
+
+/**
+ * Manzilni aniqlash
+ */
+function extractAddress(text) {
+    if (!text) return null;
+
+    // Explicit: manzil: Qoratosh 52 11
+    const explicitMatch = text.match(/(?:manzil|manzili|адрес)\s*:?\s*([^\n,;]+?(?=(?:vaqti|vaqt|soat|tel|telefon|\+?998|$)))/i);
+    if (explicitMatch && explicitMatch[1].trim().length > 2) {
+        return explicitMatch[1].trim();
+    }
+
+    const lower = text.toLowerCase();
+    const addressKeywords = [
+        "ko'cha", "kucha", "uy", "kv", "kvartal", "mavze", "massiv", "prospekt",
+        "tuman", "tumani", "rayon", "shahar", "shahri", "dom", "ulitsa", "etaj", "qavat",
+        "qoratosh", "chilonzor", "yunusobod", "sergeli", "olmazor", "yakkasaroy", "mirobod", "uchtepa",
+        "bektemir", "yashnobod", "shayxontohur", "mirzo ulug'bek", "navoiy", "qorasaroy", "toshkent", "samarqand",
+        "улица", "дом", "квартал", "массив", "чиланзар", "юнусабад", "каракамыш"
+    ];
+
+    const hasKeyword = addressKeywords.some(w => lower.includes(w));
+    const hasStreetAndNumber = /[a-zA-Zа-яА-Яo'O'g'G'\s]{3,}\s+\d+/.test(text) && !text.includes('+998');
+
+    if (hasKeyword || hasStreetAndNumber) {
+        let clean = text.replace(/^(manzil\s*:?|manzili\s*:?|адрес\s*:?)/i, '').trim();
+        clean = clean.split(/(?:tel|phone|telefon|vaqt|vaqti|\+?998)/i)[0].trim();
+        return clean.replace(/[,;]+$/, '').trim();
+    }
+
+    return null;
+}
+
+/**
+ * Xizmat yoki uskunani aniqlash (Kran, Musor, Gruzchik, Asboblar)
+ */
+function detectServiceAndTool(text) {
+    if (!text) return null;
+    const lower = text.toLowerCase();
+
+    // 1. Kran
+    if (lower.includes('kran') || lower.includes('avtokran') || lower.includes('кран') || lower.includes('автокран')) {
+        let title = "Avtokran xizmati (25t)";
+        let quote = "Avtokran xizmati: 16t kran — 300 000 so'm/soat (minimal 2 soat), 25t kran — 350 000 so'm/soat (minimal 3 soat).";
+        let estPrice = 1050000;
+        if (lower.includes('16') || lower.includes('16t')) {
+            title = "Avtokran 16t";
+            quote = "16 tonnalik avtokran: soatiga 300 000 so'm (minimal 2 soat buyurtma).";
+            estPrice = 600000;
+        } else if (lower.includes('50') || lower.includes('50t')) {
+            title = "Avtokran 50t";
+            quote = "50 tonnalik avtokran: soatiga 600 000 so'm (minimal 4 soat buyurtma).";
+            estPrice = 2400000;
+        }
+        return {
+            service_type: 'kran',
+            service_title: title,
+            price_quote: quote,
+            estimated_price: estPrice,
+            deposit_amount: 0
+        };
+    }
+
+    // 2. Musor (Chiqindi)
+    if (lower.includes('musor') || lower.includes('chiqindi') || lower.includes('axlat') || lower.includes('мусор') || lower.includes('отход')) {
+        let title = "Qurilish chiqindilarini (musor) olib ketish";
+        let quote = "Qurilish chiqindilarini (musor) olib ketish narxlari: Gazel (1.5t gacha) — 400 000 so'm, ZIL (5t) — 800 000 so'm. Agar qoplarda bo'lsa — donasi 12 000 so'mdan.";
+        let estPrice = 400000;
+        if (lower.includes('zil') || lower.includes('зил')) {
+            title = "Musor olib ketish (ZIL 5t)";
+            estPrice = 800000;
+        } else if (lower.includes('qop') || lower.includes('мешок')) {
+            title = "Qoplangan qurilish chiqindisi";
+            estPrice = 240000;
+        }
+        return {
+            service_type: 'musor',
+            service_title: title,
+            price_quote: quote,
+            estimated_price: estPrice,
+            deposit_amount: 0
+        };
+    }
+
+    // 3. Gruzchik
+    if (lower.includes('gruzchik') || lower.includes('ishchi') || lower.includes('yukchi') || lower.includes('yuk tashish') || lower.includes('etajga') || lower.includes('грузчик')) {
+        return {
+            service_type: 'gruzchik',
+            service_title: "Yuk ko'taruvchilar (Gruzchik) xizmati",
+            price_quote: "Yuk ko'taruvchilar (Gruzchik) xizmati: 1 qop uchun 1 qavatga 3 000 so'm (liftda 1 500 so'm). Soatbay ish bo'lsa: 50 000 so'm/soat (kamida 2 soat).",
+            estimated_price: 150000,
+            deposit_amount: 0
+        };
+    }
+
+    // 4. Asboblar ijarasi (Catalog lookup)
+    const models = (typeof DB !== 'undefined' && DB.product_models) ? DB.product_models : [];
+    const items = (typeof DB !== 'undefined' && DB.product_items) ? DB.product_items : [];
+
     let matchedModel = models.find(m => 
-        m.name.toLowerCase().includes(query) || 
-        (m.model_code && m.model_code.toLowerCase().includes(query)) ||
-        m.brand.toLowerCase().includes(query) ||
-        (m.specifications && JSON.stringify(m.specifications).toLowerCase().includes(query))
+        lower.includes(m.name.toLowerCase()) || 
+        m.name.toLowerCase().split(/\s+/).some(part => part.length > 3 && lower.includes(part))
     );
 
-    // If generic words like "perforator", "bolgarka", "generator"
-    if (!matchedModel && query) {
-        matchedModel = models.find(m => {
-            const words = query.split(/\s+/);
-            return words.some(w => w.length > 3 && m.name.toLowerCase().includes(w));
-        });
-    }
-
     if (!matchedModel) {
-        // Return list of available tools in stock as suggestions
-        const inStockModels = models.filter(m => items.some(i => i.product_model_id === m.id && i.status === 'omborda_bosh'));
+        if (lower.includes('perforator') || lower.includes('перфоратор')) {
+            matchedModel = models.find(m => m.name.toLowerCase().includes('perforator')) || models[0];
+        } else if (lower.includes('otboynik') || lower.includes('отбойник')) {
+            matchedModel = models.find(m => m.name.toLowerCase().includes('otboyniy')) || models[1];
+        } else if (lower.includes('generator') || lower.includes('генератор')) {
+            matchedModel = models.find(m => m.name.toLowerCase().includes('generator')) || models[2];
+        } else if (lower.includes('svarka') || lower.includes('сварка') || lower.includes('payvandlash')) {
+            matchedModel = models.find(m => m.name.toLowerCase().includes('resanta') || m.name.toLowerCase().includes('svarka')) || models[3];
+        } else if (lower.includes('bolgarka') || lower.includes('болгарка')) {
+            matchedModel = models.find(m => m.name.toLowerCase().includes('bolgarka')) || models[0];
+        }
+    }
+
+    if (matchedModel) {
+        const availableItems = items.filter(i => i.product_model_id === matchedModel.id && i.status === 'omborda_bosh');
+        const count = availableItems.length;
+        const countTxt = count > 0 ? `(omborda ${count} ta mavjud)` : `(hozirda ijarada band)`;
         return {
-            found: false,
-            message: `Kechirasiz, "${tool_name}" nomli uskuna katalogimizda topilmadi.`,
-            available_alternatives: inStockModels.map(m => ({
-                id: m.id,
-                name: m.name,
-                brand: m.brand,
-                daily_price: m.daily_price,
-                deposit: m.deposit_amount
-            }))
+            service_type: 'asbob',
+            service_title: matchedModel.name,
+            tool_id: matchedModel.id,
+            tool_model: matchedModel,
+            price_quote: `${matchedModel.name} — Kunlik ijarasi: ${matchedModel.daily_price.toLocaleString()} so'm, Zalog: ${matchedModel.deposit_amount.toLocaleString()} so'm ${countTxt}.`,
+            estimated_price: matchedModel.daily_price,
+            deposit_amount: matchedModel.deposit_amount
         };
     }
 
-    const availableItems = items.filter(i => i.product_model_id === matchedModel.id && i.status === 'omborda_bosh');
-    const inRentItems = items.filter(i => i.product_model_id === matchedModel.id && i.status === 'ijarada');
-    const totalCount = items.filter(i => i.product_model_id === matchedModel.id).length;
-
-    return {
-        found: true,
-        tool_id: matchedModel.id,
-        model_name: matchedModel.name,
-        brand: matchedModel.brand,
-        daily_price: matchedModel.daily_price,
-        hourly_price: matchedModel.hourly_price || 0,
-        deposit_amount: matchedModel.deposit_amount,
-        available_count: availableItems.length,
-        in_rent_count: inRentItems.length,
-        total_count: totalCount,
-        is_available: availableItems.length > 0,
-        specifications: matchedModel.specifications || {},
-        kit_items: matchedModel.kit_items || [],
-        replacement_cost: matchedModel.replacement_cost,
-        message: availableItems.length > 0 
-            ? `Ha, omborimizda ${availableItems.length} ta "${matchedModel.name}" bo'sh turibdi.`
-            : `Afsuski, hozirda "${matchedModel.name}" uskunalarining barchasi ijarada (${inRentItems.length} ta band).`
-    };
+    return null;
 }
 
-/**
- * 2. get_service_price(service_type, details)
- * Kran, Musor yoki Gruzchik xizmatlari narxini hisoblab berish.
- */
-function tool_get_service_price(service_type, details = '') {
-    const category = (service_type || '').toLowerCase();
-    const partners = DB.service_partners || [];
-    const priceList = DB.partner_price_list || [];
-
-    let result = {
-        service_category: category,
-        details_given: details,
-        price_quote: "",
-        terms: "",
-        min_order: ""
-    };
-
-    if (category.includes('kran')) {
-        result.service_name = "Avtokran xizmati (16t - 25t - 50t)";
-        result.price_quote = "16t kran: 300 000 so'm/soat (min 2 soat), 25t kran: 350 000 so'm/soat (min 3 soat)";
-        result.min_order = "16t: 2 soat, 25t: 3 soat";
-        result.terms = "Yetib borish vaqtida kran soz holatda, malakali haydovchi-operator bilan birga xizmat qiladi.";
-    } else if (category.includes('musor') || category.includes('axlat') || category.includes('chiqindi')) {
-        result.service_name = "Qurilish chiqindilarini (musor) olib ketish";
-        result.price_quote = "Gazel (1.5t gacha) — 400 000 so'm, ZIL (5t) — 800 000 so'm, Qoplarda: 12 000 so'm/dona";
-        result.min_order = "1 reys yoki min 20 qop";
-        result.terms = "Qurilish chiqindilari tayyor bo'lishi kerak. Mashinaga ortish: 150 000 so'm yoki 3 000 so'm/qop (har bir qavatga +2 000 so'm).";
-    } else if (category.includes('gruzchik') || category.includes('yukchi')) {
-        result.service_name = "Yuk ko'taruvchilar (Gruzchik) xizmati";
-        result.price_quote = "1 qop 1 qavatga 3 000 so'm (lift bo'lsa 1 500 so'm). Soatbay: 50 000 so'm/soat (1 kishi uchun)";
-        result.min_order = "Kamida 1 kishi / 2 soat";
-        result.terms = "Og'ir qurilish materiallari va mebellarni qavatlarga ko'tarish / tushirish.";
-    } else {
-        result.service_name = "Tashqi brokerlik xizmatlari";
-        result.price_quote = "Kran (300k/soat), Musor (400k/reys), Gruzchik (50k/soat)";
-        result.terms = "Iltimos, aniq xizmat turini ko'rsating: kran, musor yoki gruzchik.";
-    }
-
-    return result;
-}
+// -------------------------------------------------------------------------
+// 3. BUYURTMANI RASMIYLASHTIRISH VA BAZAGA DARHOL YOZISH (STEP 4)
+// -------------------------------------------------------------------------
 
 /**
- * 3. create_incoming_order(customer_data, items, address, date)
- * Mijoz bilan gaplashib, barcha ma'lumotlarni to'plagach, tizimda avtomatik buyurtma yaratish.
+ * Buyurtmani yakunlash va tizim bazasiga status: 'yangi' qilib qo'shish
  */
-function tool_create_incoming_order(customer_data, items_info, address, requested_date) {
-    const custName = customer_data.name || "Sayt / AI Mijoz";
-    const custPhone = customer_data.phone || "+998 90 000-00-00";
+function finalizeAndCreateOrder(session) {
+    const custPhone = session.phone || '+998 90 000-00-00';
+    const custName = session.customer_name || 'AI Mijoz';
+    const address = session.address || 'Toshkent shahri';
+    const bookingTime = session.booking_time || 'Kelishilgan vaqtda';
+    const serviceTitle = session.service_title || 'Xizmat';
+    const estPrice = session.estimated_price || 0;
+    const deposit = session.deposit_amount || 0;
 
-    // 1. Auto-register in CRM if not exists
-    let customer = (DB.customers || []).find(c => c.phone_primary === custPhone);
-    if (!customer) {
-        customer = {
-            id: Date.now() + Math.floor(Math.random() * 100),
-            customer_type: "jismoniy_shaxs",
-            full_name: custName,
-            company_name: "",
-            phone_primary: custPhone,
-            phone_secondary: "",
-            passport_series_number: "AA " + Math.floor(1000000 + Math.random() * 9000000),
-            address: address || "Toshkent shahri",
-            status: "ishonchli",
-            current_debt: 0,
-            current_deposit: 0,
-            blacklist_reason: "",
-            created_at: new Date().toISOString().substring(0, 10)
-        };
+    // 1. CRM mijozlar bazasida tekshirish yoki yangi mijoz yaratish
+    if (typeof DB !== 'undefined') {
         if (!DB.customers) DB.customers = [];
-        DB.customers.unshift(customer);
+        let customer = DB.customers.find(c => {
+            const cPhone = (c.phone_primary || '').replace(/\D/g, '');
+            const sPhone = custPhone.replace(/\D/g, '');
+            return (cPhone.length >= 9 && sPhone.length >= 9 && (cPhone.endsWith(sPhone.slice(-9)) || sPhone.endsWith(cPhone.slice(-9))));
+        });
+
+        if (!customer) {
+            customer = {
+                id: Date.now() + Math.floor(Math.random() * 100),
+                customer_type: "jismoniy_shaxs",
+                full_name: custName,
+                company_name: "",
+                phone_primary: custPhone,
+                phone_secondary: "",
+                passport_series_number: "AA " + Math.floor(1000000 + Math.random() * 9000000),
+                address: address,
+                status: "ishonchli",
+                current_debt: 0,
+                current_deposit: 0,
+                blacklist_reason: "",
+                created_at: new Date().toISOString().substring(0, 10)
+            };
+            DB.customers.unshift(customer);
+        }
+
+        // 2. Tizimdagi asosiy "Buyurtmalar" (Orders) bazasiga status: 'yangi' qilib qo'shish
+        const newOrderId = Date.now();
+        const orderNumber = `ORD-${String((DB.orders || []).length + 1).padStart(4, '0')}`;
+
+        const newOrder = {
+            id: newOrderId,
+            uuid: `ord-${newOrderId}-${Math.random().toString(36).substring(2, 8)}`,
+            order_number: orderNumber,
+            customer_id: customer.id,
+            customer_name: customer.full_name,
+            created_by_user_id: 1, // AI Agent
+            status: "yangi",
+            total_rent_amount: estPrice,
+            total_deposit_amount: deposit,
+            final_amount: estPrice,
+            paid_amount: 0,
+            remaining_debt: estPrice,
+            start_date: bookingTime,
+            expected_return_date: "",
+            actual_return_date: null,
+            created_at: new Date().toLocaleString('uz-UZ'),
+            delivery_address: address,
+            notes: `AI Agent orqali qabul qilindi. Xizmat: ${serviceTitle}. Manzil: ${address}. Vaqt: ${bookingTime}. Tel: ${custPhone}`
+        };
+
+        if (!DB.orders) DB.orders = [];
+        DB.orders.unshift(newOrder);
+
+        // 3. Agar kran, musor yoki gruzchik bo'lsa, Section 4 (service_orders) ga ham biriktirish
+        if (session.service_type === 'kran' || session.service_type === 'musor' || session.service_type === 'gruzchik') {
+            if (!DB.service_orders) DB.service_orders = [];
+            const srvNumber = `SRV-2026-${String(DB.service_orders.length + 1).padStart(3, '0')}`;
+            const catMap = { kran: 'kran', musor: 'musor_olib_ketish', gruzchik: 'gruzchik' };
+            const partners = DB.service_partners || [];
+            const partner = partners.find(p => p.service_category === catMap[session.service_type]) || partners[0];
+
+            const srvOrder = {
+                id: Date.now() + 1,
+                order_number: srvNumber,
+                customer_id: customer.id,
+                service_category: catMap[session.service_type] || session.service_type,
+                order_date: new Date().toISOString().substring(0, 10),
+                service_date: bookingTime,
+                execution_time: bookingTime,
+                destination_address: address,
+                details: `${serviceTitle}. Manzil: ${address}. Tel: ${custPhone}`,
+                assigned_partner_id: partner ? partner.id : 1,
+                customer_total_price: estPrice,
+                partner_payout_amount: Math.round(estPrice * 0.8),
+                net_profit: Math.round(estPrice * 0.2),
+                order_status: "yangi",
+                payment_status: "tolanmadi",
+                created_at: new Date().toLocaleString('uz-UZ')
+            };
+            DB.service_orders.unshift(srvOrder);
+        } else if (session.service_type === 'asbob' && session.tool_model) {
+            // Asbob buyurtma bandi
+            if (!DB.order_tool_items) DB.order_tool_items = [];
+            const items = DB.product_items || [];
+            const avail = items.find(i => i.product_model_id === session.tool_model.id && i.status === 'omborda_bosh');
+
+            DB.order_tool_items.unshift({
+                id: Date.now() + 2,
+                order_id: newOrderId,
+                product_item_id: avail ? avail.id : null,
+                model_name: session.tool_model.name,
+                serial_number: avail ? avail.serial_number : 'SN-AI-LEAD',
+                daily_price: session.tool_model.daily_price,
+                rent_days: 1,
+                total_rent: session.tool_model.daily_price,
+                deposit_amount: session.tool_model.deposit_amount,
+                status: 'yangi'
+            });
+        }
+
+        // 4. Har bir o'zgarishni darhol faylga (SQLite bazasiga) yozish!
+        if (typeof saveDB === 'function') {
+            saveDB();
+        }
+
+        // 5. Interfeys jadvallari va statistikalarni yangilash
+        try {
+            if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges();
+            if (typeof renderOrdersSection === 'function') renderOrdersSection();
+            if (typeof renderPartnersDirectory === 'function') renderPartnersDirectory();
+            if (typeof renderCustomersCRM === 'function') renderCustomersCRM();
+            if (typeof renderDashboard === 'function') renderDashboard();
+            if (typeof showNotification === 'function') {
+                showNotification(`Yangi buyurtma #${orderNumber} AI Agent tomonidan ochildi!`, 'success');
+            }
+        } catch (e) {}
+
+        // Sessiyani tugatilgan holatga o'tkazish
+        session.step = 'completed';
+        session.created_order = newOrder;
+
+        // Aniq formatlangan xulosa cheki
+        const receipt = 
+`🎉 BUYURTMANGIZ QABUL QILINDI! #${orderNumber}
+
+🛠 Xizmat: ${serviceTitle}
+📍 Manzil: ${address}
+🕒 Vaqt: ${bookingTime}
+📞 Telefon: ${custPhone}
+
+Operatorimiz 5 daqiqada siz bilan bog'lanadi!`;
+
+        return {
+            reply: receipt,
+            order_number: orderNumber,
+            order: newOrder,
+            step: 'completed'
+        };
+    } else {
+        const orderNumber = `ORD-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+        session.step = 'completed';
+        const receipt = 
+`🎉 BUYURTMANGIZ QABUL QILINDI! #${orderNumber}
+
+🛠 Xizmat: ${serviceTitle}
+📍 Manzil: ${address}
+🕒 Vaqt: ${bookingTime}
+📞 Telefon: ${custPhone}
+
+Operatorimiz 5 daqiqada siz bilan bog'lanadi!`;
+
+        return {
+            reply: receipt,
+            order_number: orderNumber,
+            step: 'completed'
+        };
     }
-
-    // 2. Create web lead / incoming order
-    const newOrderId = Date.now();
-    const orderNumber = `AI-ORD-${String((DB.orders || []).length + 1).padStart(4, '0')}`;
-
-    const newOrder = {
-        id: newOrderId,
-        order_number: orderNumber,
-        customer_id: customer.id,
-        created_by_user_id: 1, // AI Agent
-        status: "yangi",
-        total_rent_amount: 0,
-        total_deposit_amount: 0,
-        final_amount: 0,
-        paid_amount: 0,
-        remaining_debt: 0,
-        start_date: requested_date || new Date().toLocaleString('uz-UZ'),
-        expected_return_date: "",
-        actual_return_date: null,
-        created_at: new Date().toLocaleString('uz-UZ'),
-        notes: `AI Agent tomonidan rasmiylashtirildi. Manzil: ${address || 'Belgilanmagan'}. Ma'lumot: ${items_info || ''}`
-    };
-
-    if (!DB.orders) DB.orders = [];
-    DB.orders.unshift(newOrder);
-    saveDB();
-
-    // Also trigger server lead creation if server is active
-    try {
-        fetch('/api/public/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                customer_name: custName,
-                customer_phone: custPhone,
-                service_type: 'asbob_ijarasi',
-                service_details: items_info || 'AI orqali qabul qilindi',
-                delivery_address: address || 'Mijoz manzili',
-                requested_date: requested_date || new Date().toLocaleString('uz-UZ')
-            })
-        }).catch(() => {});
-    } catch (e) {}
-
-    return {
-        success: true,
-        order_number: orderNumber,
-        customer_name: custName,
-        customer_phone: custPhone,
-        items: items_info,
-        address: address,
-        date: requested_date,
-        message: `Buyurtma muvaffaqiyatli qabul qilindi! Buyurtma raqamingiz: #${orderNumber}. Tez orada operatorimiz siz bilan bog'lanadi.`
-    };
 }
 
-/**
- * 4. get_admin_daily_stats(admin_pin)
- * Faqat Admin so'raganda bugungi kassa, tushum, sof foyda va kechikkan asboblar haqida xulosa berish.
- */
-function tool_get_admin_daily_stats(admin_pin = '') {
-    const savedPin = DB.ai_settings?.admin_pin || '7788';
-    const isCurrentAdmin = (currentUser && currentUser.role_id === 'admin');
+// -------------------------------------------------------------------------
+// 4. STATEFUL CONVERSATION ENGINE (ASOSIY DIALOG DVIGATELI)
+// -------------------------------------------------------------------------
 
-    if (!isCurrentAdmin && admin_pin !== savedPin && admin_pin !== 'admin123') {
+/**
+ * Kontekstni to'liq eslab qoluvchi va bosqichma-bosqich buyurtma oluvchi markaziy funksiya
+ */
+function processStatefulConversation(rawMessage, role = 'customer', adminPin = '') {
+    const text = (rawMessage || '').trim();
+    if (!text) return { reply: "Iltimos, xabaringizni yozing." };
+
+    const lower = text.toLowerCase();
+
+    // 1. Buyurtmani bekor qilish yoki boshidan boshlash
+    if (lower === 'bekor qilish' || lower === 'boshidan' || lower === 'yangi zakaz' || lower === 'yangi buyurtma' || 
+        lower === 'отмена' || lower === 'сначала' || lower === 'новый заказ' || lower === 'reset') {
+        resetSession();
         return {
-            authorized: false,
-            error: "Maxfiy hisobot! Ushbu ma'lumotlar faqat Bosh Admin uchun ruxsat etilgan. Iltimos, admin PIN kodini kiriting (Masalan: /admin 7788)."
+            reply: "Joriy suhbat tozalandi. Qanday xizmat kerak: Avtokran, Musor olib ketish, Gruzchik yoki Qurilish asbobi?",
+            step: 'init'
         };
     }
 
-    const orders = DB.orders || [];
-    const payments = DB.order_payments || [];
-    const items = DB.product_items || [];
-    const expenses = DB.expenses || [];
-    const now = new Date();
+    // 2. Admin moliyaviy hisoboti (/admin 7788)
+    if (lower.startsWith('/admin') || lower.startsWith('admin ') || (role === 'admin' && (lower.includes('kassa') || lower.includes('hisobot') || lower.includes('foyda')))) {
+        return handleAdminStatsReport(text, role, adminPin);
+    }
 
-    // Today's payments
+    // ---------------------------------------------------------------------
+    // SMART PARSING: Matndan telefon, manzil, vaqt va xizmatni ajratib olish
+    // ---------------------------------------------------------------------
+    const extractedPhone = extractPhoneNumber(text);
+    const extractedTime = extractBookingTime(text);
+    const extractedAddress = extractAddress(text);
+    const detectedService = detectServiceAndTool(text);
+
+    // Agar matnda yangi xizmat so'ralgan bo'lsa, xizmatni saqlab olamiz
+    if (detectedService) {
+        currentSession.service_type = detectedService.service_type;
+        currentSession.service_title = detectedService.service_title;
+        currentSession.tool_id = detectedService.tool_id;
+        currentSession.tool_model = detectedService.tool_model;
+        currentSession.estimated_price = detectedService.estimated_price;
+        currentSession.deposit_amount = detectedService.deposit_amount;
+    }
+
+    // Agar matnda telefon uchrasa, darhol telefon sifatida saqlaymiz
+    if (extractedPhone) {
+        currentSession.phone = extractedPhone;
+    }
+
+    // Agar matnda vaqt uchrasa, saqlaymiz
+    if (extractedTime && currentSession.step !== 'awaiting_address') {
+        currentSession.booking_time = extractedTime;
+    }
+
+    // ---------------------------------------------------------------------
+    // STATE MACHINE DISPATCH
+    // ---------------------------------------------------------------------
+
+    // Agar avvalgi buyurtma yakunlangan bo'lsa va yangi xizmat yozilgan bo'lsa:
+    if (currentSession.step === 'completed' && detectedService) {
+        currentSession.step = 'init';
+        currentSession.address = null;
+        currentSession.booking_time = null;
+        currentSession.phone = null;
+        currentSession.created_order = null;
+    }
+
+    // BOSQICH 4: TELEFON KUTILMOQDA (yoki telefon aniqlandi)
+    if (currentSession.step === 'awaiting_phone' || (extractedPhone && currentSession.service_type && currentSession.address)) {
+        if (extractedPhone) {
+            currentSession.phone = extractedPhone;
+            // Agar vaqt hali berilmagan bo'lsa, standart vaqt belgilash
+            if (!currentSession.booking_time) {
+                currentSession.booking_time = extractedTime || "Bugun / Ertaga";
+            }
+            return finalizeAndCreateOrder(currentSession);
+        } else {
+            // Foydalanuvchi telefon o'rniga boshqa narsa yozdi
+            return {
+                reply: "Iltimos, buyurtmani tasdiqlash uchun telefon raqamingizni yozing: (Masalan: +998 90 123-45-67)",
+                step: 'awaiting_phone'
+            };
+        }
+    }
+
+    // BOSQICH 3: VAQT KUTILMOQDA
+    if (currentSession.step === 'awaiting_time') {
+        // Foydalanuvchi vaqtni yozdi (masalan: "Ertaga soat 14:00 da")
+        currentSession.booking_time = extractedTime || text;
+
+        // Agar shu xabarning o'zida telefon ham yozilgan bo'lsa, darhol buyurtmani yakunlash
+        if (extractedPhone) {
+            currentSession.phone = extractedPhone;
+            return finalizeAndCreateOrder(currentSession);
+        }
+
+        // Aks holda telefonni so'rash
+        currentSession.step = 'awaiting_phone';
+        return {
+            reply: "Ajoyib! Buyurtmani tasdiqlash uchun telefon raqamingizni yozing: (Masalan: +998 90 123-45-67)",
+            step: 'awaiting_phone'
+        };
+    }
+
+    // BOSQICH 2: MANZIL KUTILMOQDA
+    if (currentSession.step === 'awaiting_address') {
+        // Foydalanuvchi manzilni yozdi (masalan: "Qoratosh 52 11" yoki "Yunusobod 14-mavze 12-uy")
+        const addr = extractedAddress || text;
+        currentSession.address = addr;
+
+        // Agar xabarda vaqt ham birga berilgan bo'lsa
+        if (extractedTime) {
+            currentSession.booking_time = extractedTime;
+            if (extractedPhone) {
+                currentSession.phone = extractedPhone;
+                return finalizeAndCreateOrder(currentSession);
+            }
+            currentSession.step = 'awaiting_phone';
+            return {
+                reply: `Manzil: ${currentSession.address} qabul qilindi! ✅\nAjoyib! Buyurtmani tasdiqlash uchun telefon raqamingizni yozing: (Masalan: +998 90 123-45-67)`,
+                step: 'awaiting_phone'
+            };
+        }
+
+        // Qoidaga ko'ra: Boshidan salomlashmasdan manzilni tasdiqlab, vaqtni so'raymiz
+        currentSession.step = 'awaiting_time';
+        return {
+            reply: `Manzil: ${currentSession.address} qabul qilindi! ✅ Uskuna / xizmat qaysi kunga va soat nechiga kerak?`,
+            step: 'awaiting_time'
+        };
+    }
+
+    // BOSQICH 1: XIZMAT SO'RALGANDA (Kran, Musor, Gruzchik, Asbob)
+    if (detectedService) {
+        // Barcha parametrlar bitta xabarda kelgan bo'lsa (Smart all-in-one message)
+        const addrInMsg = extractedAddress;
+        const timeInMsg = extractedTime;
+        const phoneInMsg = extractedPhone;
+
+        if (addrInMsg && timeInMsg && phoneInMsg) {
+            currentSession.address = addrInMsg;
+            currentSession.booking_time = timeInMsg;
+            currentSession.phone = phoneInMsg;
+            return finalizeAndCreateOrder(currentSession);
+        }
+
+        if (addrInMsg) {
+            currentSession.address = addrInMsg;
+            currentSession.step = 'awaiting_time';
+            return {
+                reply: `${detectedService.price_quote}\n\nManzil: ${currentSession.address} qabul qilindi! ✅ Uskuna / xizmat qaysi kunga va soat nechiga kerak?`,
+                step: 'awaiting_time'
+            };
+        }
+
+        // Standart 1-bosqich: Narxini aytadi va manzilni so'raydi
+        currentSession.step = 'awaiting_address';
+        return {
+            reply: `${detectedService.price_quote}\n\nManzilingizni yozing (ko'cha, uy raqami)?`,
+            step: 'awaiting_address'
+        };
+    }
+
+    // Salomlashish yoki umumiy savollar
+    const isGreeting = lower === 'salom' || lower.startsWith('salom') || lower.startsWith('assalom') || 
+                       lower.includes('privet') || lower.includes('привет') || lower.includes('здравствуй');
+
+    if (isGreeting || currentSession.step === 'init') {
+        return {
+            reply: `Assalomu alaykum! WMS Arenda xizmatiga xush kelibsiz!\n\nBizning asosiy xizmatlarimiz:\n1. 🏗 **Avtokran xizmati** (16t, 25t, 50t);\n2. 🚛 **Qurilish chiqindilarini (musor) olib ketish**;\n3. 👷‍♂️ **Yuk ko'taruvchilar (Gruzchik) xizmati**;\n4. 🛠 **Qurilish asboblari ijarasi** (Perforator, Otboynik, Generator, Svarka va boshqalar).\n\nSizga qaysi xizmat yoki uskuna kerak?`,
+            step: 'init'
+        };
+    }
+
+    return {
+        reply: `Qaysi xizmat yoki uskuna kerakligini aytsangiz (masalan: "Kran kerak", "Musor olib ketish", "Perforator bormi?"), darhol narxini hisoblab, buyurtmangizni rasmiylashtirib beraman!`,
+        step: 'init'
+    };
+}
+
+// -------------------------------------------------------------------------
+// 5. ADMIN HISOBOTI ISHLOVCHISI (/admin 7788)
+// -------------------------------------------------------------------------
+function handleAdminStatsReport(text, role, adminPin) {
+    const savedPin = (typeof DB !== 'undefined' && DB.ai_settings?.admin_pin) || '7788';
+    const isPinCorrect = text.includes('7788') || text.includes(savedPin) || adminPin === savedPin || (role === 'admin');
+
+    if (!isPinCorrect) {
+        return {
+            reply: "🔒 Ushbu moliyaviy hisobot faqat Bosh Admin uchun ochiq. Iltimos, PIN kodni kiriting (Masalan: /admin 7788).",
+            function_called: "get_admin_daily_stats"
+        };
+    }
+
+    chatSimulatorRole = 'admin';
+    const orders = (typeof DB !== 'undefined' && DB.orders) ? DB.orders : [];
+    const payments = (typeof DB !== 'undefined' && DB.order_payments) ? DB.order_payments : [];
+    const items = (typeof DB !== 'undefined' && DB.product_items) ? DB.product_items : [];
+    const expenses = (typeof DB !== 'undefined' && DB.expenses) ? DB.expenses : [];
+
     let todayRentIncome = 0;
     let todayDeposits = 0;
     payments.forEach(p => {
-        if (p.payment_type === 'ijara_haqi' || p.payment_type === 'jarima_ushlandi') {
-            todayRentIncome += (p.amount || 0);
-        } else if (p.payment_type === 'zalog_olindi') {
-            todayDeposits += (p.amount || 0);
-        }
+        if (p.payment_type === 'ijara_haqi') todayRentIncome += (p.amount || 0);
+        else if (p.payment_type === 'zalog_olindi') todayDeposits += (p.amount || 0);
     });
 
     if (todayRentIncome === 0 && orders.length > 0) {
@@ -237,627 +645,62 @@ function tool_get_admin_daily_stats(admin_pin = '') {
         todayDeposits = orders.slice(0, 3).reduce((acc, o) => acc + (o.total_deposit_amount || 0), 0);
     }
 
-    // Delayed tools
-    const delayedOrders = orders.filter(o => {
-        if (o.status === 'kechikkan') return true;
-        if (o.status === 'faol_ijarada' && o.expected_return_date) {
-            return new Date(o.expected_return_date) < now;
-        }
-        return false;
-    });
-
-    const delayedList = delayedOrders.map(o => {
-        const cust = (DB.customers || []).find(c => c.id === o.customer_id);
-        const tools = (DB.order_tool_items || []).filter(t => t.order_id === o.id);
-        return {
-            order_number: o.order_number,
-            customer: cust ? cust.full_name : 'Mijoz',
-            phone: cust ? cust.phone_primary : '-',
-            tools: tools.map(t => t.model_name).join(', ') || 'Uskuna',
-            due_date: o.expected_return_date
-        };
-    });
-
-    // Total expenses & profit
+    const delayedOrders = orders.filter(o => o.status === 'kechikkan');
     const totalExpenses = expenses.reduce((acc, e) => acc + (e.amount || 0), 0);
     let totalRevenue = orders.reduce((acc, o) => acc + (o.paid_amount || 0), 0);
-    (DB.service_orders || []).forEach(s => { totalRevenue += (s.net_profit || 0); });
     const netProfit = Math.max(0, totalRevenue - totalExpenses);
 
+    const timeStr = new Date().toLocaleString('uz-UZ');
+
     return {
-        authorized: true,
-        report_time: new Date().toLocaleString('uz-UZ'),
-        today_income: todayRentIncome,
-        today_deposits: todayDeposits,
-        total_delayed_orders_count: delayedOrders.length,
-        delayed_orders: delayedList,
-        monthly_net_profit: netProfit,
-        total_expenses: totalExpenses,
-        inventory_summary: {
-            total_tools: items.length,
-            available: items.filter(i => i.status === 'omborda_bosh').length,
-            in_rent: items.filter(i => i.status === 'ijarada').length,
-            in_repair: items.filter(i => i.status === 'remontda' || i.status === 'brak_brak').length
-        }
+        reply: `🔒 **Bosh Admin Rejimi Faol!**\n\n📊 **Bugungi Kassa va Biznes Hisoboti (${timeStr}):**\n• Bugungi sof tushum: **${todayRentIncome.toLocaleString()} so'm**\n• Olingan garov (zalog): **${todayDeposits.toLocaleString()} so'm**\n• Oylik toza foyda: **${netProfit.toLocaleString()} so'm**\n• Kechikkan buyurtmalar soni: **${delayedOrders.length} ta**\n\n📦 **Ombor qoldig'i:** Jami: ${items.length} ta (Bo'sh: ${items.filter(i => i.status === 'omborda_bosh').length} ta, Ijarada: ${items.filter(i => i.status === 'ijarada').length} ta)`,
+        function_called: "get_admin_daily_stats"
     };
 }
 
-
 // -------------------------------------------------------------------------
-// 2. INTELLIGENT AI AGENT PROCESSING ENGINE & PROVIDER DISPATCHER
+// 6. PROCESS USER MESSAGE DISPATCHER (UI / API)
 // -------------------------------------------------------------------------
-
 async function processUserMessage(rawMessage, role = 'customer', adminPin = '') {
     const text = (rawMessage || '').trim();
     if (!text) return { reply: "Iltimos, xabaringizni yozing.", function_called: null };
 
-    const settings = DB.ai_settings || {};
-    if (!settings.is_enabled) {
-        return {
-            reply: "AI Yordamchi tizimi hozirda vaqtincha o'chirilgan. Iltimos, sozlamalardan yoqing.",
-            function_called: null
-        };
-    }
+    // Stateful Conversation Engine orqali qayta ishlash
+    const result = processStatefulConversation(text, role, adminPin);
 
-    const provider = settings.provider || 'builtin';
-    const apiKey = settings.api_key || '';
+    // Xabarlar tarixiga qo'shish
+    chatHistory.push({ sender: 'user', content: text, timestamp: new Date() });
+    chatHistory.push({ sender: 'assistant', content: result.reply, timestamp: new Date() });
 
-    // Check if user is authenticating as Admin: e.g. "/admin 7788" or "admin 7788"
-    if (text.toLowerCase().startsWith('/admin') || text.toLowerCase().startsWith('admin ')) {
-        const parts = text.split(/\s+/);
-        const pin = parts[1] || '';
-        const stats = tool_get_admin_daily_stats(pin);
-        if (stats.authorized) {
-            chatSimulatorRole = 'admin';
-            return {
-                reply: `🔒 **Admin rejimi faollashtirildi!**\n\n📊 **Bugungi Kassa va Biznes Hisoboti (${stats.report_time || new Date().toLocaleString()}):**\n• Bugungi sof tushum: **${stats.today_income.toLocaleString()} so'm**\n• Olingan garov (zalog): **${stats.today_deposits.toLocaleString()} so'm**\n• Oylik toza foyda (P&L): **${stats.monthly_net_profit.toLocaleString()} so'm**\n• Kechikkan buyurtmalar soni: **${stats.total_delayed_orders_count} ta**\n\n📦 **Ombor holati:** Jami: ${stats.inventory_summary.total_tools} ta (Bo'sh: ${stats.inventory_summary.available}, Ijarada: ${stats.inventory_summary.in_rent}, Ta'mirda: ${stats.inventory_summary.in_repair})`,
-                function_called: "get_admin_daily_stats",
-                function_result: stats
-            };
-        } else {
-            return {
-                reply: `⚠️ PIN kod noto'g'ri kiritildi! Iltimos, Bosh Admin PIN kodini tekshiring (Standart: 7788).`,
-                function_called: "get_admin_daily_stats",
-                function_result: stats
-            };
-        }
-    }
-
-    // 1. If provider is builtin or default, prioritize the 100% offline standalone engine or local backend
-    if (provider === 'builtin' || (!apiKey && provider !== 'groq' && provider !== 'gemini')) {
-        try {
-            const chatReq = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: text,
-                    role: role,
-                    admin_pin: adminPin,
-                    provider: 'builtin',
-                    messages: chatHistory.map(m => ({ role: m.sender === 'user' ? 'user' : 'model', text: m.content || m.text }))
-                })
-            });
-
-            if (chatReq.ok) {
-                const data = await chatReq.json();
-                if (data.reply) {
-                    return {
-                        reply: data.reply,
-                        live_llm: false,
-                        provider: 'builtin',
-                        model: 'builtin-nlp',
-                        need_api_key: false,
-                        function_called: data.function_called || null,
-                        function_result: data.function_result || null
-                    };
-                }
-            }
-        } catch (backendErr) {
-            // Local fallback
-        }
-        return runIntelligentRuleEngine(text, role, adminPin);
-    }
-
-    // 2. Try Live LLM (Groq / Gemini) via backend /api/chat endpoint
-    try {
-        const chatReq = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: text,
-                role: role,
-                admin_pin: adminPin,
-                provider: settings.provider || (apiKey.startsWith('gsk_') ? 'groq' : 'gemini'),
-                model: settings.model_name || undefined,
-                api_key: apiKey || undefined,
-                messages: chatHistory.map(m => ({ role: m.sender === 'user' ? 'user' : 'model', text: m.content || m.text }))
-            })
-        });
-
-        if (chatReq.ok) {
-            const data = await chatReq.json();
-            if (data.reply) {
-                return {
-                    reply: data.reply,
-                    live_llm: !!data.live_llm,
-                    provider: data.provider || settings.provider || 'groq',
-                    model: data.model || settings.model_name || 'llama-3.3-70b-versatile',
-                    need_api_key: !!data.need_api_key,
-                    function_called: data.function_called || null,
-                    function_result: data.function_result || null
-                };
-            }
-        }
-    } catch (backendErr) {
-        console.warn("Backend /api/chat ga ulanishda xatolik, lokal qatlamga o'tilmoqda:", backendErr);
-    }
-
-    // 3. Direct browser LLM call if API key is provided
-    if (apiKey) {
-        if (settings.provider === 'groq' || apiKey.startsWith('gsk_')) {
-            try {
-                return await callGroqLLM(text, settings, role, adminPin);
-            } catch (e) {
-                console.warn("Brauzerdan to'g'ridan-to'g'ri Groq chaqiruvi muvaffaqiyatsiz bo'ldi:", e);
-            }
-        } else {
-            try {
-                return await callGeminiLLM(text, settings, role, adminPin);
-            } catch (e) {
-                console.warn("Brauzerdan to'g'ridan-to'g'ri Gemini chaqiruvi muvaffaqiyatsiz bo'ldi:", e);
-            }
-        }
-    }
-
-    // 4. Built-in Intelligent Function Calling Fallback Engine
-    return runIntelligentRuleEngine(text, role, adminPin);
-}
-
-// Built-in Smart Natural Language Processing Engine (100% Offline / Standalone)
-function runIntelligentRuleEngine(text, role, adminPin) {
-    const raw = (text || '').trim();
-    const lower = raw.toLowerCase();
-
-    // Language detection: Uzbek vs Russian
-    const isRussian = /[а-яё]/i.test(raw) && (
-        lower.includes('привет') || lower.includes('здравствуй') || lower.includes('добр') ||
-        lower.includes('кран') || lower.includes('мусор') || lower.includes('грузчик') ||
-        lower.includes('инструмент') || lower.includes('аренд') || lower.includes('касс') ||
-        lower.includes('сколько') || lower.includes('цена') || lower.includes('отчет') ||
-        lower.includes('заказ') || lower.includes('наличи') || lower.includes('сумма') ||
-        lower.includes('доставк') || lower.includes('перфоратор') || lower.includes('болгарк')
-    );
-
-    // 1. Admin Commands & Financial Reporting
-    const isAdminIntent = role === 'admin' || lower.includes('/admin') || lower.startsWith('admin') ||
-        lower.includes('kassa') || lower.includes('hisobot') || lower.includes('foyda') || 
-        lower.includes('tushum') || lower.includes('kechikkan') ||
-        lower.includes('касса') || lower.includes('отчет') || lower.includes('прибыль') || lower.includes('выручка');
-
-    if (isAdminIntent) {
-        const stats = tool_get_admin_daily_stats(adminPin);
-        if (stats.authorized || lower.includes('7788')) {
-            const timeStr = stats.report_time || new Date().toLocaleString();
-            if (isRussian) {
-                let reply = `📊 **Отчет Главного Администратора (${timeStr}):**\n\n`;
-                reply += `• **Выручка кассы за сегодня:** ${(stats.today_income || 1450000).toLocaleString()} сум\n`;
-                reply += `• **Удерживаемые залоги:** ${(stats.today_deposits || 1100000).toLocaleString()} сум\n`;
-                reply += `• **Чистая прибыль за месяц:** ${(stats.monthly_net_profit || 18200000).toLocaleString()} сум\n`;
-                reply += `• **Просроченные заказы:** ${stats.total_delayed_orders_count || 0} шт.\n`;
-                if (stats.delayed_orders && stats.delayed_orders.length > 0) {
-                    reply += `\n**Список должников:**\n`;
-                    stats.delayed_orders.forEach(d => {
-                        reply += `• ${d.customer} (${d.phone}) — ${d.tools} (Срок: ${d.due_date})\n`;
-                    });
-                } else {
-                    reply += `\n✅ Все инструменты возвращаются в срок!`;
-                }
-                return { reply, function_called: "get_admin_daily_stats", function_result: stats };
-            } else {
-                let reply = `📊 **Bosh Admin Uchun Jonli Hisobot (${timeStr}):**\n\n`;
-                reply += `• **Bugungi kassa tushumi:** ${(stats.today_income || 1450000).toLocaleString()} so'm\n`;
-                reply += `• **Saqlanayotgan zaloglar:** ${(stats.today_deposits || 1100000).toLocaleString()} so'm\n`;
-                reply += `• **Shu oylik Toza Foyda:** ${(stats.monthly_net_profit || 18200000).toLocaleString()} so'm\n`;
-                reply += `• **Kechikkan buyurtmalar:** ${stats.total_delayed_orders_count || 0} ta\n`;
-                if (stats.delayed_orders && stats.delayed_orders.length > 0) {
-                    reply += `\n**Kechikayotgan mijozlar ro'yxati:**\n`;
-                    stats.delayed_orders.forEach(d => {
-                        reply += `• ${d.customer} (${d.phone}) — ${d.tools} (Muddati: ${d.due_date})\n`;
-                    });
-                } else {
-                    reply += `\n✅ Barcha uskunalar o'z vaqtida qaytarilmoqda!`;
-                }
-                return { reply, function_called: "get_admin_daily_stats", function_result: stats };
-            }
-        } else {
-            if (isRussian) {
-                return {
-                    reply: "🔒 Финансовый отчет доступен только Администратору. Пожалуйста, введите секретный PIN-код: `/admin [PIN]` (например: `/admin 7788`).",
-                    function_called: "get_admin_daily_stats"
-                };
-            } else {
-                return {
-                    reply: "🔒 Ushbu moliyaviy hisobot faqat Kompaniya Admini uchun ochiq. Iltimos, parolingizni kiriting: `/admin [PIN]` (Masalan: `/admin 7788`).",
-                    function_called: "get_admin_daily_stats"
-                };
-            }
-        }
-    }
-
-    // 2. Order Booking (if customer gives phone number)
-    const hasPhone = /(\+?998\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2})|(\b\d{9}\b)/.test(text);
-    if (hasPhone || (lower.includes('zakaz') || lower.includes('buyurtma') || lower.includes('заказ')) && (lower.includes('+998') || lower.includes('90') || lower.includes('91') || lower.includes('93') || lower.includes('94') || lower.includes('95') || lower.includes('97') || lower.includes('98') || lower.includes('99'))) {
-        const phoneMatch = text.match(/(\+?998\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2})|(\b\d{9}\b)/);
-        const phone = phoneMatch ? phoneMatch[0] : "+998 90 123-45-67";
-        let name = "Mijoz";
-        const nameMatch = text.match(/(ismim|men|меня зовут|имя)\s+([A-ZА-Яa-zа-яO'o'G'g']+)/i);
-        if (nameMatch && nameMatch[2]) name = nameMatch[2];
-
-        const orderResult = tool_create_incoming_order({ name: name, phone: phone }, text, "Toshkent shahri", "Bugun / Ertaga");
-        if (isRussian) {
-            return {
-                reply: `✅ **Ваш заказ успешно принят!**\n\n• **Номер заказа:** #${orderResult.order_number}\n• **Клиент:** ${orderResult.customer_name}\n• **Телефон:** ${orderResult.customer_phone}\n• **Детали:** ${text}\n\nНаш оператор свяжется с вами в течение 5 минут для подтверждения времени доставки или выдачи со склада. Спасибо за выбор WMS Arenda!`,
-                function_called: "create_incoming_order",
-                function_result: orderResult
-            };
-        } else {
-            return {
-                reply: `✅ **Buyurtmangiz muvaffaqiyatli qabul qilindi!**\n\n• **Buyurtma raqami:** #${orderResult.order_number}\n• **Mijoz:** ${orderResult.customer_name}\n• **Telefon:** ${orderResult.customer_phone}\n• **Tafsilot:** ${text}\n\nOperatorimiz 5 daqiqa ichida siz bilan bog'lanib, yetkazib berish yoki ombordan olib ketish vaqtini tasdiqlaydi. Tashakkur!`,
-                function_called: "create_incoming_order",
-                function_result: orderResult
-            };
-        }
-    }
-
-    // 3. Greetings & Salutation
-    const isGreeting = lower === 'salom' || lower.startsWith('salom ') || lower.startsWith('assalom') ||
-        lower.includes('qalaysiz') || lower.includes('yaxshimisiz') || lower.includes('privet') ||
-        lower === 'привет' || lower.startsWith('привет ') || lower.includes('здравствуй') || lower.includes('добрый день');
-
-    const hasSpecificService = lower.includes('kran') || lower.includes('кран') ||
-        lower.includes('musor') || lower.includes('мусор') || lower.includes('chiqindi') || lower.includes('axlat') ||
-        lower.includes('gruzchik') || lower.includes('грузчик') || lower.includes('etaj') || lower.includes('perforator') ||
-        lower.includes('generator') || lower.includes('bolgarka') || lower.includes('otboynik') || lower.includes('svarka') ||
-        lower.includes('asbob') || lower.includes('instrument') || lower.includes('narx') || lower.includes('цена');
-
-    if (isGreeting && !hasSpecificService) {
-        if (isRussian) {
-            return {
-                reply: "Здравствуйте! Добро пожаловать в сервис WMS Arenda! Какой инструмент или услуга (кран, вывоз мусора, грузчики) вам нужны?",
-                function_called: null
-            };
-        } else {
-            return {
-                reply: "Assalomu alaykum! WMS Arenda xizmatiga xush kelibsiz! Sizga qanday asbob yoki xizmat (kran, musor, gruzchik) kerak?",
-                function_called: null
-            };
-        }
-    }
-
-    // 4. Musor (Chiqindi) xizmati bo'yicha:
-    if (lower.includes('musor') || lower.includes('chiqindi') || lower.includes('axlat') || lower.includes('мусор')) {
-        if (isRussian) {
-            return {
-                reply: "Стоимость вывоза строительного мусора по объемам: Газель (до 1.5т) — 400 000 сум, ЗИЛ (5т) — 800 000 сум. Если в мешках — от 12 000 сум за мешок. По какому адресу находится мусор и какой у вас примерный объем?",
-                function_called: "get_service_price",
-                function_result: { service: "musor_olib_ketish" }
-            };
-        } else {
-            return {
-                reply: "Chiqindilarni olib ketish narxlari hajmi bo'yicha: Gazel (1.5t gacha) — 400 000 so'm, ZIL (5t) — 800 000 so'm. Agar qoplarda bo'lsa — donasi 12 000 so'mdan. Sizda chiqindi qaysi manzilda va taxminan qancha hajmda?",
-                function_called: "get_service_price",
-                function_result: { service: "musor_olib_ketish" }
-            };
-        }
-    }
-
-    // 5. Kran xizmati bo'yicha:
-    if (lower.includes('kran') || lower.includes('avtokran') || lower.includes('кран') || lower.includes('автокран')) {
-        if (isRussian) {
-            return {
-                reply: "Услуги автокрана: 16-тонный кран — 300 000 сум/час (минимальный заказ 2 часа), 25-тонный кран — 350 000 сум/час (минимальный заказ 3 часа). Какой груз необходимо поднять и по какому адресу требуется техника?",
-                function_called: "get_service_price",
-                function_result: { service: "kran" }
-            };
-        } else {
-            return {
-                reply: "Avtokran xizmati bo'yicha: 16 tonnalik kran soatiga 300 000 so'm (minimal 2 soat), 25 tonnalik kran soatiga 350 000 so'm (minimal 3 soat). Sizga qanday yukni ko'tarish uchun va qaysi manzilga kerak?",
-                function_called: "get_service_price",
-                function_result: { service: "kran" }
-            };
-        }
-    }
-
-    // 6. Gruzchik xizmati bo'yicha:
-    if (lower.includes('gruzchik') || lower.includes('ishchi') || lower.includes('ko\'tarish') || lower.includes('yukchi') || lower.includes('etaj') || lower.includes('грузчик') || lower.includes('подъем') || lower.includes('этаж')) {
-        if (isRussian) {
-            return {
-                reply: "Услуги грузчиков (подъем и переноска грузов): 1 мешок за 1 этаж — 3 000 сум (при наличии лифта — 1 500 сум). Почасовая оплата — 50 000 сум/час за 1 человека. Какой у вас груз, какой этаж и есть ли рабочий лифт?",
-                function_called: "get_service_price",
-                function_result: { service: "gruzchik" }
-            };
-        } else {
-            return {
-                reply: "Yuk ko'taruvchilar (gruzchik) xizmati: 1 qop uchun 1 qavatga 3 000 so'm (lift bo'lsa 1 500 so'm). Soatbay ish bo'lsa 1 kishi uchun 50 000 so'm/soat. Sizda qanday yuk, nechanchi etaj va lift bormi?",
-                function_called: "get_service_price",
-                function_result: { service: "gruzchik" }
-            };
-        }
-    }
-
-    // 7. Asboblar ijarasi bo'yicha (Live Warehouse DB lookup)
-    const toolKeywords = ['perforator', 'bolgarka', 'otboynik', 'drel', 'generator', 'svarka', 'payvandlash', 'pila', 'vibroplita', 'kompressor', 'bosch', 'makita', 'resanta', 'honda', 'asbob', 'uskuna', 'narx', 'zalog', 'ijara', 'инструмент', 'перфоратор', 'болгарка', 'отбойник', 'сварка', 'генератор'];
-    const hasToolWord = toolKeywords.some(kw => lower.includes(kw));
-
-    if (hasToolWord || lower.includes('bormi') || lower.includes('qancha') || lower.includes('bor') || lower.includes('necha') || lower.includes('наличи') || lower.includes('цена') || lower.includes('аренд')) {
-        let searchedTool = text.replace(/(bormi|kerak|qancha|narxi|ijaraga|berasizmi|salom|assalomu|alaykum|kunlik|zalog|есть|ли|цена|стоимость|арендовать)/gi, '').trim();
-        if (!searchedTool) searchedTool = "perforator";
-
-        const toolInfo = tool_check_tool_availability(searchedTool);
-
-        if (toolInfo.found) {
-            let reply = '';
-            if (toolInfo.is_available) {
-                if (isRussian) {
-                    reply = `Да, в данный момент на нашем складе есть **${toolInfo.model_name} (${toolInfo.brand})** (доступно ${toolInfo.available_count} шт.). 1 день аренды: **${toolInfo.daily_price.toLocaleString()} сум**, сумма залога: **${toolInfo.deposit_amount.toLocaleString()} сум**. На сколько дней вы хотите арендовать?`;
-                } else {
-                    reply = `Ha, hozirda omborimizda **${toolInfo.model_name} (${toolInfo.brand})** mavjud (${toolInfo.available_count} ta tayyor). 1 kunlik ijarasi **${toolInfo.daily_price.toLocaleString()} so'm**, zalog summasi **${toolInfo.deposit_amount.toLocaleString()} so'm**. Necha kunga olmoqchisiz?`;
-                }
-            } else {
-                if (isRussian) {
-                    reply = `К сожалению, в данный момент все инструменты **${toolInfo.model_name}** находятся в аренде (${toolInfo.in_rent_count} шт. занято). Мы можем предложить вам другие аналогичные модели из нашего каталога.`;
-                } else {
-                    reply = `Afsuski, hozirda barcha **${toolInfo.model_name}** asboblarimiz ijarada (${toolInfo.in_rent_count} ta band). Lekin tez orada qaytadi yoki boshqa o'xshash modellarni taklif qilishimiz mumkin.`;
-                }
-            }
-            return {
-                reply: reply,
-                function_called: "check_tool_availability",
-                function_result: toolInfo
-            };
-        } else {
-            let reply = '';
-            if (isRussian) {
-                reply = `Инструмент "${searchedTool}" не найден в каталоге. Сейчас на нашем складе доступны:\n`;
-                (toolInfo.available_alternatives || []).slice(0, 3).forEach(alt => {
-                    reply += `• **${alt.name}** — ${alt.daily_price.toLocaleString()} сум/день (Залог: ${alt.deposit.toLocaleString()} сум)\n`;
-                });
-                reply += `\nКакой инструмент вас интересует?`;
-            } else {
-                reply = `${toolInfo.message}\n\nHozirda omborimizda tayyor turgan asboblar:\n`;
-                (toolInfo.available_alternatives || []).slice(0, 3).forEach(alt => {
-                    reply += `• **${alt.name}** — ${alt.daily_price.toLocaleString()} so'm/kun (Zalog: ${alt.deposit.toLocaleString()} so'm)\n`;
-                });
-                reply += `\nQaysi birini ko'rib chiqishni xohlaysiz?`;
-            }
-            return {
-                reply: reply,
-                function_called: "check_tool_availability",
-                function_result: toolInfo
-            };
-        }
-    }
-
-    // Default polite conversational fallback
-    if (isRussian) {
-        return {
-            reply: `Здравствуйте! Добро пожаловать в сервис WMS Arenda!\n\nМы предлагаем:\n1. Аренда строительных инструментов (перфораторы, болгарки, генераторы, сварка);\n2. Услуги автокрана (16т, 25т, 50т);\n3. Вывоз строительного мусора (Газель, ЗИЛ, в мешках);\n4. Услуги грузчиков (почасово и поэтажно).\n\nКакой инструмент или услуга вам требуются?`,
-            function_called: null
-        };
-    } else {
-        return {
-            reply: `Assalomu alaykum! WMS Arenda xizmatiga xush kelibsiz!\n\nBiz quyidagi xizmatlarni taqdim etamiz:\n1. Qurilish asboblari ijarasi (perforator, bolgarka, generator, svarka);\n2. Avtokran xizmati (16t, 25t, 50t);\n3. Qurilish chiqindilarini (musor) olib ketish;\n4. Yuk ko'taruvchilar (gruzchik) xizmati.\n\nSizga qaysi asbob yoki xizmat kerak?`,
-            function_called: null
-        };
-    }
+    return result;
 }
 
 // -------------------------------------------------------------------------
-// 3. EXTERNAL API IMPLEMENTATIONS (GEMINI & OPENAI WITH FUNCTION CALLING)
-// -------------------------------------------------------------------------
-async function callGeminiLLM(userPrompt, settings, role, adminPin) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${settings.model_name || 'gemini-1.5-flash'}:generateContent?key=${settings.api_key}`;
-
-    const toolsDeclaration = [
-        {
-            function_declarations: [
-                {
-                    name: "check_tool_availability",
-                    description: "Omborda qidirilgan asbob bo'sh bormi, kunlik narxi va zalogi qancha ekanligini tekshiradi.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {
-                            tool_name: { type: "STRING", description: "Asbob nomi yoki modeli (masalan: perforator, bosch, generator)" }
-                        },
-                        required: ["tool_name"]
-                    }
-                },
-                {
-                    name: "get_service_price",
-                    description: "Kran, Musor yoki Gruzchik xizmatlari narxini hisoblaydi.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {
-                            service_type: { type: "STRING", description: "'kran', 'musor_olib_ketish' yoki 'gruzchik'" },
-                            details: { type: "STRING", description: "Qo'shimcha tafsilotlar (qavat, reys, tonna)" }
-                        },
-                        required: ["service_type"]
-                    }
-                },
-                {
-                    name: "create_incoming_order",
-                    description: "Mijoz ma'lumotlarini qabul qilib yangi buyurtma yaratadi.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {
-                            customer_name: { type: "STRING" },
-                            customer_phone: { type: "STRING" },
-                            items: { type: "STRING" },
-                            delivery_address: { type: "STRING" }
-                        },
-                        required: ["customer_name", "customer_phone"]
-                    }
-                },
-                {
-                    name: "get_admin_daily_stats",
-                    description: "Admin uchun kunlik kassa, toza foyda va kechikkan asboblar hisobotini qaytaradi.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {
-                            admin_pin: { type: "STRING", description: "Admin maxfiy PIN kodi" }
-                        }
-                    }
-                }
-            ]
-        }
-    ];
-
-    const body = {
-        contents: [
-            {
-                role: "user",
-                parts: [{ text: `${settings.system_prompt}\nFoydalanuvchi xabari: ${userPrompt}` }]
-            }
-        ],
-        tools: toolsDeclaration
-    };
-
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-
-    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
-    const data = await res.json();
-    const candidate = data.candidates?.[0]?.content?.parts?.[0];
-
-    if (candidate?.functionCall) {
-        const fnName = candidate.functionCall.name;
-        const args = candidate.functionCall.args || {};
-        let fnResult = null;
-
-        if (fnName === 'check_tool_availability') fnResult = tool_check_tool_availability(args.tool_name);
-        else if (fnName === 'get_service_price') fnResult = tool_get_service_price(args.service_type, args.details);
-        else if (fnName === 'create_incoming_order') fnResult = tool_create_incoming_order({ name: args.customer_name, phone: args.customer_phone }, args.items, args.delivery_address, "Ertaga");
-        else if (fnName === 'get_admin_daily_stats') fnResult = tool_get_admin_daily_stats(args.admin_pin || adminPin);
-
-        return {
-            reply: `**[Funksiya bajarildi: ${fnName}]**\n\nNatija: ${JSON.stringify(fnResult, null, 2)}`,
-            function_called: fnName,
-            function_result: fnResult
-        };
-    }
-
-    return {
-        reply: candidate?.text || "Kechirasiz, javob olishda xatolik yuz berdi.",
-        function_called: null
-    };
-}
-
-async function callOpenAILLM(userPrompt, settings, role, adminPin) {
-    const url = `https://api.openai.com/v1/chat/completions`;
-
-    const body = {
-        model: settings.model_name || "gpt-4o-mini",
-        messages: [
-            { role: "system", content: settings.system_prompt },
-            { role: "user", content: userPrompt }
-        ],
-        temperature: 0.7
-    };
-
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${settings.api_key}`
-        },
-        body: JSON.stringify(body)
-    });
-
-    if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}`);
-    const data = await res.json();
-    return {
-        reply: data.choices?.[0]?.message?.content || "Javob olinmadi",
-        function_called: null
-    };
-}
-
-async function callGroqLLM(userPrompt, settings, role, adminPin) {
-    const url = `https://api.groq.cloud/openai/v1/chat/completions`;
-
-    const body = {
-        model: settings.model_name || "llama-3.3-70b-versatile",
-        messages: [
-            { role: "system", content: settings.system_prompt || "Sen WMS ARENDA kompaniyasining professional AI maslahatchisisan." },
-            { role: "user", content: userPrompt }
-        ],
-        temperature: 0.7
-    };
-
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${settings.api_key}`
-        },
-        body: JSON.stringify(body)
-    });
-
-    if (!res.ok) throw new Error(`Groq HTTP ${res.status}`);
-    const data = await res.json();
-    return {
-        reply: data.choices?.[0]?.message?.content || "Javob olinmadi",
-        function_called: null
-    };
-}
-
-// -------------------------------------------------------------------------
-// 4. FOYDALANUVCHI INTERFEYSI (UI) VA SOZLAMALARNI BOSHQARISH
+// 7. UI SOZLAMALARI VA BOSHQARUV TUGMALARI
 // -------------------------------------------------------------------------
 
 function handleAIProviderChange() {
-    const provSelect = document.getElementById('ai-setting-provider');
-    const prov = provSelect ? provSelect.value : 'builtin';
-    const modelInput = document.getElementById('ai-setting-model');
-    const keyInput = document.getElementById('ai-setting-key');
+    const select = document.getElementById('ai-setting-provider');
+    if (!select) return;
+    const val = select.value;
     const label = document.getElementById('ai-setting-key-label');
     const hint = document.getElementById('ai-setting-key-hint');
+    const modelInput = document.getElementById('ai-setting-model');
+    const keyInput = document.getElementById('ai-setting-key');
 
-    if (prov === 'builtin') {
+    if (val === 'builtin') {
         if (modelInput) modelInput.value = 'builtin-nlp';
-        if (keyInput) {
-            keyInput.value = '';
-            keyInput.placeholder = 'Kalit talab qilinmaydi (100% Avtonom & Offline)';
-        }
+        if (keyInput) keyInput.placeholder = 'Kalit talab qilinmaydi (100% Avtonom & Offline)';
         if (label) label.textContent = 'API Kaliti (Talab etilmaydi — 100% Avtonom)';
-        if (hint) hint.innerHTML = `<span class="text-emerald-400 font-semibold">100% Avtonom & Offline:</span> Ichki aqlli dvigatel bepul ishlaydi, hech qanday kalit yoki hisob talab qilinmaydi.`;
-    } else if (prov === 'groq') {
-        if (modelInput) modelInput.value = 'llama-3.3-70b-versatile';
-        if (keyInput) keyInput.placeholder = 'gsk_... kalitini kiriting';
-        if (label) label.textContent = 'Groq API Kaliti (gsk_...)';
-        if (hint) hint.innerHTML = `Groq Console (<a href="https://console.groq.com/keys" target="_blank" class="text-amber-400 underline">console.groq.com</a>) dan bepul kalit oling yoki serverda <code class="text-slate-300">GROQ_API_KEY</code> sozlang.`;
-    } else if (prov === 'gemini') {
-        if (modelInput) modelInput.value = 'gemini-1.5-flash';
-        if (keyInput) keyInput.placeholder = 'AIzaSy... (Gemini API kaliti)';
-        if (label) label.textContent = 'Google Gemini API Kaliti';
-        if (hint) hint.innerHTML = `Google AI Studio (<a href="https://aistudio.google.com/" target="_blank" class="text-purple-400 underline">aistudio.google.com</a>) dan kalit oling yoki serverda <code class="text-slate-300">GEMINI_API_KEY</code> sozlang.`;
-    } else if (prov === 'openai') {
-        if (modelInput) modelInput.value = 'gpt-4o-mini';
-        if (keyInput) keyInput.placeholder = 'sk-... (OpenAI API kaliti)';
-        if (label) label.textContent = 'OpenAI API Kaliti';
-        if (hint) hint.innerHTML = `OpenAI Platform (<a href="https://platform.openai.com/api-keys" target="_blank" class="text-emerald-400 underline">platform.openai.com</a>) kaliti.`;
+        if (hint) hint.innerHTML = `<span class="text-emerald-400 font-semibold">100% Avtonom:</span> Ichki dvigatel to'liq offline rejimda ishlaydi.`;
     } else {
-        if (modelInput) modelInput.value = 'builtin-nlp';
-        if (keyInput) keyInput.placeholder = 'Kalit talab qilinmaydi';
-        if (label) label.textContent = 'API Kaliti (Talab etilmaydi)';
-        if (hint) hint.innerHTML = `Ichki aqlli dvigatel offline rejimda ishlaydi.`;
+        if (label) label.textContent = 'API Kaliti';
+        if (hint) hint.innerHTML = `Tanlangan LLM provayderi kalitini kiriting.`;
     }
 }
 
 function renderAISettingsForm() {
-    const s = DB.ai_settings || {};
+    const s = (typeof DB !== 'undefined' && DB.ai_settings) ? DB.ai_settings : {};
 
     const toggle = document.getElementById('ai-setting-enabled');
     const provSelect = document.getElementById('ai-setting-provider');
@@ -884,27 +727,31 @@ function renderAISettingsForm() {
 function saveAISettings(e) {
     if (e) e.preventDefault();
 
-    if (!DB.ai_settings) DB.ai_settings = {};
+    if (typeof DB !== 'undefined') {
+        if (!DB.ai_settings) DB.ai_settings = {};
 
-    DB.ai_settings.is_enabled = document.getElementById('ai-setting-enabled')?.checked ?? true;
-    DB.ai_settings.provider = document.getElementById('ai-setting-provider')?.value || 'builtin';
-    DB.ai_settings.api_key = document.getElementById('ai-setting-key')?.value.trim() || '';
-    DB.ai_settings.model_name = document.getElementById('ai-setting-model')?.value.trim() || 'builtin-nlp';
-    DB.ai_settings.admin_pin = document.getElementById('ai-setting-pin')?.value.trim() || '7788';
-    DB.ai_settings.welcome_message = document.getElementById('ai-setting-welcome')?.value.trim() || '';
-    DB.ai_settings.system_prompt = document.getElementById('ai-setting-prompt')?.value.trim() || '';
+        DB.ai_settings.is_enabled = document.getElementById('ai-setting-enabled')?.checked ?? true;
+        DB.ai_settings.provider = document.getElementById('ai-setting-provider')?.value || 'builtin';
+        DB.ai_settings.api_key = document.getElementById('ai-setting-key')?.value.trim() || '';
+        DB.ai_settings.model_name = document.getElementById('ai-setting-model')?.value.trim() || 'builtin-nlp';
+        DB.ai_settings.admin_pin = document.getElementById('ai-setting-pin')?.value.trim() || '7788';
+        DB.ai_settings.welcome_message = document.getElementById('ai-setting-welcome')?.value.trim() || '';
+        DB.ai_settings.system_prompt = document.getElementById('ai-setting-prompt')?.value.trim() || '';
 
-    saveDB();
-    updateAIStatusBadge();
-    showNotification("AI Yordamchi sozlamalari muvaffaqiyatli saqlandi!", "success");
+        if (typeof saveDB === 'function') saveDB();
+        updateAIStatusBadge();
+        if (typeof showNotification === 'function') {
+            showNotification("AI Yordamchi sozlamalari muvaffaqiyatli saqlandi!", "success");
+        }
+    }
 }
 
 function updateAIStatusBadge() {
-    const s = DB.ai_settings || {};
+    const s = (typeof DB !== 'undefined' && DB.ai_settings) ? DB.ai_settings : {};
     const badge = document.getElementById('ai-global-status-badge');
     if (!badge) return;
 
-    if (s.is_enabled) {
+    if (s.is_enabled !== false) {
         badge.className = "px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold text-[10px] flex items-center gap-1.5";
         badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> <span>AI Agent Faol (24/7)</span>`;
     } else {
@@ -913,9 +760,8 @@ function updateAIStatusBadge() {
     }
 }
 
-
 // -------------------------------------------------------------------------
-// 5. AI CHAT SIMULYATORI VA TESTER
+// 8. CHAT SIMULYATORI VA INTERFEYS
 // -------------------------------------------------------------------------
 
 function setChatSimulatorRole(role) {
@@ -950,10 +796,10 @@ async function handleSendAIChatMessage(e) {
 
     input.value = '';
 
-    // Append user message to thread
+    // Foydalanuvchi xabarini ekranga chiqarish
     appendChatMessage('user', text, chatSimulatorRole);
 
-    // Typing placeholder
+    // Kutilmoqda animatsiyasi
     const typingId = appendTypingIndicator();
 
     try {
@@ -980,7 +826,7 @@ function appendChatMessage(sender, content, role = 'customer', functionCalled = 
         msgDiv.innerHTML = `
             <div class="max-w-[80%] rounded-2xl rounded-tr-none bg-blue-600 p-3 text-white shadow-md">
                 <div class="flex items-center justify-between gap-3 text-[10px] text-blue-200 mb-1 border-b border-blue-500/40 pb-0.5">
-                    <span>${role === 'admin' ? ' Bosh Admin' : ' Mijoz'}</span>
+                    <span>${role === 'admin' ? '👤 Bosh Admin' : '👤 Mijoz'}</span>
                     <span>${timeStr}</span>
                 </div>
                 <div class="leading-relaxed whitespace-pre-wrap">${escapeHtml(content)}</div>
@@ -994,26 +840,20 @@ function appendChatMessage(sender, content, role = 'customer', functionCalled = 
             functionBadgeHtml = `
                 <div class="mb-2 p-2 rounded-xl bg-slate-950 border border-blue-500/30 text-[10px] font-mono text-blue-300">
                     <div class="flex items-center justify-between font-bold text-blue-400">
-                        <span>Funksiya bajarildi: ${functionCalled}()</span>
+                        <span>⚙️ Funksiya bajarildi: ${functionCalled}()</span>
                         <span class="text-emerald-400">STATUS: OK</span>
                     </div>
-                    ${functionResult ? `
-                        <details class="mt-1 text-slate-400">
-                            <summary class="cursor-pointer text-[9px] hover:text-white">Qaytarilgan ma'lumotlar (JSON)</summary>
-                            <pre class="mt-1 text-[9px] text-slate-300 overflow-x-auto bg-slate-900 p-1.5 rounded">${JSON.stringify(functionResult, null, 2)}</pre>
-                        </details>
-                    ` : ''}
                 </div>
             `;
         }
 
         msgDiv.innerHTML = `
             <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shrink-0 shadow-md">
-                
+                🤖
             </div>
             <div class="max-w-[85%] rounded-2xl rounded-tl-none bg-slate-900 border border-slate-800 p-3.5 text-slate-200 shadow-md space-y-1">
                 <div class="flex items-center justify-between text-[10px] text-slate-400 border-b border-slate-800 pb-1">
-                    <span class="font-bold text-indigo-400">WMS AI Agent 24/7</span>
+                    <span class="font-bold text-indigo-400">WMS AI Agent 24/7 (Kontekstli)</span>
                     <span>${timeStr}</span>
                 </div>
                 ${functionBadgeHtml}
@@ -1024,7 +864,9 @@ function appendChatMessage(sender, content, role = 'customer', functionCalled = 
 
     container.appendChild(msgDiv);
     container.scrollTop = container.scrollHeight;
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
+    }
 }
 
 function appendTypingIndicator() {
@@ -1036,12 +878,12 @@ function appendTypingIndicator() {
     div.id = id;
     div.className = "flex justify-start gap-2.5 text-xs";
     div.innerHTML = `
-        <div class="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-white shrink-0"></div>
+        <div class="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-white shrink-0">🤖</div>
         <div class="p-3 rounded-2xl rounded-tl-none bg-slate-900 border border-slate-800 text-slate-400 flex items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"></span>
             <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce delay-100"></span>
             <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce delay-200"></span>
-            <span class="text-[11px] ml-1">AI ombor ma'lumotlarini tekshirmoqda...</span>
+            <span class="text-[11px] ml-1">AI xabaringizni qayta ishlamoqda...</span>
         </div>
     `;
     container.appendChild(div);
@@ -1056,14 +898,16 @@ function removeTypingIndicator(id) {
 }
 
 function clearChatHistory() {
+    chatHistory = [];
+    resetSession();
     const container = document.getElementById('ai-chat-messages-container');
     if (container) {
         container.innerHTML = `
             <div class="p-4 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 text-xs text-indigo-300 leading-relaxed">
                 <div class="font-bold flex items-center gap-1.5 mb-1 text-white">
-                    <span> WMS Arenda AI Yordamchisiga xush kelibsiz!</span>
+                    <span>👋 WMS Arenda AI Yordamchisiga xush kelibsiz!</span>
                 </div>
-                <p>${DB.ai_settings?.welcome_message || "Men asboblar qoldig'i, narxlar va kassa hisobotlari bo'yicha 24/7 yordam beraman."}</p>
+                <p>Men muloqot kontekstini eslab qoluvchi va to'g'ridan-to'g'ri buyurtma rasmiylashtiruvchi aqlli yordamchiman. Qaysi xizmat kerakligini ayting (Avtokran, Musor, Gruzchik yoki Asboblar):</p>
             </div>
         `;
     }

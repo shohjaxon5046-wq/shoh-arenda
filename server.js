@@ -398,261 +398,270 @@ function callGroqAPI(apiKey, userMessage, conversationHistory = [], modelName = 
     });
 }
 
-/**
- * 100% Standalone Autonomous Built-in NLP Chat Engine
- * Handles natural language inquiries for tools, crane, trash hauling, movers, and admin reports.
- * Fully supports Uzbek and Russian without needing any external API keys.
- */
-function generateAutonomousAIResponse(userMessage, conversationHistory = [], role = 'customer', adminPin = '') {
-    const text = (userMessage || '').trim();
+// =========================================================================
+// SERVER-SIDE STATEFUL CONVERSATION SESSIONS (MULTI-TURN MEMORY)
+// =========================================================================
+const serverAISessions = new Map();
+
+function getServerSession(sessionId = 'default') {
+    if (!serverAISessions.has(sessionId)) {
+        serverAISessions.set(sessionId, {
+            step: 'init',
+            service_type: null,
+            service_title: null,
+            tool_id: null,
+            estimated_price: 0,
+            deposit_amount: 0,
+            address: null,
+            booking_time: null,
+            phone: null
+        });
+    }
+    return serverAISessions.get(sessionId);
+}
+
+function resetServerSession(sessionId = 'default') {
+    serverAISessions.set(sessionId, {
+        step: 'init',
+        service_type: null,
+        service_title: null,
+        tool_id: null,
+        estimated_price: 0,
+        deposit_amount: 0,
+        address: null,
+        booking_time: null,
+        phone: null
+    });
+    return serverAISessions.get(sessionId);
+}
+
+function extractServerPhoneNumber(text) {
+    if (!text) return null;
+    const cleanStr = text.replace(/[\s\-\(\)\.]/g, '');
+    const fullMatch = cleanStr.match(/(?:\+?998)(9\d|88|33|77|95|99|97|98|94|93|91)\d{7}/);
+    if (fullMatch) {
+        const d = fullMatch[0].replace('+', '');
+        return `+998 ${d.slice(3, 5)} ${d.slice(5, 8)}-${d.slice(8, 10)}-${d.slice(10, 12)}`;
+    }
+    const shortMatch = cleanStr.match(/\b(9\d|88|33|77|95|99|97|98|94|93|91)\d{7}\b/);
+    if (shortMatch) {
+        const d = shortMatch[0];
+        return `+998 ${d.slice(0, 2)} ${d.slice(2, 5)}-${d.slice(5, 7)}-${d.slice(7, 9)}`;
+    }
+    const genericMatch = text.match(/(?:tel|telefon|raqam|phone)\s*:?\s*([+\d\s\-()]{7,18})/i);
+    if (genericMatch && genericMatch[1]) {
+        const d = genericMatch[1].replace(/[^\d+]/g, '');
+        if (d.length >= 7) return d;
+    }
+    return null;
+}
+
+function extractServerBookingTime(text) {
+    if (!text) return null;
+    const explicitMatch = text.match(/(?:vaqti|vaqt|время)\s*:?\s*([^\n,;]+?(?=(?:manzil|tel|telefon|\+?998|$)))/i);
+    if (explicitMatch && explicitMatch[1].trim().length > 2) return explicitMatch[1].trim();
+
+    const timeMatch = text.match(/(?:ertaga|bugun|indin|завтра|сегодня|dushanba|seshanba|chorshanba|payshanba|juma|shanba|yakshanba)\s*(?:soat|v|k)?\s*\d{1,2}(?:[:.]\d{2})?\s*(?:da|ga|gacha)?/i)
+                   || text.match(/soat\s*\d{1,2}(?:[:.]\d{2})?\s*(?:da|ga|gacha)?/i)
+                   || text.match(/\b\d{1,2}[:.]\d{2}\s*(?:da|ga|gacha)?/i);
+    if (timeMatch) return timeMatch[0].trim();
+    return null;
+}
+
+function extractServerAddress(text) {
+    if (!text) return null;
+    const explicitMatch = text.match(/(?:manzil|manzili|адрес)\s*:?\s*([^\n,;]+?(?=(?:vaqti|vaqt|soat|tel|telefon|\+?998|$)))/i);
+    if (explicitMatch && explicitMatch[1].trim().length > 2) return explicitMatch[1].trim();
+
+    const lower = text.toLowerCase();
+    const addressKeywords = ["ko'cha", "kucha", "uy", "kv", "kvartal", "mavze", "massiv", "prospekt", "qoratosh", "chilonzor", "yunusobod", "sergeli", "olmazor", "toshkent"];
+    const hasKeyword = addressKeywords.some(w => lower.includes(w));
+    const hasStreetAndNumber = /[a-zA-Zа-яА-Яo'O'g'G'\s]{3,}\s+\d+/.test(text) && !text.includes('+998');
+
+    if (hasKeyword || hasStreetAndNumber) {
+        let clean = text.replace(/^(manzil\s*:?|manzili\s*:?|адрес\s*:?)/i, '').trim();
+        clean = clean.split(/(?:tel|phone|telefon|vaqt|vaqti|\+?998)/i)[0].trim();
+        return clean.replace(/[,;]+$/, '').trim();
+    }
+    return null;
+}
+
+function detectServerService(text) {
+    if (!text) return null;
     const lower = text.toLowerCase();
 
-    // Check language: is it Russian?
-    const isRussian = /[а-яё]/i.test(text) && (
-        lower.includes('привет') || lower.includes('здравствуй') || lower.includes('добр') ||
-        lower.includes('кран') || lower.includes('мусор') || lower.includes('грузчик') ||
-        lower.includes('инструмент') || lower.includes('аренд') || lower.includes('касс') ||
-        lower.includes('сколько') || lower.includes('цена') || lower.includes('отчет') ||
-        lower.includes('заказ') || lower.includes('наличи') || lower.includes('сумма') ||
-        lower.includes('доставк') || lower.includes('перфоратор') || lower.includes('болгарк')
-    );
+    if (lower.includes('kran') || lower.includes('avtokran') || lower.includes('кран')) {
+        let title = "Avtokran xizmati (25t)";
+        let quote = "Avtokran xizmati: 16t kran — 300 000 so'm/soat (minimal 2 soat), 25t kran — 350 000 so'm/soat (minimal 3 soat).";
+        let estPrice = 1050000;
+        if (lower.includes('16')) { title = "Avtokran 16t"; estPrice = 600000; }
+        return { service_type: 'kran', service_title: title, price_quote: quote, estimated_price: estPrice };
+    }
 
-    // 1. Admin Commands & Financial Reporting
-    const isAdminIntent = lower.includes('/admin') || lower.startsWith('admin') ||
-        lower.includes('kassa') || lower.includes('hisobot') || lower.includes('foyda') || 
-        lower.includes('tushum') || lower.includes('kechikkan') ||
-        lower.includes('касса') || lower.includes('отчет') || lower.includes('прибыль') || lower.includes('выручка');
+    if (lower.includes('musor') || lower.includes('chiqindi') || lower.includes('axlat') || lower.includes('мусор')) {
+        return {
+            service_type: 'musor',
+            service_title: "Qurilish chiqindilarini (musor) olib ketish",
+            price_quote: "Qurilish chiqindilarini (musor) olib ketish narxlari: Gazel (1.5t gacha) — 400 000 so'm, ZIL (5t) — 800 000 so'm. Agar qoplarda bo'lsa — donasi 12 000 so'mdan.",
+            estimated_price: 400000
+        };
+    }
 
-    if (isAdminIntent) {
+    if (lower.includes('gruzchik') || lower.includes('ishchi') || lower.includes('yukchi') || lower.includes('грузчик')) {
+        return {
+            service_type: 'gruzchik',
+            service_title: "Yuk ko'taruvchilar (Gruzchik) xizmati",
+            price_quote: "Yuk ko'taruvchilar (Gruzchik) xizmati: 1 qop uchun 1 qavatga 3 000 so'm (liftda 1 500 so'm). Soatbay ish bo'lsa: 50 000 so'm/soat (kamida 2 soat).",
+            estimated_price: 150000
+        };
+    }
+
+    // Tools catalog check
+    for (const t of PUBLIC_AVAILABLE_TOOLS) {
+        if (lower.includes(t.name.toLowerCase()) || lower.includes(t.brand.toLowerCase()) || lower.includes('perforator') || lower.includes('generator')) {
+            const tool = lower.includes('generator') ? PUBLIC_AVAILABLE_TOOLS[2] : (lower.includes('otboynik') ? PUBLIC_AVAILABLE_TOOLS[1] : t);
+            return {
+                service_type: 'asbob',
+                service_title: tool.name,
+                tool_id: tool.model_id,
+                price_quote: `${tool.name} — Kunlik ijarasi: ${tool.daily_price.toLocaleString()} so'm, Zalog: ${tool.deposit_amount.toLocaleString()} so'm (omborda ${tool.available_count} ta mavjud).`,
+                estimated_price: tool.daily_price,
+                deposit_amount: tool.deposit_amount
+            };
+        }
+    }
+
+    return null;
+}
+
+function generateAutonomousAIResponse(userMessage, conversationHistory = [], role = 'customer', adminPin = '', sessionId = 'default') {
+    const raw = (userMessage || '').trim();
+    const lower = raw.toLowerCase();
+    const session = getServerSession(sessionId);
+
+    // 1. Reset check
+    if (lower === 'bekor qilish' || lower === 'boshidan' || lower === 'yangi zakaz' || lower === 'reset') {
+        resetServerSession(sessionId);
+        return { reply: "Joriy suhbat tozalandi. Qanday xizmat kerak: Avtokran, Musor olib ketish, Gruzchik yoki Qurilish asbobi?", step: 'init' };
+    }
+
+    // 2. Admin command check (/admin 7788)
+    if (lower.startsWith('/admin') || (role === 'admin' && (lower.includes('kassa') || lower.includes('hisobot')))) {
         const hasPin = lower.includes('7788') || adminPin === '7788' || role === 'admin';
         if (hasPin) {
-            const now = new Date();
-            const timeStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString().slice(0, 5);
-            if (isRussian) {
-                return {
-                    reply: `Отчет Главного Администратора (${timeStr}):\n\n` +
-                           `• Касса за сегодня (Выручка): 1 450 000 сум\n` +
-                           `• Удерживаемые залоги: 1 100 000 сум\n` +
-                           `• Чистая прибыль за месяц (P&L): 18 200 000 сум\n` +
-                           `• Просроченные заказы: 1 шт. (Клиент: Али Валиев, +998 90 123-45-67, Перфоратор Bosch)\n\n` +
-                           `Все остальные инструменты возвращаются в срок!`,
-                    function_called: "get_admin_daily_stats"
-                };
-            } else {
-                return {
-                    reply: `Bosh Admin Uchun Jonli Kassa va Biznes Hisoboti (${timeStr}):\n\n` +
-                           `• Bugungi kassa tushumi: 1 450 000 so'm\n` +
-                           `• Saqlanayotgan zaloglar (fond): 1 100 000 so'm\n` +
-                           `• Shu oylik Toza Foyda (P&L): 18 200 000 so'm\n` +
-                           `• Kechikkan buyurtmalar: 1 ta (Mijoz: Ali Valiyev, Tel: +998 90 123-45-67, Uskuna: Bosch GBH 2-26)\n\n` +
-                           `Barcha uskunalar o'z vaqtida nazorat ostida qaytarilmoqda!`,
-                    function_called: "get_admin_daily_stats"
-                };
-            }
-        } else if (lower.includes('kassa') || lower.includes('касса') || lower.includes('foyda') || lower.includes('hisobot') || lower.includes('отчет')) {
-            if (isRussian) {
-                return {
-                    reply: "Финансовый отчет доступен только Администратору. Пожалуйста, укажите секретный PIN-код: /admin [PIN] (например: /admin 7788).",
-                    function_called: "get_admin_daily_stats"
-                };
-            } else {
-                return {
-                    reply: "Ushbu moliyaviy hisobot faqat Kompaniya Admini uchun ochiq. Iltimos, parolingizni kiriting: /admin [PIN] (Masalan: /admin 7788).",
-                    function_called: "get_admin_daily_stats"
-                };
-            }
-        }
-    }
-
-    // 2. Greetings & Salutation
-    const isGreeting = lower === 'salom' || lower.startsWith('salom ') || lower.startsWith('assalom') ||
-        lower.includes('qalaysiz') || lower.includes('yaxshimisiz') || lower.includes('privet') ||
-        lower === 'привет' || lower.startsWith('привет ') || lower.includes('здравствуй') || lower.includes('добрый день');
-
-    const hasSpecificService = lower.includes('kran') || lower.includes('кран') || lower.includes('musor') || lower.includes('мусор') ||
-        lower.includes('gruzchik') || lower.includes('грузчик') || lower.includes('perforator') || lower.includes('generator') ||
-        lower.includes('bolgarka') || lower.includes('otboynik') || lower.includes('svarka') || lower.includes('narx') || lower.includes('цена');
-
-    if (isGreeting && !hasSpecificService) {
-        if (isRussian) {
+            const timeStr = new Date().toLocaleString('uz-UZ');
             return {
-                reply: "Здравствуйте! Добро пожаловать в WMS ARENDA! Какой инструмент или услуга (автокран, вывоз мусора, грузчики) вам требуется?",
-                function_called: null
+                reply: `🔒 **Bosh Admin Rejimi Faol!**\n\n📊 **Bugungi Kassa va Biznes Hisoboti (${timeStr}):**\n• Bugungi kassa tushumi: 1 450 000 so'm\n• Saqlanayotgan zaloglar: 1 100 000 so'm\n• Shu oylik Toza Foyda: 18 200 000 so'm\n• Kechikkan buyurtmalar: 1 ta (Mijoz: Ali Valiyev, Tel: +998 90 123-45-67)\n\nBarcha uskunalar nazorat ostida!`,
+                function_called: "get_admin_daily_stats"
             };
         } else {
-            return {
-                reply: "Assalomu alaykum! WMS Arenda xizmatiga xush kelibsiz! Sizga qanday asbob yoki xizmat (kran, musor, gruzchik) kerak?",
-                function_called: null
-            };
+            return { reply: "🔒 Ushbu hisobot faqat Bosh Admin uchun ochiq. Iltimos, PIN kodni kiriting: /admin 7788", function_called: "get_admin_daily_stats" };
         }
     }
 
-    // 3. Musor (Chiqindi) xizmati bo'yicha:
-    if (lower.includes('musor') || lower.includes('chiqindi') || lower.includes('axlat') || lower.includes('мусор')) {
-        if (isRussian) {
-            return {
-                reply: "Стоимость вывоза строительного мусора по объемам: Газель (до 1.5т) — 400 000 сум, ЗИЛ (5т) — 800 000 сум. Если в мешках — от 12 000 сум за мешок. По какому адресу находится мусор и какой у вас примерный объем?",
-                function_called: "get_service_price",
-                function_result: { service: "musor_olib_ketish" }
+    // Smart extraction
+    const phone = extractServerPhoneNumber(raw);
+    const time = extractServerBookingTime(raw);
+    const address = extractServerAddress(raw);
+    const service = detectServerService(raw);
+
+    if (service) {
+        session.service_type = service.service_type;
+        session.service_title = service.service_title;
+        session.estimated_price = service.estimated_price;
+        session.deposit_amount = service.deposit_amount || 0;
+        session.tool_id = service.tool_id || null;
+    }
+
+    if (phone) session.phone = phone;
+    if (time && session.step !== 'awaiting_address') session.booking_time = time;
+
+    // STEP 4: Phone entered or all required fields captured
+    if (session.step === 'awaiting_phone' || (phone && session.service_type && session.address)) {
+        if (phone) {
+            session.phone = phone;
+            if (!session.booking_time) session.booking_time = time || "Kelishilgan vaqtda";
+
+            // Persist web order to disk / SQLite
+            const orders = loadWebOrders();
+            const orderNum = `ORD-${String(orders.length + 1).padStart(4, '0')}`;
+            const newWebOrder = {
+                id: Date.now(),
+                order_number: orderNum,
+                customer_name: "AI Mijoz",
+                customer_phone: session.phone,
+                service_type: session.service_type,
+                service_details: session.service_title,
+                delivery_address: session.address || 'Toshkent shahri',
+                requested_date: session.booking_time,
+                status: "yangi",
+                created_at: new Date().toLocaleString('uz-UZ'),
+                source: "ai_agent"
             };
+            orders.unshift(newWebOrder);
+            saveWebOrders(orders);
+
+            const receipt = 
+`🎉 BUYURTMANGIZ QABUL QILINDI! #${orderNum}
+
+🛠 Xizmat: ${session.service_title}
+📍 Manzil: ${session.address}
+🕒 Vaqt: ${session.booking_time}
+📞 Telefon: ${session.phone}
+
+Operatorimiz 5 daqiqada siz bilan bog'lanadi!`;
+
+            resetServerSession(sessionId);
+            return { reply: receipt, order_number: orderNum, step: 'completed' };
         } else {
-            return {
-                reply: "Chiqindilarni olib ketish narxlari hajmi bo'yicha: Gazel (1.5t gacha) — 400 000 so'm, ZIL (5t) — 800 000 so'm. Agar qoplarda bo'lsa — donasi 12 000 so'mdan. Sizda chiqindi qaysi manzilda va taxminan qancha hajmda?",
-                function_called: "get_service_price",
-                function_result: { service: "musor_olib_ketish" }
-            };
+            return { reply: "Iltimos, buyurtmani tasdiqlash uchun telefon raqamingizni yozing: (Masalan: +998 90 123-45-67)", step: 'awaiting_phone' };
         }
     }
 
-    // 4. Kran xizmati bo'yicha:
-    if (lower.includes('kran') || lower.includes('avtokran') || lower.includes('кран') || lower.includes('автокран')) {
-        if (isRussian) {
-            return {
-                reply: "Услуги автокрана: 16-тонный кран — 300 000 сум/час (минимальный заказ 2 часа), 25-тонный кран — 350 000 сум/час (минимальный заказ 3 часа). Какой груз необходимо поднять и по какому адресу требуется техника?",
-                function_called: "get_service_price",
-                function_result: { service: "kran" }
-            };
-        } else {
-            return {
-                reply: "Avtokran xizmati bo'yicha: 16 tonnalik kran soatiga 300 000 so'm (minimal 2 soat), 25 tonnalik kran soatiga 350 000 so'm (minimal 3 soat). Sizga qanday yukni ko'tarish uchun va qaysi manzilga kerak?",
-                function_called: "get_service_price",
-                function_result: { service: "kran" }
-            };
+    // STEP 3: Awaiting Time
+    if (session.step === 'awaiting_time') {
+        session.booking_time = time || raw;
+        if (phone) {
+            session.phone = phone;
+            return generateAutonomousAIResponse(phone, conversationHistory, role, adminPin, sessionId);
         }
+        session.step = 'awaiting_phone';
+        return { reply: "Ajoyib! Buyurtmani tasdiqlash uchun telefon raqamingizni yozing: (Masalan: +998 90 123-45-67)", step: 'awaiting_phone' };
     }
 
-    // 5. Gruzchik xizmati bo'yicha:
-    if (lower.includes('gruzchik') || lower.includes('ishchi') || lower.includes('ko\'tarish') || lower.includes('yukchi') || lower.includes('etaj') || lower.includes('грузчик') || lower.includes('подъем') || lower.includes('этаж')) {
-        if (isRussian) {
-            return {
-                reply: "Услуги грузчиков (подъем и переноска грузов): 1 мешок за 1 этаж — 3 000 сум (при наличии лифта — 1 500 сум). Почасовая оплата — 50 000 сум/час за 1 человека. Какой у вас груз, какой этаж и есть ли рабочий лифт?",
-                function_called: "get_service_price",
-                function_result: { service: "gruzchik" }
-            };
-        } else {
-            return {
-                reply: "Yuk ko'taruvchilar (gruzchik) xizmati: 1 qop uchun 1 qavatga 3 000 so'm (lift bo'lsa 1 500 so'm). Soatbay ish bo'lsa 1 kishi uchun 50 000 so'm/soat. Sizda qanday yuk, nechanchi etaj va lift bormi?",
-                function_called: "get_service_price",
-                function_result: { service: "gruzchik" }
-            };
+    // STEP 2: Awaiting Address
+    if (session.step === 'awaiting_address') {
+        session.address = address || raw;
+        if (time) {
+            session.booking_time = time;
+            session.step = 'awaiting_phone';
+            return { reply: `Manzil: ${session.address} qabul qilindi! ✅\nAjoyib! Buyurtmani tasdiqlash uchun telefon raqamingizni yozing: (Masalan: +998 90 123-45-67)`, step: 'awaiting_phone' };
         }
+        session.step = 'awaiting_time';
+        return { reply: `Manzil: ${session.address} qabul qilindi! ✅ Uskuna / xizmat qaysi kunga va soat nechiga kerak?`, step: 'awaiting_time' };
     }
 
-    // 6. Asboblar ijarasi bo'yicha (Real ombor bilan bog'langan):
-    const toolKeywords = [
-        'perforator', 'перфоратор', 'bolgarka', 'болгарка', 'generator', 'генератор',
-        'svarka', 'сварка', 'сварочный', 'otboynik', 'отбойник', 'drel', 'дрель',
-        'pila', 'пила', 'kompressor', 'компрессор', 'vibroplita', 'виброплита',
-        'shurupovert', 'шуруповерт', 'asbob', 'инструмент', 'uskuna', 'oborudovanie',
-        'lazer', 'лазер', 'vibrator', 'вибратор', 'bosch', 'makita', 'resanta', 'honda'
-    ];
-    const isToolQuery = toolKeywords.some(kw => lower.includes(kw)) || lower.includes('bormi') || lower.includes('qancha') || lower.includes('bor') || lower.includes('наличи');
-
-    if (isToolQuery) {
-        let matchedTool = null;
-        for (const t of PUBLIC_AVAILABLE_TOOLS) {
-            const toolLower = t.name.toLowerCase();
-            if (
-                (lower.includes('perforator') || lower.includes('перфоратор')) && toolLower.includes('perforator') ||
-                (lower.includes('otboynik') || lower.includes('отбойник')) && toolLower.includes('otboyniy') ||
-                (lower.includes('generator') || lower.includes('генератор')) && toolLower.includes('generator') ||
-                (lower.includes('svarka') || lower.includes('сварка') || lower.includes('payvandlash')) && toolLower.includes('payvandlash') ||
-                (lower.includes('bolgarka') || lower.includes('болгарка')) && toolLower.includes('bolgarka') ||
-                toolLower.split(' ').some(part => part.length > 3 && lower.includes(part))
-            ) {
-                matchedTool = t;
-                break;
-            }
+    // STEP 1: Service requested
+    if (service) {
+        if (address && time && phone) {
+            session.address = address;
+            session.booking_time = time;
+            session.phone = phone;
+            return generateAutonomousAIResponse(phone, conversationHistory, role, adminPin, sessionId);
         }
-
-        if (matchedTool) {
-            if (isRussian) {
-                return {
-                    reply: `Да, на нашем складе в наличии **${matchedTool.name}** (свободно: ${matchedTool.available_count} шт.)!\n\n` +
-                           `• 1 день аренды: **${matchedTool.daily_price.toLocaleString()} сум**\n` +
-                           `• Сумма залога: **${matchedTool.deposit_amount.toLocaleString()} сум**\n` +
-                           (matchedTool.kit_items?.length ? `• Комплектация: ${matchedTool.kit_items.join(', ')}\n` : '') +
-                           `\nНа сколько дней планируете арендовать?`,
-                    function_called: "check_tool_availability",
-                    function_result: matchedTool
-                };
-            } else {
-                return {
-                    reply: `Ha, hozirda omborimizda **${matchedTool.name}** mavjud (${matchedTool.available_count} ta tayyor)!\n\n` +
-                           `• 1 kunlik ijarasi: **${matchedTool.daily_price.toLocaleString()} so'm**\n` +
-                           `• Zalog summasi: **${matchedTool.deposit_amount.toLocaleString()} so'm**\n` +
-                           (matchedTool.kit_items?.length ? `• Komplekt: ${matchedTool.kit_items.join(', ')}\n` : '') +
-                           `\nNecha kunga olmoqchisiz?`,
-                    function_called: "check_tool_availability",
-                    function_result: matchedTool
-                };
-            }
-        } else {
-            if (isRussian) {
-                let rep = "На нашем складе в наличии следующие инструменты:\n\n";
-                PUBLIC_AVAILABLE_TOOLS.forEach(t => {
-                    rep += `• **${t.name}** — ${t.daily_price.toLocaleString()} сум/день (Залог: ${t.deposit_amount.toLocaleString()} сум)\n`;
-                });
-                rep += "\nКакой именно инструмент вас интересует и на какой срок?";
-                return { reply: rep, function_called: "check_tool_availability" };
-            } else {
-                let rep = "Hozirda omborimizda tayyor turgan asosiy asboblar:\n\n";
-                PUBLIC_AVAILABLE_TOOLS.forEach(t => {
-                    rep += `• **${t.name}** — ${t.daily_price.toLocaleString()} so'm/kun (Zalog: ${t.deposit_amount.toLocaleString()} so'm)\n`;
-                });
-                rep += "\nQaysi uskuna sizga kerak va necha kunga olmoqchisiz?";
-                return { reply: rep, function_called: "check_tool_availability" };
-            }
+        if (address) {
+            session.address = address;
+            session.step = 'awaiting_time';
+            return { reply: `${service.price_quote}\n\nManzil: ${session.address} qabul qilindi! ✅ Uskuna / xizmat qaysi kunga va soat nechiga kerak?`, step: 'awaiting_time' };
         }
+        session.step = 'awaiting_address';
+        return { reply: `${service.price_quote}\n\nManzilingizni yozing (ko'cha, uy raqami)?`, step: 'awaiting_address' };
     }
 
-    // 7. Order Booking (Phone number detected)
-    const phoneMatch = text.match(/(\+?998\s?\d{2}\s?\d{3}\s?\d{2}\s?\d{2})|(\b\d{9}\b)/);
-    if (phoneMatch || lower.includes('zakaz') || lower.includes('buyurtma') || lower.includes('заказ')) {
-        const phone = phoneMatch ? phoneMatch[0] : "+998 90 000-00-00";
-        if (isRussian) {
-            return {
-                reply: `Большое спасибо! Ваш заказ успешно принят.\n\n` +
-                       `• Контактный телефон: ${phone}\n` +
-                       `• Детали: ${text}\n\n` +
-                       `Наш оператор свяжется с вами в течение 5 минут для подтверждения времени и адреса доставки.`,
-                function_called: "create_incoming_order"
-            };
-        } else {
-            return {
-                reply: `Katta rahmat! Buyurtmangiz qabul qilindi.\n\n` +
-                       `• Aloqa telefoni: ${phone}\n` +
-                       `• Buyurtma tafsiloti: ${text}\n\n` +
-                       `Operatorimiz 5 daqiqada siz bilan bog'lanib, yetkazib berish yoki ombordan olib ketish vaqtini tasdiqlaydi.`,
-                function_called: "create_incoming_order"
-            };
-        }
-    }
-
-    // Default polite conversational response
-    if (isRussian) {
-        return {
-            reply: "Здравствуйте! Я ИИ-помощник сервиса WMS ARENDA.\n\n" +
-                   "Я могу помочь вам по следующим направлениям:\n" +
-                   "1. Аренда строительного инструмента (перфоратор, отбойник, генератор, сварка);\n" +
-                   "2. Услуги автокрана (16т, 25т, 50т);\n" +
-                   "3. Вывоз строительного мусора (Газель, ЗИЛ, в мешках);\n" +
-                   "4. Услуги грузчиков (поэтажный подъем, почасовая оплата).\n\n" +
-                   "Подскажите, что именно вас интересует, и я сразу сообщу цены и наличие на складе!",
-            function_called: null
-        };
-    } else {
-        return {
-            reply: "Assalomu alaykum! Men \"WMS ARENDA\" AI yordamchisiman.\n\n" +
-                   "Sizga quyidagi xizmatlar bo'yicha yordam bera olaman:\n" +
-                   "1. Qurilish asboblari ijarasi (perforator, otboynik, generator, svarka va h.k.);\n" +
-                   "2. Avtokran xizmati;\n" +
-                   "3. Chiqindi (musor) olib ketish;\n" +
-                   "4. Gruzchik xizmati.\n\n" +
-                   "Qaysi uskuna yoki xizmat kerakligini aytsangiz, narxi va omborda bor-yo'qligini darhol aytib beraman!",
-            function_called: null
-        };
-    }
+    return {
+        reply: `Assalomu alaykum! WMS Arenda xizmatiga xush kelibsiz!\n\nBiz quyidagi xizmatlarni taqdim etamiz:\n1. 🏗 **Avtokran xizmati** (16t, 25t, 50t);\n2. 🚛 **Qurilish chiqindilarini (musor) olib ketish**;\n3. 👷‍♂️ **Yuk ko'taruvchilar (Gruzchik) xizmati**;\n4. 🛠 **Qurilish asboblari ijarasi** (Perforator, Otboynik, Generator, Svarka va h.k.).\n\nSizga qaysi xizmat yoki uskuna kerak?`,
+        step: 'init'
+    };
 }
 
 const server = http.createServer((req, res) => {
@@ -886,21 +895,26 @@ const server = http.createServer((req, res) => {
                 }
 
                 // Default & Offline: Standalone Autonomous Built-in NLP Engine (Zero keys needed)
-                const autoResponse = generateAutonomousAIResponse(userMessage, history, role, adminPin);
-                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-                res.end(JSON.stringify({
-                    success: true,
-                    live_llm: false,
-                    provider: "builtin",
-                    model: "wms-builtin-nlp",
-                    reply: autoResponse.reply,
-                    function_called: autoResponse.function_called || null,
-                    function_result: autoResponse.function_result || null
-                }));
+                const sessionId = payload.session_id || payload.chat_id || 'default';
+                const autoResponse = generateAutonomousAIResponse(userMessage, history, role, adminPin, sessionId);
+                if (!res.headersSent) {
+                    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({
+                        success: true,
+                        live_llm: false,
+                        provider: "builtin",
+                        model: "wms-builtin-nlp",
+                        reply: autoResponse.reply,
+                        function_called: autoResponse.function_called || null,
+                        function_result: autoResponse.function_result || null
+                    }));
+                }
 
             } catch (e) {
-                res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-                res.end(JSON.stringify({ success: false, error: e.message }));
+                if (!res.headersSent) {
+                    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({ success: false, error: e.message }));
+                }
             }
         });
         return;

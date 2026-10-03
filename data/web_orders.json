@@ -1,0 +1,60 @@
+[
+  {
+    "id": 1791011794510,
+    "order_number": "ORD-0004",
+    "customer_name": "AI Mijoz",
+    "customer_phone": "+998 90 123-45-67",
+    "service_type": "kran",
+    "service_details": "Avtokran xizmati (25t)",
+    "delivery_address": "Qoratosh 52 11",
+    "requested_date": "Ertaga soat 14:00 da",
+    "status": "yangi",
+    "created_at": "03/10/2026, 12:16:34",
+    "source": "ai_agent"
+  },
+  {
+    "id": 1727851200001,
+    "order_number": "WEB-2026-0042",
+    "customer_name": "Sherzodbek Toirov",
+    "customer_phone": "+998 90 912-34-56",
+    "service_type": "asbob_ijarasi",
+    "tool_id": 1,
+    "tool_name": "Perforator Bosch GBH 2-26 DRE",
+    "service_details": "3 kunlik muddatga kerak, ta'mir ishlari uchun",
+    "delivery_address": "Toshkent sh., Olmazor tumani, Qorasaroy ko'chasi 42",
+    "requested_date": "2026-10-03 09:30",
+    "status": "yangi",
+    "created_at": "2026-10-02 12:15",
+    "source": "tashqi_sayt_onlayn"
+  },
+  {
+    "id": 1727851200002,
+    "order_number": "WEB-2026-0043",
+    "customer_name": "Olimjon Rahimov",
+    "customer_phone": "+998 93 789-01-23",
+    "service_type": "musor_olib_ketish",
+    "tool_id": null,
+    "tool_name": null,
+    "service_details": "Qurilish chiqindisi (Musor Gazel) - 40 qop g'isht parchalari",
+    "delivery_address": "Toshkent sh., Yunusobod 14-mavze, 12-uy",
+    "requested_date": "2026-10-02 16:00",
+    "status": "yangi",
+    "created_at": "2026-10-02 12:35",
+    "source": "tashqi_sayt_onlayn"
+  },
+  {
+    "id": 1727851200003,
+    "order_number": "WEB-2026-0044",
+    "customer_name": "Temur Xoliqov",
+    "customer_phone": "+998 97 555-12-89",
+    "service_type": "kran",
+    "tool_id": null,
+    "tool_name": null,
+    "service_details": "Avtokran 25t - 4 soatlik plita ko'tarish",
+    "delivery_address": "Toshkent v., Zangiota tumani, Yangi yo'l",
+    "requested_date": "2026-10-03 08:00",
+    "status": "qabul_qilindi",
+    "created_at": "2026-10-02 11:10",
+    "source": "tashqi_sayt_onlayn"
+  }
+]
