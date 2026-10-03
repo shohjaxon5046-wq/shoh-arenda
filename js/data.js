@@ -826,6 +826,12 @@ function loadDB() {
     if (!DB.service_pricing_rules) {
         DB.service_pricing_rules = JSON.parse(JSON.stringify(DEFAULT_DB.service_pricing_rules));
     }
+
+    // Auto-cleanup stale client caches and hydrate from server SQLite
+    try {
+        autoCleanupClientCache();
+        fetchServerDB();
+    } catch (e) {}
 }
 
 // =========================================================================
@@ -860,6 +866,120 @@ function getLocationOccupancy(locationId) {
     };
 }
 
+// =========================================================================
+// SQLITE REAL-TIME PERSISTENCE & AUTO-CACHE CLEANUP ENGINE
+// =========================================================================
+let _dbSyncTimeout = null;
+let _isSyncing = false;
+let _pendingSync = false;
+
+function syncDBToServer(immediate = false) {
+    if (typeof window === 'undefined' || !window.fetch) return;
+    
+    if (_dbSyncTimeout) {
+        clearTimeout(_dbSyncTimeout);
+        _dbSyncTimeout = null;
+    }
+    
+    const doSync = async () => {
+        if (_isSyncing) {
+            _pendingSync = true;
+            return;
+        }
+        _isSyncing = true;
+        try {
+            const resp = await fetch('/api/db/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(DB)
+            });
+            if (resp.ok) {
+                const resData = await resp.json();
+                console.log('[SQLite Sync] Ma\'lumotlar server SQLite fayliga yozildi:', resData.saved_at);
+            }
+        } catch (err) {
+            console.warn('[SQLite Sync] Server bilan vaqtincha aloqa yo\'q (offline rejim):', err.message);
+        } finally {
+            _isSyncing = false;
+            if (_pendingSync) {
+                _pendingSync = false;
+                syncDBToServer(false);
+            }
+        }
+    };
+
+    if (immediate) {
+        doSync();
+    } else {
+        _dbSyncTimeout = setTimeout(doSync, 250);
+    }
+}
+
+async function fetchServerDB() {
+    if (typeof window === 'undefined' || !window.fetch) return;
+    try {
+        const resp = await fetch('/api/db', { cache: 'no-store' });
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.success && data.db && Object.keys(data.db).length > 0) {
+                const localSaved = localStorage.getItem('WMS_ARENDA_DB_V3');
+                if (!localSaved) {
+                    DB = data.db;
+                    localStorage.setItem('WMS_ARENDA_DB_V3', JSON.stringify(DB));
+                    if (typeof window !== 'undefined') window.DB = DB;
+                    if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges();
+                    if (typeof renderAllTabs === 'function') renderAllTabs();
+                    console.log('[SQLite Sync] Server SQLite bazasidan ma\'lumotlar yuklandi.');
+                }
+            }
+        }
+    } catch (e) {
+        console.log('[SQLite Sync] Serverga ulanish offline holatda:', e.message);
+    }
+}
+
+// Automatic cache & storage cleanup to prevent client memory bloating
+function autoCleanupClientCache() {
+    try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith('wms_tmp_') || k.startsWith('wms_cache_old_') || k.startsWith('temp_order_') || k.startsWith('wms_debug_'))) {
+                keysToRemove.push(k);
+            }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        if (keysToRemove.length > 0) {
+            console.log(`[Cache Cleanup] ${keysToRemove.length} ta eski kesh tozalandi.`);
+        }
+    } catch (e) {}
+}
+
+// Global cache cleaner (Server SQLite + Browser Memory & Cache)
+window.clearSystemCacheAndMemory = async function() {
+    try {
+        autoCleanupClientCache();
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            for (const key of keys) {
+                if (key !== 'wms-arenda-v15.0') {
+                    await caches.delete(key);
+                }
+            }
+        }
+        const resp = await fetch('/api/system/clear-cache', { method: 'POST' });
+        const resJson = await resp.json();
+        if (typeof showNotification === 'function') {
+            showNotification("Xotira va keshlar muvaffaqiyatli tozalandi!", "success");
+        } else {
+            alert("Xotira va keshlar tozalandi!");
+        }
+        return resJson;
+    } catch (e) {
+        console.error('Kesh tozalashda xatolik:', e);
+    }
+};
+
 function saveDB() {
     if (typeof window !== 'undefined') window.DB = DB;
     try {
@@ -868,18 +988,21 @@ function saveDB() {
     try {
         if (typeof updateStatsAndBadges === 'function') updateStatsAndBadges();
     } catch(e) {}
+    // Har bir o'zgarishni darhol serverdagi SQLite fayliga yozib borish
+    syncDBToServer();
 }
 
 function resetDemoData() {
     if (confirm("Haqiqatan ham barcha ma'lumotlarni dastlabki holatga qaytarmoqchimisiz?")) {
         localStorage.removeItem('WMS_ARENDA_DB_V3');
         loadDB();
+        syncDBToServer(true);
         if (typeof renderAllTabs === 'function') renderAllTabs();
         if (typeof renderCatalogCards === 'function') renderCatalogCards();
         if (typeof renderStaffTable === 'function') renderStaffTable();
         if (typeof renderSuppliersLedger === 'function') renderSuppliersLedger();
         if (typeof renderCustomersCRM === 'function') renderCustomersCRM();
-        showNotification("Barcha ma'lumotlar qayta tiklandi!", "success");
+        showNotification("Barcha ma'lumotlar qayta tiklandi va SQLite bazasiga saqlandi!", "success");
     }
 }
 

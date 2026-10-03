@@ -2,10 +2,22 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const dbEngine = require('./db.js');
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = __dirname;
 const DATA_DIR = path.join(__dirname, 'data');
 const WEB_ORDERS_FILE = path.join(DATA_DIR, 'web_orders.json');
+
+// Automatic memory and cache cleanup interval (runs every 30 minutes)
+const CACHE_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
+setInterval(() => {
+    try {
+        const report = dbEngine.cleanupCache(500);
+        console.log(`[Auto Cache Cleanup] Server cache and memory optimized at ${report.cleanedAt}. Memory: RSS ${(report.memoryAfter.rss / 1024 / 1024).toFixed(1)} MB, Heap ${(report.memoryAfter.heapUsed / 1024 / 1024).toFixed(1)} MB`);
+    } catch (e) {
+        console.error('[Auto Cache Cleanup] Error:', e.message);
+    }
+}, CACHE_CLEANUP_INTERVAL_MS);
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -1034,6 +1046,93 @@ const server = http.createServer((req, res) => {
                 res.end(JSON.stringify({ success: false, error: e.message }));
             }
         });
+        return;
+    }
+
+    // 9. GET /api/db (Fetch full persistent database from SQLite)
+    if (req.method === 'GET' && pathname === '/api/db') {
+        try {
+            const entireDB = dbEngine.getEntireDB();
+            const jsonResp = JSON.stringify({
+                success: true,
+                is_sqlite: dbEngine.isSQLiteAvailable,
+                source: dbEngine.isSQLiteAvailable ? 'SQLite (data/wms_database.sqlite)' : 'JSON Backup',
+                db: entireDB,
+                timestamp: new Date().toISOString()
+            });
+            res.writeHead(200, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            });
+            res.end(jsonResp);
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // 10. POST /api/db/sync (Persist full database to SQLite immediately on every change)
+    if (req.method === 'POST' && pathname === '/api/db/sync') {
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', () => {
+            try {
+                const payload = JSON.parse(body || '{}');
+                const saveResult = dbEngine.saveEntireDB(payload);
+                res.writeHead(200, {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                });
+                res.end(JSON.stringify({
+                    success: true,
+                    message: "Barcha ma'lumotlar SQLite bazasiga xavfsiz saqlandi",
+                    is_sqlite: dbEngine.isSQLiteAvailable,
+                    saved_at: saveResult.saved_at,
+                    cache_status: dbEngine.getCacheStatus()
+                }));
+            } catch (e) {
+                res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({ success: false, error: e.message }));
+            }
+        });
+        return;
+    }
+
+    // 11. GET /api/system/cache-status (Database and memory cache status)
+    if (req.method === 'GET' && pathname === '/api/system/cache-status') {
+        try {
+            const status = dbEngine.getCacheStatus();
+            res.writeHead(200, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            });
+            res.end(JSON.stringify({ success: true, status }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+        return;
+    }
+
+    // 12. POST /api/system/clear-cache (Prune logs, reclaim SQLite memory and clean temp files)
+    if (req.method === 'POST' && pathname === '/api/system/clear-cache') {
+        try {
+            const report = dbEngine.cleanupCache(300);
+            res.writeHead(200, {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            });
+            res.end(JSON.stringify({
+                success: true,
+                message: "Server keshlari va xotira muvaffaqiyatli tozalandi",
+                report: report,
+                status: dbEngine.getCacheStatus()
+            }));
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: false, error: e.message }));
+        }
         return;
     }
 
